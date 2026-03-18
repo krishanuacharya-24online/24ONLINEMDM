@@ -1,6 +1,7 @@
 package com.e24online.mdm.web;
 
 import com.e24online.mdm.domain.*;
+import com.e24online.mdm.records.SystemRuleCloneResult;
 import com.e24online.mdm.service.PoliciesCrudService;
 import com.e24online.mdm.web.security.AuthenticatedRequestContext;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,7 +74,7 @@ class PoliciesControllerTest {
         when(policiesCrudService.getRuleRemediationMapping("PRODUCT_ADMIN", "", 16L))
                 .thenReturn(Mono.just(new RuleRemediationMapping()));
         when(policiesCrudService.cloneSystemRule("system", "PRODUCT_ADMIN", "", 10L))
-                .thenReturn(Mono.just(new PoliciesCrudService.SystemRuleCloneResult(new SystemInformationRule(), 2)));
+                .thenReturn(Mono.just(new SystemRuleCloneResult(new SystemInformationRule(), 2)));
 
         assertNotNull(controller.listSystemRules(authentication, null, "ACTIVE", 1, 25).collectList().block());
         assertNotNull(controller.getSystemRule(authentication, null, 10L).block());
@@ -119,8 +120,8 @@ class PoliciesControllerTest {
         TrustScoreDecisionPolicy decisionPolicy = new TrustScoreDecisionPolicy();
         RemediationRule remediationRule = new RemediationRule();
         RuleRemediationMapping mapping = new RuleRemediationMapping();
-        PoliciesCrudService.SystemRuleCloneResult cloneResult =
-                new PoliciesCrudService.SystemRuleCloneResult(new SystemInformationRule(), 1);
+        SystemRuleCloneResult cloneResult =
+                new SystemRuleCloneResult(new SystemInformationRule(), 1);
 
         when(policiesCrudService.createSystemRule(eq("actor"), eq("TENANT_ADMIN"), eq("tenant-a"), any())).thenReturn(Mono.just(systemRule));
         when(policiesCrudService.updateSystemRule(eq("actor"), eq("TENANT_ADMIN"), eq("tenant-a"), eq(1L), any())).thenReturn(Mono.just(systemRule));

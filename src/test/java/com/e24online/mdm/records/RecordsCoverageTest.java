@@ -1,5 +1,6 @@
 package com.e24online.mdm.records;
 
+import com.e24online.mdm.enums.Role;
 import com.e24online.mdm.records.lookup.LookupRow;
 import com.e24online.mdm.records.lookup.LookupUpdateRequest;
 import com.e24online.mdm.records.lookup.LookupUpsertRequest;
@@ -17,6 +18,9 @@ import com.e24online.mdm.records.tenant.TenantKeyMetadataResponse;
 import com.e24online.mdm.records.tenant.TenantKeyRotateResponse;
 import com.e24online.mdm.records.tenant.TenantResponse;
 import com.e24online.mdm.records.tenant.TenantUpsertRequest;
+import com.e24online.mdm.records.ui.DataTablePage;
+import com.e24online.mdm.records.ui.PageParams;
+import com.e24online.mdm.records.user.AccessScope;
 import com.e24online.mdm.records.user.UserPrincipal;
 import com.e24online.mdm.records.user.UserResponse;
 import org.junit.jupiter.api.Test;

@@ -1,6 +1,7 @@
 package com.e24online.mdm.service;
 
 import com.e24online.mdm.domain.*;
+import com.e24online.mdm.records.SystemRuleCloneResult;
 import com.e24online.mdm.repository.*;
 import com.e24online.mdm.service.messaging.PolicyAuditPublisher;
 import com.e24online.mdm.web.dto.PolicyAuditMessage;
@@ -1610,6 +1611,4 @@ public class PoliciesCrudService {
         return Math.min(size, MAX_PAGE_SIZE);
     }
 
-    public record SystemRuleCloneResult(SystemInformationRule rule, int clonedConditions) {
-    }
 }

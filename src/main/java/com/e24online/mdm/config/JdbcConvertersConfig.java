@@ -1,11 +1,9 @@
 package com.e24online.mdm.config;
 
+import com.e24online.mdm.enums.PgObjectToStringConverter;
 import org.jspecify.annotations.NonNull;
-import org.postgresql.util.PGobject;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.core.convert.converter.Converter;
-import org.springframework.data.convert.ReadingConverter;
 import org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration;
 
 import java.util.List;
@@ -19,14 +17,5 @@ public class JdbcConvertersConfig extends AbstractJdbcConfiguration {
         return List.of(PgObjectToStringConverter.INSTANCE);
     }
 
-    @ReadingConverter
-    enum PgObjectToStringConverter implements Converter<PGobject, String> {
-        INSTANCE;
-
-        @Override
-        public String convert(PGobject source) {
-            return source != null ? source.getValue() : null;
-        }
-    }
 }
 

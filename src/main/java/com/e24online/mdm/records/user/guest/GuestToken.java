@@ -1,4 +1,7 @@
-package com.e24online.mdm.records;
+package com.e24online.mdm.records.user.guest;
 
-public class GuestToken {
+public record GuestToken(
+        String token,
+        String resourceId
+) {
 }

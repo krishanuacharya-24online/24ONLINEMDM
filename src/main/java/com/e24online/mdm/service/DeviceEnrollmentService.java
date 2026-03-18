@@ -1,6 +1,10 @@
 package com.e24online.mdm.service;
 
 import com.e24online.mdm.domain.*;
+import com.e24online.mdm.records.AgentEnrollmentClaim;
+import com.e24online.mdm.records.devices.DeviceTokenPrincipal;
+import com.e24online.mdm.records.devices.DeviceTokenRotation;
+import com.e24online.mdm.records.SetupKeyIssue;
 import com.e24online.mdm.repository.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -735,38 +739,4 @@ public class DeviceEnrollmentService {
         return Objects.requireNonNull(value, "transaction returned null");
     }
 
-    public record SetupKeyIssue(
-            Long setupKeyId,
-            String setupKey,
-            String keyHint,
-            OffsetDateTime expiresAt,
-            Integer maxUses,
-            Long targetUserId,
-            Long issuedByUserId
-    ) {
-    }
-
-    public record AgentEnrollmentClaim(
-            String enrollmentNo,
-            String deviceToken,
-            String tokenHint,
-            OffsetDateTime deviceTokenExpiresAt
-    ) {
-    }
-
-    public record DeviceTokenPrincipal(
-            String tenantId,
-            String enrollmentNo,
-            Long enrollmentId
-    ) {
-    }
-
-    public record DeviceTokenRotation(
-            Long enrollmentId,
-            String enrollmentNo,
-            String deviceToken,
-            String tokenHint,
-            OffsetDateTime deviceTokenExpiresAt
-    ) {
-    }
 }

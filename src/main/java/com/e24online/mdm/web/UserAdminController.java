@@ -1,12 +1,12 @@
 package com.e24online.mdm.web;
 
+import com.e24online.mdm.records.user.UserCreateRequest;
+import com.e24online.mdm.records.user.UserUpdateRequest;
 import com.e24online.mdm.records.user.UserResponse;
 import com.e24online.mdm.service.UserAdminService;
 import com.e24online.mdm.web.security.AuthenticatedRequestContext;
 import com.e24online.mdm.records.user.UserPrincipal;
-import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -105,22 +105,4 @@ public class UserAdminController {
         return userAdminService.deleteUser(id, principal);
     }
 
-    public record UserCreateRequest(
-            @NotBlank String username,
-            @NotBlank String password,
-            @NotBlank String role,
-            String status,
-            @JsonAlias({"tenant_id", "tenantId"})
-            String tenantId
-    ) {
-    }
-
-    public record UserUpdateRequest(
-            @NotBlank String role,
-            String status,
-            @JsonAlias({"tenant_id", "tenantId"})
-            String tenantId,
-            String password
-    ) {
-    }
 }

@@ -1,6 +1,7 @@
 package com.e24online.mdm.service;
 
 import com.e24online.mdm.domain.*;
+import com.e24online.mdm.records.IngestionResult;
 import com.e24online.mdm.web.dto.PostureEvaluationMessage;
 import com.e24online.mdm.service.messaging.PostureEvaluationPublisher;
 import com.e24online.mdm.records.posture.evaluation.*;
@@ -131,7 +132,7 @@ public class WorkflowOrchestrationService {
     }
 
     public PosturePayloadIngestResponse ingestAndQueue(String tenantId, PosturePayloadIngestRequest request) {
-        PostureIngestionService.IngestionResult ingestion = ingestionService.ingestWithResolution(tenantId, request);
+        IngestionResult ingestion = ingestionService.ingestWithResolution(tenantId, request);
         DevicePosturePayload payload = ingestion.payload();
         if (payload == null || payload.getId() == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Payload missing after ingest");

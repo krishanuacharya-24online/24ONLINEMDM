@@ -1,6 +1,7 @@
 package com.e24online.mdm.service;
 
 import com.e24online.mdm.config.ReferenceDataSyncProperties;
+import com.e24online.mdm.records.SyncReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -46,7 +47,7 @@ public class ReferenceDataSyncScheduler {
             return;
         }
         try {
-            ReferenceDataSyncService.SyncReport report = syncService.syncAll(trigger);
+            SyncReport report = syncService.syncAll(trigger);
             if (report.success()) {
                 log.info(
                         "Reference sync completed: trigger={} lifecycleUpserts={} appCatalogUpserts={} iosEnriched={} duration={}ms",

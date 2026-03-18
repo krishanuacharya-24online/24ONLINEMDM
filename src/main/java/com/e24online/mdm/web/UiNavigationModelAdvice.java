@@ -1,5 +1,6 @@
 package com.e24online.mdm.web;
 
+import com.e24online.mdm.records.ui.NavVisibility;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -60,20 +61,4 @@ public class UiNavigationModelAdvice {
         return normalized;
     }
 
-    public record NavVisibility(
-            boolean overview,
-            boolean devices,
-            boolean enrollments,
-            boolean payloads,
-            boolean audit,
-            boolean policies,
-            boolean catalog,
-            boolean lookups,
-            boolean tenants,
-            boolean users,
-            boolean reports,
-            boolean osLifecycle,
-            boolean management
-    ) {
-    }
 }

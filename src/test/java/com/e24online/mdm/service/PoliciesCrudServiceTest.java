@@ -8,6 +8,7 @@ import com.e24online.mdm.domain.SystemInformationRule;
 import com.e24online.mdm.domain.SystemInformationRuleCondition;
 import com.e24online.mdm.domain.TrustScoreDecisionPolicy;
 import com.e24online.mdm.domain.TrustScorePolicy;
+import com.e24online.mdm.records.SystemRuleCloneResult;
 import com.e24online.mdm.service.messaging.PolicyAuditPublisher;
 import com.e24online.mdm.web.dto.PolicyAuditMessage;
 import com.e24online.mdm.repository.RejectApplicationRepository;
@@ -549,7 +550,7 @@ class PoliciesCrudServiceTest {
         });
         when(conditionRepository.findByRuleId(701L)).thenReturn(List.of(condition(703L, 701L)));
 
-        PoliciesCrudService.SystemRuleCloneResult result = service.cloneSystemRule(
+        SystemRuleCloneResult result = service.cloneSystemRule(
                 "actor",
                 "TENANT_ADMIN",
                 "tenant-a",

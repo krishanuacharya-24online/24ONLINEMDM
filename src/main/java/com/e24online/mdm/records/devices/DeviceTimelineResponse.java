@@ -1,4 +1,4 @@
-package com.e24online.mdm.records;
+package com.e24online.mdm.records.devices;
 
 import java.util.List;
 

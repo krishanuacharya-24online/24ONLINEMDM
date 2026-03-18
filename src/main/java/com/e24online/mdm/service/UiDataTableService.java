@@ -1,6 +1,6 @@
 package com.e24online.mdm.service;
 
-import com.e24online.mdm.records.DataTablePage;
+import com.e24online.mdm.records.ui.DataTablePage;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;

@@ -4,6 +4,8 @@ import com.e24online.mdm.domain.DeviceDecisionResponse;
 import com.e24online.mdm.domain.PostureEvaluationMatch;
 import com.e24online.mdm.domain.PostureEvaluationRemediation;
 import com.e24online.mdm.domain.PostureEvaluationRun;
+import com.e24online.mdm.records.CreateRunResolution;
+import com.e24online.mdm.records.RemediationStatusUpdateRequest;
 import com.e24online.mdm.repository.DeviceDecisionResponseRepository;
 import com.e24online.mdm.repository.DevicePosturePayloadRepository;
 import com.e24online.mdm.repository.PostureEvaluationMatchRepository;
@@ -13,9 +15,7 @@ import com.e24online.mdm.service.BlockingDb;
 import com.e24online.mdm.service.WorkflowOrchestrationService;
 import com.e24online.mdm.web.dto.CreateEvaluationRunRequest;
 import com.e24online.mdm.web.security.AuthenticatedRequestContext;
-import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -303,15 +303,4 @@ public class EvaluationsController {
         return Math.min(size, MAX_PAGE_SIZE);
     }
 
-    private record CreateRunResolution(PostureEvaluationRun run, boolean evaluate, HttpStatus responseStatus) {
-    }
-
-    public record RemediationStatusUpdateRequest(
-            @NotBlank
-            @JsonAlias({"remediation_status", "remediationStatus"})
-            String remediationStatus,
-            @JsonAlias({"completed_at", "completedAt"})
-            OffsetDateTime completedAt
-    ) {
-    }
 }

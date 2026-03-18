@@ -5,6 +5,10 @@ import com.e24online.mdm.domain.DeviceAgentCredential;
 import com.e24online.mdm.domain.DeviceEnrollment;
 import com.e24online.mdm.domain.DeviceSetupKey;
 import com.e24online.mdm.domain.Tenant;
+import com.e24online.mdm.records.AgentEnrollmentClaim;
+import com.e24online.mdm.records.devices.DeviceTokenPrincipal;
+import com.e24online.mdm.records.devices.DeviceTokenRotation;
+import com.e24online.mdm.records.SetupKeyIssue;
 import com.e24online.mdm.repository.AuthUserRepository;
 import com.e24online.mdm.repository.DeviceAgentCredentialRepository;
 import com.e24online.mdm.repository.DeviceEnrollmentRepository;
@@ -100,7 +104,7 @@ class DeviceEnrollmentServiceTest {
             return key;
         });
 
-        DeviceEnrollmentService.SetupKeyIssue issue = service
+        SetupKeyIssue issue = service
                 .createSetupKeyAsync("Tenant-A", 1L, 2L, null, null, null)
                 .block();
 
@@ -221,7 +225,7 @@ class DeviceEnrollmentServiceTest {
             return saved;
         });
 
-        DeviceEnrollmentService.DeviceTokenRotation rotation = service
+        DeviceTokenRotation rotation = service
                 .rotateDeviceTokenAsync("tenant-a", "admin", 10L, 24L)
                 .block();
 
@@ -317,7 +321,7 @@ class DeviceEnrollmentServiceTest {
             return saved;
         });
 
-        DeviceEnrollmentService.AgentEnrollmentClaim claim = service
+        AgentEnrollmentClaim claim = service
                 .claimWithSetupKeyAsync("ABC-DEF-GHI-JKL", "agent-xyz", "fp-1", "Pixel")
                 .block();
 
@@ -349,7 +353,7 @@ class DeviceEnrollmentServiceTest {
         when(credentialRepository.findActiveByTokenHash(anyString())).thenReturn(Optional.of(credential));
         when(enrollmentRepository.findById(901L)).thenReturn(Optional.of(enrollment));
 
-        DeviceEnrollmentService.DeviceTokenPrincipal principal = service.authenticateDeviceTokenAsync("raw-token").block();
+        DeviceTokenPrincipal principal = service.authenticateDeviceTokenAsync("raw-token").block();
 
         assertNotNull(principal);
         assertEquals("tenant-a", principal.tenantId());

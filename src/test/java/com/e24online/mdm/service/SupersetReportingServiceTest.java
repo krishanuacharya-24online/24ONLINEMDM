@@ -1,6 +1,7 @@
 package com.e24online.mdm.service;
 
 import com.e24online.mdm.config.SupersetReportingProperties;
+import com.e24online.mdm.records.EmbedConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.reactive.function.client.WebClient;
 import tools.jackson.databind.ObjectMapper;
@@ -18,7 +19,7 @@ class SupersetReportingServiceTest {
         properties.setEnabled(false);
 
         SupersetReportingService service = new SupersetReportingService(properties, WebClient.builder(), new ObjectMapper());
-        SupersetReportingService.EmbedConfig config = service.embedConfig();
+        EmbedConfig config = service.embedConfig();
 
         assertFalse(config.enabled());
         assertNull(config.iframeUrl());
@@ -33,7 +34,7 @@ class SupersetReportingServiceTest {
         properties.setIframeSandbox("allow-same-origin");
 
         SupersetReportingService service = new SupersetReportingService(properties, WebClient.builder(), new ObjectMapper());
-        SupersetReportingService.EmbedConfig config = service.embedConfig();
+        EmbedConfig config = service.embedConfig();
 
         assertTrue(config.enabled());
         assertEquals("http://localhost:8088/superset/dashboard/2/?standalone=1", config.iframeUrl());

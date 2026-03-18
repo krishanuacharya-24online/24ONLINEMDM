@@ -1,6 +1,6 @@
 package com.e24online.mdm.service;
 
-import com.e24online.mdm.records.DataTablePage;
+import com.e24online.mdm.records.ui.DataTablePage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

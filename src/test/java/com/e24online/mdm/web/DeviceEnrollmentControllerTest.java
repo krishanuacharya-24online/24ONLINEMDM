@@ -3,6 +3,8 @@ package com.e24online.mdm.web;
 import com.e24online.mdm.domain.DeviceEnrollment;
 import com.e24online.mdm.records.CreateSetupKeyRequest;
 import com.e24online.mdm.records.DeEnrollRequest;
+import com.e24online.mdm.records.devices.DeviceTokenRotation;
+import com.e24online.mdm.records.SetupKeyIssue;
 import com.e24online.mdm.records.user.UserPrincipal;
 import com.e24online.mdm.service.DeviceEnrollmentService;
 import com.e24online.mdm.web.security.AuthenticatedRequestContext;
@@ -49,7 +51,7 @@ class DeviceEnrollmentControllerTest {
     @Test
     void createSetupKey_tenantAdmin_delegatesWithRequestedTarget() {
         UserPrincipal principal = new UserPrincipal(11L, "admin", "TENANT_ADMIN", 1L);
-        DeviceEnrollmentService.SetupKeyIssue issue = new DeviceEnrollmentService.SetupKeyIssue(
+        SetupKeyIssue issue = new SetupKeyIssue(
                 1L, "ABC-DEF-GHI-JKL", "ABC...JKL", OffsetDateTime.now().plusHours(1), 5, 22L, 11L
         );
         when(requestContext.requireUserPrincipal(authentication)).thenReturn(principal);
@@ -59,7 +61,7 @@ class DeviceEnrollmentControllerTest {
                 .thenReturn(Mono.just(issue));
 
         CreateSetupKeyRequest body = new CreateSetupKeyRequest(5, 22L, 60);
-        DeviceEnrollmentService.SetupKeyIssue response = controller
+        SetupKeyIssue response = controller
                 .createSetupKey("tenant-a", authentication, Mono.just(body))
                 .block();
 
@@ -70,7 +72,7 @@ class DeviceEnrollmentControllerTest {
     @Test
     void createSetupKey_tenantUserDefaultsTargetToSelf() {
         UserPrincipal principal = new UserPrincipal(33L, "user", "TENANT_USER", 1L);
-        DeviceEnrollmentService.SetupKeyIssue issue = new DeviceEnrollmentService.SetupKeyIssue(
+        SetupKeyIssue issue = new SetupKeyIssue(
                 2L, "ABC-DEF-GHI-JKL", "ABC...JKL", OffsetDateTime.now().plusHours(1), 1, 33L, 33L
         );
         when(requestContext.requireUserPrincipal(authentication)).thenReturn(principal);
@@ -80,7 +82,7 @@ class DeviceEnrollmentControllerTest {
                 .thenReturn(Mono.just(issue));
 
         CreateSetupKeyRequest body = new CreateSetupKeyRequest(1, null, 30);
-        DeviceEnrollmentService.SetupKeyIssue response = controller
+        SetupKeyIssue response = controller
                 .createSetupKey(null, authentication, Mono.just(body))
                 .block();
 
@@ -144,7 +146,7 @@ class DeviceEnrollmentControllerTest {
         when(enrollmentService.getEnrollmentAsync("tenant-a", 5L, 55L)).thenReturn(Mono.just(enrollment));
         when(enrollmentService.deEnrollAsync("tenant-a", "user", 55L, 5L, "retired")).thenReturn(Mono.just(enrollment));
         when(enrollmentService.rotateDeviceTokenAsync("tenant-a", "user", 55L, 5L))
-                .thenReturn(Mono.just(new DeviceEnrollmentService.DeviceTokenRotation(
+                .thenReturn(Mono.just(new DeviceTokenRotation(
                         5L,
                         "ENR-1",
                         "token",
@@ -160,7 +162,7 @@ class DeviceEnrollmentControllerTest {
                 .block();
         assertNotNull(deEnrollResponse);
 
-        DeviceEnrollmentService.DeviceTokenRotation rotation = controller
+        DeviceTokenRotation rotation = controller
                 .rotateDeviceToken("tenant-a", authentication, 5L)
                 .block();
         assertNotNull(rotation);

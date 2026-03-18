@@ -5,11 +5,10 @@ import com.e24online.mdm.domain.DeviceInstalledApplication;
 import com.e24online.mdm.domain.DevicePosturePayload;
 import com.e24online.mdm.domain.DeviceSystemSnapshot;
 import com.e24online.mdm.domain.DeviceTrustProfile;
-import com.e24online.mdm.domain.DeviceTrustScoreEvent;
-import com.e24online.mdm.domain.PostureEvaluationMatch;
 import com.e24online.mdm.domain.PostureEvaluationRemediation;
 import com.e24online.mdm.domain.PostureEvaluationRun;
 import com.e24online.mdm.domain.RemediationRule;
+import com.e24online.mdm.records.IngestionResult;
 import com.e24online.mdm.service.messaging.PostureEvaluationPublisher;
 import com.e24online.mdm.records.posture.evaluation.EvaluationComputation;
 import com.e24online.mdm.records.posture.evaluation.LifecycleResolution;
@@ -270,7 +269,7 @@ class WorkflowOrchestrationServiceTest {
         payload.setIdempotencyKey("idempo-1");
 
         when(ingestionService.ingestWithResolution("tenant-a", request))
-                .thenReturn(new PostureIngestionService.IngestionResult(payload, true));
+                .thenReturn(new IngestionResult(payload, true));
         when(payloadRepository.claimPayloadForQueue(120L)).thenReturn(1);
 
         PosturePayloadIngestResponse response = service.ingestAndQueue("tenant-a", request);
@@ -298,7 +297,7 @@ class WorkflowOrchestrationServiceTest {
         payload.setProcessStatus("QUEUED");
 
         when(ingestionService.ingestWithResolution("tenant-a", request))
-                .thenReturn(new PostureIngestionService.IngestionResult(payload, false));
+                .thenReturn(new IngestionResult(payload, false));
 
         PosturePayloadIngestResponse response = service.ingestAndQueue("tenant-a", request);
 

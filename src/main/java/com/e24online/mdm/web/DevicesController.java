@@ -1,8 +1,8 @@
 package com.e24online.mdm.web;
 
 import com.e24online.mdm.domain.*;
-import com.e24online.mdm.records.PageParams;
-import com.e24online.mdm.records.Role;
+import com.e24online.mdm.records.ui.PageParams;
+import com.e24online.mdm.enums.Role;
 import com.e24online.mdm.records.tenant.TenantContext;
 import com.e24online.mdm.repository.DeviceDecisionResponseRepository;
 import com.e24online.mdm.repository.DeviceEnrollmentRepository;

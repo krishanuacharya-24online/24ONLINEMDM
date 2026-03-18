@@ -1,5 +1,7 @@
 package com.e24online.mdm.web;
 
+import com.e24online.mdm.records.user.UserCreateRequest;
+import com.e24online.mdm.records.user.UserUpdateRequest;
 import com.e24online.mdm.records.user.UserPrincipal;
 import com.e24online.mdm.records.user.UserResponse;
 import com.e24online.mdm.service.UserAdminService;
@@ -92,13 +94,13 @@ class UserAdminControllerTest {
         UserResponse getResult = controller.getUser(authentication, 2L).block();
         assertEquals("user2", getResult.username());
 
-        UserAdminController.UserCreateRequest createBody =
-                new UserAdminController.UserCreateRequest("newuser", "StrongPass1!", "TENANT_USER", "ACTIVE", "tenant-a");
+        UserCreateRequest createBody =
+                new UserCreateRequest("newuser", "StrongPass1!", "TENANT_USER", "ACTIVE", "tenant-a");
         UserResponse createResult = controller.createUser(authentication, Mono.just(createBody)).block();
         assertEquals(2L, createResult.id());
 
-        UserAdminController.UserUpdateRequest updateBody =
-                new UserAdminController.UserUpdateRequest("TENANT_USER", "INACTIVE", "tenant-a", "NextStrong1!");
+        UserUpdateRequest updateBody =
+                new UserUpdateRequest("TENANT_USER", "INACTIVE", "tenant-a", "NextStrong1!");
         UserResponse updateResult = controller.updateUser(authentication, 2L, Mono.just(updateBody)).block();
         assertEquals("INACTIVE", updateResult.status());
 

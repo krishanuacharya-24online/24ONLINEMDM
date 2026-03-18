@@ -1,6 +1,7 @@
 package com.e24online.mdm.service;
 
 import com.e24online.mdm.domain.DevicePosturePayload;
+import com.e24online.mdm.records.IngestionResult;
 import com.e24online.mdm.repository.DevicePosturePayloadRepository;
 import com.e24online.mdm.web.dto.PosturePayloadIngestRequest;
 import io.github.resilience4j.retry.annotation.Retry;
@@ -236,9 +237,6 @@ public class PostureIngestionService {
             return value;
         }
         return value.substring(0, maxLength);
-    }
-
-    public record IngestionResult(DevicePosturePayload payload, boolean createdNew) {
     }
 
 }

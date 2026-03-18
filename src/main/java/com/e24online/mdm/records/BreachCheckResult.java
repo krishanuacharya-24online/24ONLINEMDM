@@ -1,24 +1,9 @@
-package com.e24online.mdm.utils;
+package com.e24online.mdm.records;
 
 /**
  * Result of breach check with reason code.
  */
-public class BreachCheckResult {
-    private final boolean breached;
-    private final String reasonCode;
-
-    public BreachCheckResult(boolean breached, String reasonCode) {
-        this.breached = breached;
-        this.reasonCode = reasonCode;
-    }
-
-    public boolean isBreached() {
-        return breached;
-    }
-
-    public String getReasonCode() {
-        return reasonCode;
-    }
+public record BreachCheckResult(boolean breached, String reasonCode) {
 
     public String getHumanReadableReason() {
         return switch (reasonCode) {

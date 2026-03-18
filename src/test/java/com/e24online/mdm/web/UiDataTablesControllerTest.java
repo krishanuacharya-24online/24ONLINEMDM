@@ -1,6 +1,7 @@
 package com.e24online.mdm.web;
 
-import com.e24online.mdm.records.DataTablePage;
+import com.e24online.mdm.records.ui.DataTablePage;
+import com.e24online.mdm.records.ui.DataTableResponse;
 import com.e24online.mdm.records.user.UserPrincipal;
 import com.e24online.mdm.service.BlockingDb;
 import com.e24online.mdm.service.UiDataTableService;
@@ -91,7 +92,7 @@ class UiDataTablesControllerTest {
         when(dataTableService.deviceTrustProfiles(2, 0, 25, null, null, "WINDOWS", "TRUSTED", "q", "name", "asc"))
                 .thenReturn(page);
 
-        UiDataTablesController.DataTableResponse<Map<String, Object>> response = controller
+        DataTableResponse<Map<String, Object>> response = controller
                 .deviceTrustProfiles(authentication, 2, 0, 25, "WINDOWS", "TRUSTED", "q", "name", "asc")
                 .block();
 
@@ -108,7 +109,7 @@ class UiDataTablesControllerTest {
         when(dataTableService.deviceTrustProfiles(3, 0, 25, "tenant-a", null, "MACOS", "LOW_RISK", "q", "name", "desc"))
                 .thenReturn(page);
 
-        UiDataTablesController.DataTableResponse<Map<String, Object>> response = controller
+        DataTableResponse<Map<String, Object>> response = controller
                 .deviceTrustProfiles(authentication, 3, 0, 25, "MACOS", "LOW_RISK", "q", "name", "desc")
                 .block();
 
@@ -125,7 +126,7 @@ class UiDataTablesControllerTest {
         when(dataTableService.deviceTrustProfiles(4, 0, 25, "tenant-z", 99L, "LINUX", "HIGH_RISK", "q", "name", "asc"))
                 .thenReturn(page);
 
-        UiDataTablesController.DataTableResponse<Map<String, Object>> response = controller
+        DataTableResponse<Map<String, Object>> response = controller
                 .deviceTrustProfiles(authentication, 4, 0, 25, "LINUX", "HIGH_RISK", "q", "name", "asc")
                 .block();
 
@@ -163,7 +164,7 @@ class UiDataTablesControllerTest {
         when(requestContext.requireUserPrincipal(authentication)).thenReturn(productAdmin);
         when(dataTableService.posturePayloads(5, 0, 25, "tenant-a", "PENDING", "q", "created_at", "desc")).thenReturn(page);
 
-        UiDataTablesController.DataTableResponse<Map<String, Object>> productResponse = controller
+        DataTableResponse<Map<String, Object>> productResponse = controller
                 .posturePayloads(authentication, 5, 0, 25, "tenant-a", "PENDING", "q", "created_at", "desc")
                 .block();
         assertResponse(productResponse, 10);
@@ -173,7 +174,7 @@ class UiDataTablesControllerTest {
         when(requestContext.resolveTenantId(authentication, "tenant-ignored")).thenReturn(Mono.just("tenant-b"));
         when(dataTableService.posturePayloads(6, 0, 25, "tenant-b", "PROCESSED", "q", "created_at", "asc")).thenReturn(page);
 
-        UiDataTablesController.DataTableResponse<Map<String, Object>> tenantResponse = controller
+        DataTableResponse<Map<String, Object>> tenantResponse = controller
                 .posturePayloads(authentication, 6, 0, 25, "tenant-ignored", "PROCESSED", "q", "created_at", "asc")
                 .block();
         assertResponse(tenantResponse, 10);
@@ -194,7 +195,7 @@ class UiDataTablesControllerTest {
         when(dataTableService.users(7, 0, 25, "TENANT_ADMIN", "ACTIVE", null, false, "q", "username", "asc"))
                 .thenReturn(page);
 
-        UiDataTablesController.DataTableResponse<Map<String, Object>> productResponse = controller
+        DataTableResponse<Map<String, Object>> productResponse = controller
                 .users(authentication, 7, 0, 25, "TENANT_ADMIN", "ACTIVE", "q", "username", "asc")
                 .block();
         assertResponse(productResponse, 11);
@@ -204,7 +205,7 @@ class UiDataTablesControllerTest {
         when(dataTableService.users(8, 0, 25, "TENANT_USER", "ACTIVE", 777L, true, "q", "username", "desc"))
                 .thenReturn(page);
 
-        UiDataTablesController.DataTableResponse<Map<String, Object>> tenantResponse = controller
+        DataTableResponse<Map<String, Object>> tenantResponse = controller
                 .users(authentication, 8, 0, 25, "TENANT_USER", "ACTIVE", "q", "username", "desc")
                 .block();
         assertResponse(tenantResponse, 11);
@@ -233,7 +234,7 @@ class UiDataTablesControllerTest {
         );
     }
 
-    private void assertResponse(UiDataTablesController.DataTableResponse<Map<String, Object>> response, int expectedDraw) {
+    private void assertResponse(DataTableResponse<Map<String, Object>> response, int expectedDraw) {
         assertNotNull(response);
         assertEquals(expectedDraw, response.draw());
         assertEquals(100L, response.recordsTotal());

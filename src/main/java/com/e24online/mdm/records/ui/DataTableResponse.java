@@ -1,4 +1,4 @@
-package com.e24online.mdm.records;
+package com.e24online.mdm.records.ui;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

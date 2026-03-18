@@ -1,6 +1,12 @@
 package com.e24online.mdm.service;
 
 import com.e24online.mdm.config.ReferenceDataSyncProperties;
+import com.e24online.mdm.records.CatalogSyncResult;
+import com.e24online.mdm.records.lookup.IosLookup;
+import com.e24online.mdm.records.LifecyclePlatform;
+import com.e24online.mdm.records.SyncReport;
+import com.e24online.mdm.web.dto.AppCatalog;
+import com.e24online.mdm.web.dto.OsLifecycle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
@@ -369,7 +375,7 @@ public class ReferenceDataSyncService {
     }
 
     private int syncOsLifecycle(String actor) {
-        ReferenceDataSyncProperties.OsLifecycle config = properties.getOsLifecycle();
+        OsLifecycle config = properties.getOsLifecycle();
         int upserts = 0;
         int retries = Math.max(1, config.getRetries());
         int timeoutSeconds = Math.max(5, config.getRequestTimeoutSeconds());
@@ -439,7 +445,7 @@ public class ReferenceDataSyncService {
     }
 
     private CatalogSyncResult syncAppCatalog() {
-        ReferenceDataSyncProperties.AppCatalog config = properties.getAppCatalog();
+        AppCatalog config = properties.getAppCatalog();
         int retries = Math.max(1, config.getRetries());
         int timeoutSeconds = Math.max(5, config.getRequestTimeoutSeconds());
         boolean enrichIos = config.isEnrichIosFromItunes();
@@ -639,26 +645,4 @@ public class ReferenceDataSyncService {
         return null;
     }
 
-    private record LifecyclePlatform(String slug, String platformCode, String osType, String osName) {
-    }
-
-    private record IosLookup(String appName, String publisher) {
-    }
-
-    private record CatalogSyncResult(int upserts, int iosEnriched) {
-    }
-
-    public record SyncReport(
-            String trigger,
-            OffsetDateTime startedAt,
-            OffsetDateTime finishedAt,
-            int lifecycleUpserts,
-            int appCatalogUpserts,
-            int iosEnrichedRows,
-            List<String> errors
-    ) {
-        public boolean success() {
-            return errors == null || errors.isEmpty();
-        }
-    }
 }

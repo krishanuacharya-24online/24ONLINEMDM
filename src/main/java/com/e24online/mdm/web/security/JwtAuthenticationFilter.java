@@ -3,6 +3,7 @@ package com.e24online.mdm.web.security;
 import com.e24online.mdm.config.ApiVersionConfig;
 import com.e24online.mdm.domain.AuthUser;
 import com.e24online.mdm.domain.Tenant;
+import com.e24online.mdm.records.TokenClaims;
 import com.e24online.mdm.records.user.UserPrincipal;
 import com.e24online.mdm.repository.AuthUserRepository;
 import com.e24online.mdm.repository.TenantRepository;
@@ -202,14 +203,4 @@ public class JwtAuthenticationFilter implements WebFilter {
                 .orElse(null);
     }
 
-    private record TokenClaims(String username, String role, Long userId, Long tenantId, Long tokenVersion) {
-        private boolean isValid() {
-            return username != null
-                    && !username.isBlank()
-                    && role != null
-                    && !role.isBlank()
-                    && userId != null
-                    && tokenVersion != null;
-        }
-    }
 }

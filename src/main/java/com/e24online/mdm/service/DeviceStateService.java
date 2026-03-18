@@ -4,6 +4,7 @@ import com.e24online.mdm.domain.DeviceInstalledApplication;
 import com.e24online.mdm.domain.DeviceSystemSnapshot;
 import com.e24online.mdm.domain.DeviceTrustProfile;
 import com.e24online.mdm.domain.OsReleaseLifecycleMaster;
+import com.e24online.mdm.records.cache.CachedLifecycleRows;
 import com.e24online.mdm.records.posture.evaluation.LifecycleResolution;
 import com.e24online.mdm.records.posture.evaluation.ParsedPosture;
 import com.e24online.mdm.repository.DeviceInstalledApplicationRepository;
@@ -33,7 +34,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
-import static com.e24online.mdm.service.AgentWorkflowValueUtils.*;
+import static com.e24online.mdm.utils.AgentWorkflowValueUtils.*;
 
 /**
  * Service for managing device state including trust profiles, system snapshots,
@@ -455,6 +456,4 @@ public class DeviceStateService {
         return installedApplicationRepository.findByPayloadId(payloadId);
     }
 
-    private record CachedLifecycleRows(long expiresAtEpochMillis, List<OsReleaseLifecycleMaster> rows) {
-    }
 }

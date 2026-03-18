@@ -243,7 +243,7 @@ public class SecurityConfig {
             return port > 0
                     ? normalizedScheme + "://" + host + ":" + port
                     : normalizedScheme + "://" + host;
-        } catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException _) {
             return null;
         }
     }

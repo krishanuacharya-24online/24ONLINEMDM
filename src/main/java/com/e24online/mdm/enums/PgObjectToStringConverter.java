@@ -1,4 +1,4 @@
-package com.e24online.mdm.records;
+package com.e24online.mdm.enums;
 
 import org.postgresql.util.PGobject;
 import org.springframework.core.convert.converter.Converter;

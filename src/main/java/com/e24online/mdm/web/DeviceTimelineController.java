@@ -1,7 +1,7 @@
 package com.e24online.mdm.web;
 
 import com.e24online.mdm.service.DeviceTimelineService;
-import com.e24online.mdm.web.dto.DeviceTimelineResponse;
+import com.e24online.mdm.records.devices.DeviceTimelineResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -1,4 +1,6 @@
 package com.e24online.mdm.records;
 
-public class IngestionResult {
+import com.e24online.mdm.domain.DevicePosturePayload;
+
+public record IngestionResult(DevicePosturePayload payload, boolean createdNew) {
 }

@@ -1,4 +1,4 @@
-package com.e24online.mdm.service;
+package com.e24online.mdm.utils;
 
 import tools.jackson.databind.JsonNode;
 
@@ -7,16 +7,16 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
-final class AgentWorkflowValueUtils {
+public final class AgentWorkflowValueUtils {
 
-    private AgentWorkflowValueUtils() {
+    public AgentWorkflowValueUtils() {
     }
 
-    static String safeText(String value) {
+    public static String safeText(String value) {
         return value == null ? "" : value.trim();
     }
 
-    static String truncate(String value, int maxLen) {
+    public static String truncate(String value, int maxLen) {
         if (value == null) {
             return null;
         }
@@ -26,14 +26,14 @@ final class AgentWorkflowValueUtils {
         return value.length() <= maxLen ? value : value.substring(0, maxLen);
     }
 
-    static boolean equalsIgnoreCase(String a, String b) {
+    public static boolean equalsIgnoreCase(String a, String b) {
         if (a == null && b == null) {
             return true;
         }
         return a != null && a.equalsIgnoreCase(b);
     }
 
-    static String firstNonBlank(String... values) {
+    public static String firstNonBlank(String... values) {
         if (values == null) {
             return null;
         }
@@ -45,12 +45,12 @@ final class AgentWorkflowValueUtils {
         return null;
     }
 
-    static String normalizeUpper(String value) {
+    public static String normalizeUpper(String value) {
         String trimmed = trimToNull(value);
         return trimmed == null ? null : trimmed.toUpperCase(Locale.ROOT);
     }
 
-    static String trimToNull(String value) {
+    public static String trimToNull(String value) {
         if (value == null) {
             return null;
         }
@@ -58,7 +58,7 @@ final class AgentWorkflowValueUtils {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    static String trimToNullAndCap(String value, int maxLen) {
+    public static String trimToNullAndCap(String value, int maxLen) {
         String trimmed = trimToNull(value);
         if (trimmed == null) {
             return null;
@@ -69,7 +69,7 @@ final class AgentWorkflowValueUtils {
         return trimmed.length() <= maxLen ? trimmed : trimmed.substring(0, maxLen);
     }
 
-    static String text(JsonNode node, String field) {
+    public static String text(JsonNode node, String field) {
         if (node == null || field == null) {
             return null;
         }
@@ -81,7 +81,7 @@ final class AgentWorkflowValueUtils {
         return trimToNull(value);
     }
 
-    static Integer intValue(JsonNode node) {
+    public static Integer intValue(JsonNode node) {
         if (node == null || node.isNull()) {
             return null;
         }
@@ -94,7 +94,7 @@ final class AgentWorkflowValueUtils {
         return null;
     }
 
-    static Boolean boolValue(JsonNode node) {
+    public static Boolean boolValue(JsonNode node) {
         if (node == null || node.isNull()) {
             return null;
         }
@@ -117,7 +117,7 @@ final class AgentWorkflowValueUtils {
         return null;
     }
 
-    static Integer parseIntOrNull(String value) {
+    public static Integer parseIntOrNull(String value) {
         if (value == null) {
             return null;
         }
@@ -128,7 +128,7 @@ final class AgentWorkflowValueUtils {
         }
     }
 
-    static Double toDouble(Object value) {
+    public static Double toDouble(Object value) {
         if (value == null) {
             return null;
         }
@@ -145,7 +145,7 @@ final class AgentWorkflowValueUtils {
         return null;
     }
 
-    static String stringifyNode(JsonNode node) {
+    public static String stringifyNode(JsonNode node) {
         if (node == null || node.isNull()) {
             return null;
         }
@@ -155,7 +155,7 @@ final class AgentWorkflowValueUtils {
         return trimToNull(node.toString());
     }
 
-    static Collection<String> expectedCollection(Object expected) {
+    public static Collection<String> expectedCollection(Object expected) {
         List<String> values = new ArrayList<>();
         if (expected instanceof Collection<?> collection) {
             for (Object item : collection) {
@@ -175,7 +175,7 @@ final class AgentWorkflowValueUtils {
         return values;
     }
 
-    static Short safeShort(Short value, Short fallback) {
+    public static Short safeShort(Short value, Short fallback) {
         return value != null ? value : fallback;
     }
 }

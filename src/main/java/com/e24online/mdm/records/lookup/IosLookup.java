@@ -1,4 +1,4 @@
-package com.e24online.mdm.records;
+package com.e24online.mdm.records.lookup;
 
-public class IosLookup {
+public record IosLookup(String appName, String publisher) {
 }

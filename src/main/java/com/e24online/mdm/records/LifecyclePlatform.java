@@ -1,4 +1,4 @@
 package com.e24online.mdm.records;
 
-public class LifecyclePlatform {
+public record LifecyclePlatform(String slug, String platformCode, String osType, String osName) {
 }

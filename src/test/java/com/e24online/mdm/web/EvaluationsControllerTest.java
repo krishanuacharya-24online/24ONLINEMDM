@@ -3,6 +3,7 @@ package com.e24online.mdm.web;
 import com.e24online.mdm.domain.DevicePosturePayload;
 import com.e24online.mdm.domain.PostureEvaluationRemediation;
 import com.e24online.mdm.domain.PostureEvaluationRun;
+import com.e24online.mdm.records.RemediationStatusUpdateRequest;
 import com.e24online.mdm.repository.DeviceDecisionResponseRepository;
 import com.e24online.mdm.repository.DevicePosturePayloadRepository;
 import com.e24online.mdm.repository.PostureEvaluationMatchRepository;
@@ -167,8 +168,8 @@ class EvaluationsControllerTest {
         when(runRepository.findByIdAndTenant(33L, "tenant-a")).thenReturn(Optional.of(run));
         when(remediationRepository.findByIdAndRunId(77L, 33L)).thenReturn(Optional.of(remediation));
 
-        EvaluationsController.RemediationStatusUpdateRequest body =
-                new EvaluationsController.RemediationStatusUpdateRequest("INVALID", null);
+        RemediationStatusUpdateRequest body =
+                new RemediationStatusUpdateRequest("INVALID", null);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller
                 .updateRunRemediation("tenant-a", authentication, 33L, 77L, Mono.just(body))
@@ -190,8 +191,8 @@ class EvaluationsControllerTest {
         when(remediationRepository.save(any(PostureEvaluationRemediation.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        EvaluationsController.RemediationStatusUpdateRequest body =
-                new EvaluationsController.RemediationStatusUpdateRequest("ACKED", null);
+        RemediationStatusUpdateRequest body =
+                new RemediationStatusUpdateRequest("ACKED", null);
 
         PostureEvaluationRemediation response = controller
                 .updateRunRemediation("tenant-a", authentication, 33L, 77L, Mono.just(body))

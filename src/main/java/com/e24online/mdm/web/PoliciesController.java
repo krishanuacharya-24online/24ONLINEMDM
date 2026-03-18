@@ -1,6 +1,8 @@
 package com.e24online.mdm.web;
 
 import com.e24online.mdm.domain.*;
+import com.e24online.mdm.records.PolicyContext;
+import com.e24online.mdm.records.SystemRuleCloneResult;
 import com.e24online.mdm.service.PoliciesCrudService;
 import com.e24online.mdm.web.security.AuthenticatedRequestContext;
 import jakarta.validation.Valid;
@@ -88,7 +90,7 @@ public class PoliciesController {
     }
 
     @PostMapping("/system-rules/{id}/clone")
-    public Mono<PoliciesCrudService.SystemRuleCloneResult> cloneSystemRule(
+    public Mono<SystemRuleCloneResult> cloneSystemRule(
             Authentication authentication,
             @RequestHeader(name = "X-Tenant-Id", required = false) String tenantId,
             @PathVariable("id") Long id
@@ -404,6 +406,4 @@ public class PoliciesController {
                 .map(tenantId -> new PolicyContext(actor, role, tenantId));
     }
 
-    private record PolicyContext(String actor, String role, String tenantId) {
-    }
 }

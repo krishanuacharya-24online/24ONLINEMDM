@@ -39,7 +39,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static com.e24online.mdm.service.AgentWorkflowValueUtils.*;
+import static com.e24online.mdm.utils.AgentWorkflowValueUtils.*;
 
 /**
  * Legacy workflow retained for backward compatibility.

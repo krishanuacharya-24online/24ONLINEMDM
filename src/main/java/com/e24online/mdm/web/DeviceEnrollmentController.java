@@ -3,6 +3,8 @@ package com.e24online.mdm.web;
 import com.e24online.mdm.domain.DeviceEnrollment;
 import com.e24online.mdm.records.CreateSetupKeyRequest;
 import com.e24online.mdm.records.DeEnrollRequest;
+import com.e24online.mdm.records.devices.DeviceTokenRotation;
+import com.e24online.mdm.records.SetupKeyIssue;
 import com.e24online.mdm.service.DeviceEnrollmentService;
 import com.e24online.mdm.web.security.AuthenticatedRequestContext;
 import com.e24online.mdm.records.user.UserPrincipal;
@@ -37,7 +39,7 @@ public class DeviceEnrollmentController {
     }
 
     @PostMapping("/setup-keys")
-    public Mono<DeviceEnrollmentService.SetupKeyIssue> createSetupKey(
+    public Mono<SetupKeyIssue> createSetupKey(
             @RequestHeader(name = "X-Tenant-Id", required = false) String tenantId,
             Authentication authentication,
             @Valid @RequestBody Mono<CreateSetupKeyRequest> request
@@ -105,7 +107,7 @@ public class DeviceEnrollmentController {
     }
 
     @PostMapping("/{id}/device-token/rotate")
-    public Mono<DeviceEnrollmentService.DeviceTokenRotation> rotateDeviceToken(
+    public Mono<DeviceTokenRotation> rotateDeviceToken(
             @RequestHeader(name = "X-Tenant-Id", required = false) String tenantId,
             Authentication authentication,
             @PathVariable("id") Long id

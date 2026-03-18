@@ -1,5 +1,6 @@
 package com.e24online.mdm.web;
 
+import com.e24online.mdm.records.AgentEnrollmentClaim;
 import com.e24online.mdm.records.QrClaimRequest;
 import com.e24online.mdm.records.SetupKeyClaimRequest;
 import com.e24online.mdm.service.DeviceEnrollmentService;
@@ -23,7 +24,7 @@ public class AgentEnrollmentController {
     }
 
     @PostMapping("/agent/enrollment/claim/setup-key")
-    public Mono<ResponseEntity<DeviceEnrollmentService.AgentEnrollmentClaim>> claimWithSetupKey(
+    public Mono<ResponseEntity<AgentEnrollmentClaim>> claimWithSetupKey(
             @Valid @RequestBody Mono<SetupKeyClaimRequest> request
     ) {
         return request.flatMap(body -> enrollmentService.claimWithSetupKeyAsync(
@@ -36,7 +37,7 @@ public class AgentEnrollmentController {
     }
 
     @PostMapping("/agent/enrollment/claim/qr")
-    public Mono<ResponseEntity<DeviceEnrollmentService.AgentEnrollmentClaim>> claimWithQr(
+    public Mono<ResponseEntity<AgentEnrollmentClaim>> claimWithQr(
             @Valid @RequestBody Mono<QrClaimRequest> request
     ) {
         return request.flatMap(body -> enrollmentService.claimWithQrAsync(

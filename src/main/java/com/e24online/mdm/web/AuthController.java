@@ -3,6 +3,9 @@ package com.e24online.mdm.web;
 import com.e24online.mdm.domain.AuthRefreshToken;
 import com.e24online.mdm.domain.AuthUser;
 import com.e24online.mdm.domain.Tenant;
+import com.e24online.mdm.records.user.ChangePasswordRequest;
+import com.e24online.mdm.records.user.LoginRequest;
+import com.e24online.mdm.records.user.LoginResponse;
 import com.e24online.mdm.repository.AuthRefreshTokenRepository;
 import com.e24online.mdm.repository.AuthUserRepository;
 import com.e24online.mdm.repository.TenantRepository;
@@ -67,17 +70,9 @@ public class AuthController {
         this.localBreachedPasswordService = localBreachedPasswordService;
     }
 
-    public record LoginRequest(String username, String password) {}
-
-    public record MeResponse(String username, String role, Long tenantId) {}
-
-    public record LoginResponse(String username, String role, Long tenantId, boolean passwordBreached) {}
-
-    public record ChangePasswordRequest(String currentPassword, String newPassword, String confirmPassword) {}
-
     @PostMapping("/login")
     public Mono<ResponseEntity<LoginResponse>> login(@RequestBody LoginRequest request,
-                                                  ServerWebExchange exchange) {
+                                                     ServerWebExchange exchange) {
         return blockingDb.mono(() -> {
             String requestedUsername = request == null ? null : normalizeOptionalUsername(request.username());
             if (request == null

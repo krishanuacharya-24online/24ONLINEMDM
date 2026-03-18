@@ -1,11 +1,11 @@
 package com.e24online.mdm.web;
 
-import com.e24online.mdm.records.DataTablePage;
+import com.e24online.mdm.records.ui.DataTablePage;
+import com.e24online.mdm.records.ui.DataTableResponse;
 import com.e24online.mdm.service.BlockingDb;
 import com.e24online.mdm.service.UiDataTableService;
 import com.e24online.mdm.web.security.AuthenticatedRequestContext;
 import com.e24online.mdm.records.user.UserPrincipal;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -507,11 +506,4 @@ public class UiDataTablesController {
         return normalized.isEmpty() ? null : normalized;
     }
 
-    public record DataTableResponse<T>(
-            @JsonProperty("draw") int draw,
-            @JsonProperty("recordsTotal") long recordsTotal,
-            @JsonProperty("recordsFiltered") long recordsFiltered,
-            @JsonProperty("data") List<T> data
-    ) {
-    }
 }

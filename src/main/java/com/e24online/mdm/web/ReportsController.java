@@ -1,5 +1,7 @@
 package com.e24online.mdm.web;
 
+import com.e24online.mdm.records.EmbedConfig;
+import com.e24online.mdm.records.user.guest.GuestTokenResponse;
 import com.e24online.mdm.records.user.UserPrincipal;
 import com.e24online.mdm.service.SupersetReportingService;
 import com.e24online.mdm.web.security.AuthenticatedRequestContext;
@@ -29,7 +31,7 @@ public class ReportsController {
     }
 
     @GetMapping("/superset/config")
-    public Mono<SupersetReportingService.EmbedConfig> getSupersetEmbedConfig() {
+    public Mono<EmbedConfig> getSupersetEmbedConfig() {
         return Mono.just(supersetReportingService.embedConfig());
     }
 
@@ -55,6 +57,4 @@ public class ReportsController {
         return tenantId;
     }
 
-    public record GuestTokenResponse(String token, String resourceId) {
-    }
 }

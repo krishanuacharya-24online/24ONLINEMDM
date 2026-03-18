@@ -1,4 +1,4 @@
 package com.e24online.mdm.records;
 
-public class CatalogSyncResult {
+public record CatalogSyncResult(int upserts, int iosEnriched) {
 }

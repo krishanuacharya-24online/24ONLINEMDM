@@ -6,14 +6,17 @@ import com.e24online.mdm.domain.DeviceTrustScoreEvent;
 import com.e24online.mdm.domain.PostureEvaluationRun;
 import com.e24online.mdm.domain.RejectApplication;
 import com.e24online.mdm.domain.SystemInformationRule;
+import com.e24online.mdm.enums.EventCategory;
+import com.e24online.mdm.enums.EventType;
+import com.e24online.mdm.enums.Severity;
+import com.e24online.mdm.records.devices.DeviceTimelineEvent;
+import com.e24online.mdm.records.devices.DeviceTimelineResponse;
 import com.e24online.mdm.repository.DeviceDecisionResponseRepository;
 import com.e24online.mdm.repository.DeviceTrustProfileRepository;
 import com.e24online.mdm.repository.DeviceTrustScoreEventRepository;
 import com.e24online.mdm.repository.PostureEvaluationRunRepository;
 import com.e24online.mdm.repository.RejectApplicationRepository;
 import com.e24online.mdm.repository.SystemInformationRuleRepository;
-import com.e24online.mdm.web.dto.DeviceTimelineEvent;
-import com.e24online.mdm.web.dto.DeviceTimelineResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -142,8 +145,8 @@ public class DeviceTimelineService {
     private DeviceTimelineEvent toScoreTimelineEvent(DeviceTrustScoreEvent event) {
         String title = "Trust Score Changed";
         String description = buildScoreEventDescription(event);
-        DeviceTimelineEvent.EventCategory category = DeviceTimelineEvent.EventCategory.SCORE;
-        DeviceTimelineEvent.Severity severity = calculateScoreSeverity(event.getScoreDelta());
+        EventCategory category = EventCategory.SCORE;
+        Severity severity = calculateScoreSeverity(event.getScoreDelta());
 
         String ruleName = null;
         if (event.getSystemInformationRuleId() != null) {
@@ -157,7 +160,7 @@ public class DeviceTimelineService {
         return new DeviceTimelineEvent(
                 event.getId(),
                 timestamp,
-                DeviceTimelineEvent.EventType.SCORE_CHANGE,
+                EventType.SCORE_CHANGE,
                 event.getScoreBefore() != null ? event.getScoreBefore().intValue() : null,
                 event.getScoreAfter() != null ? event.getScoreAfter().intValue() : null,
                 event.getScoreDelta() != null ? event.getScoreDelta().intValue() : null,
@@ -190,11 +193,11 @@ public class DeviceTimelineService {
                 scoreDelta
         );
 
-        DeviceTimelineEvent.Severity severity = DeviceTimelineEvent.Severity.INFO;
+        Severity severity = Severity.INFO;
         if ("FAILED".equalsIgnoreCase(run.getEvaluationStatus())) {
-            severity = DeviceTimelineEvent.Severity.CRITICAL;
+            severity = Severity.CRITICAL;
         } else if (scoreDelta < -30) {
-            severity = DeviceTimelineEvent.Severity.WARNING;
+            severity = Severity.WARNING;
         }
 
         OffsetDateTime timestamp = run.getEvaluatedAt() != null ? run.getEvaluatedAt() : run.getCreatedAt();
@@ -202,14 +205,14 @@ public class DeviceTimelineService {
         return new DeviceTimelineEvent(
                 run.getId(),
                 timestamp,
-                DeviceTimelineEvent.EventType.EVALUATION,
+                EventType.EVALUATION,
                 run.getTrustScoreBefore() != null ? run.getTrustScoreBefore().intValue() : null,
                 run.getTrustScoreAfter() != null ? run.getTrustScoreAfter().intValue() : null,
                 run.getTrustScoreDeltaTotal() != null ? run.getTrustScoreDeltaTotal().intValue() : null,
                 run.getDecisionAction(),
                 title,
                 description,
-                DeviceTimelineEvent.EventCategory.SECURITY,
+                EventCategory.SECURITY,
                 severity,
                 null,
                 run.isRemediationRequired(),
@@ -235,11 +238,11 @@ public class DeviceTimelineService {
             description.append(". Remediation required.");
         }
 
-        DeviceTimelineEvent.Severity severity = switch (action) {
-            case "BLOCK" -> DeviceTimelineEvent.Severity.CRITICAL;
-            case "QUARANTINE" -> DeviceTimelineEvent.Severity.WARNING;
-            case "NOTIFY" -> DeviceTimelineEvent.Severity.INFO;
-            default -> DeviceTimelineEvent.Severity.INFO;
+        Severity severity = switch (action) {
+            case "BLOCK" -> Severity.CRITICAL;
+            case "QUARANTINE" -> Severity.WARNING;
+            case "NOTIFY" -> Severity.INFO;
+            default -> Severity.INFO;
         };
 
         OffsetDateTime timestamp = response.getCreatedAt() != null ? response.getCreatedAt() : response.getSentAt();
@@ -247,14 +250,14 @@ public class DeviceTimelineService {
         return new DeviceTimelineEvent(
                 response.getId(),
                 timestamp,
-                DeviceTimelineEvent.EventType.DECISION,
+                EventType.DECISION,
                 null,
                 null,
                 null,
                 response.getDecisionAction(),
                 "Decision: " + action,
                 description.toString(),
-                DeviceTimelineEvent.EventCategory.DECISION,
+                EventCategory.DECISION,
                 severity,
                 null,
                 response.isRemediationRequired(),
@@ -298,17 +301,17 @@ public class DeviceTimelineService {
         return sb.toString();
     }
 
-    private DeviceTimelineEvent.Severity calculateScoreSeverity(Short scoreDelta) {
+    private Severity calculateScoreSeverity(Short scoreDelta) {
         if (scoreDelta == null) {
-            return DeviceTimelineEvent.Severity.INFO;
+            return Severity.INFO;
         }
 
         if (scoreDelta >= 0) {
-            return DeviceTimelineEvent.Severity.INFO;
+            return Severity.INFO;
         } else if (scoreDelta >= -20) {
-            return DeviceTimelineEvent.Severity.WARNING;
+            return Severity.WARNING;
         } else {
-            return DeviceTimelineEvent.Severity.CRITICAL;
+            return Severity.CRITICAL;
         }
     }
 

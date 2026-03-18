@@ -3,6 +3,9 @@ package com.e24online.mdm.web;
 import com.e24online.mdm.domain.AuthRefreshToken;
 import com.e24online.mdm.domain.AuthUser;
 import com.e24online.mdm.domain.Tenant;
+import com.e24online.mdm.records.user.ChangePasswordRequest;
+import com.e24online.mdm.records.user.LoginRequest;
+import com.e24online.mdm.records.user.LoginResponse;
 import com.e24online.mdm.records.user.UserPrincipal;
 import com.e24online.mdm.repository.AuthRefreshTokenRepository;
 import com.e24online.mdm.repository.AuthUserRepository;
@@ -101,8 +104,8 @@ class AuthControllerTest {
     void login_returnsBadRequestWhenRequestInvalid() {
         MockServerWebExchange exchange = exchange("/auth/login");
 
-        ResponseEntity<AuthController.LoginResponse> response = controller
-                .login(new AuthController.LoginRequest(" ", " "), exchange)
+        ResponseEntity<LoginResponse> response = controller
+                .login(new LoginRequest(" ", " "), exchange)
                 .block();
 
         assertNotNull(response);
@@ -114,8 +117,8 @@ class AuthControllerTest {
         MockServerWebExchange exchange = exchange("/auth/login");
         when(userRepository.findByUsernameAndIsDeletedFalse("alice")).thenReturn(Optional.empty());
 
-        ResponseEntity<AuthController.LoginResponse> response = controller
-                .login(new AuthController.LoginRequest("alice", "StrongPass1!"), exchange)
+        ResponseEntity<LoginResponse> response = controller
+                .login(new LoginRequest("alice", "StrongPass1!"), exchange)
                 .block();
 
         assertNotNull(response);
@@ -133,8 +136,8 @@ class AuthControllerTest {
         when(jwtService.generateRefreshToken(user, "jti-existing")).thenReturn("refresh-token");
         when(refreshRepository.findByUserId(11L)).thenReturn(List.of(activeRefreshToken(11L, "jti-existing")));
 
-        ResponseEntity<AuthController.LoginResponse> response = controller
-                .login(new AuthController.LoginRequest("alice", "StrongPass1!"), exchange)
+        ResponseEntity<LoginResponse> response = controller
+                .login(new LoginRequest("alice", "StrongPass1!"), exchange)
                 .block();
 
         assertNotNull(response);
@@ -158,8 +161,8 @@ class AuthControllerTest {
         when(jwtService.newJti()).thenReturn("jti-new");
         when(jwtService.generateRefreshToken(user, "jti-new")).thenReturn("refresh-token");
 
-        ResponseEntity<AuthController.LoginResponse> response = controller
-                .login(new AuthController.LoginRequest("bob", "StrongPass1!"), exchange)
+        ResponseEntity<LoginResponse> response = controller
+                .login(new LoginRequest("bob", "StrongPass1!"), exchange)
                 .block();
 
         assertNotNull(response);
@@ -257,8 +260,8 @@ class AuthControllerTest {
     @Test
     void changePassword_returnsUnauthorizedWhenAuthenticationMissing() {
         MockServerWebExchange exchange = exchange("/auth/change-password");
-        AuthController.ChangePasswordRequest request =
-                new AuthController.ChangePasswordRequest("OldPass1!", "NewStrongPass1!", "NewStrongPass1!");
+        ChangePasswordRequest request =
+                new ChangePasswordRequest("OldPass1!", "NewStrongPass1!", "NewStrongPass1!");
 
         ResponseEntity<Map<String, String>> response = controller.changePassword(request, null, exchange).block();
 
@@ -273,8 +276,8 @@ class AuthControllerTest {
                 new UserPrincipal(41L, "erin", "TENANT_USER", 1L),
                 null
         );
-        AuthController.ChangePasswordRequest request =
-                new AuthController.ChangePasswordRequest("OldPass1!", "weak", "weak");
+        ChangePasswordRequest request =
+                new ChangePasswordRequest("OldPass1!", "weak", "weak");
 
         ResponseEntity<Map<String, String>> response = controller.changePassword(request, auth, exchange).block();
 
@@ -289,8 +292,8 @@ class AuthControllerTest {
                 new UserPrincipal(52L, "frank", "TENANT_USER", 1L),
                 null
         );
-        AuthController.ChangePasswordRequest request =
-                new AuthController.ChangePasswordRequest("OldPass1!", "NewStrongPass1!", "NewStrongPass1!");
+        ChangePasswordRequest request =
+                new ChangePasswordRequest("OldPass1!", "NewStrongPass1!", "NewStrongPass1!");
 
         AuthUser user = activeUser(52L, "frank", "old-hash");
         user.setTokenVersion(3L);

@@ -1,4 +1,14 @@
 package com.e24online.mdm.records;
 
-public class SetupKeyIssue {
+import java.time.OffsetDateTime;
+
+public record SetupKeyIssue(
+        Long setupKeyId,
+        String setupKey,
+        String keyHint,
+        OffsetDateTime expiresAt,
+        Integer maxUses,
+        Long targetUserId,
+        Long issuedByUserId
+) {
 }

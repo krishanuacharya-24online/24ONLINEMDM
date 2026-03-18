@@ -1,4 +1,4 @@
-package com.e24online.mdm.records;
+package com.e24online.mdm.records.devices;
 
 import com.e24online.mdm.enums.EventCategory;
 import com.e24online.mdm.enums.EventType;

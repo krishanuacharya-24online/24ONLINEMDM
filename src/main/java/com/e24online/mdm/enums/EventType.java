@@ -1,4 +1,4 @@
-package com.e24online.mdm.web.dto;
+package com.e24online.mdm.enums;
 
 public enum EventType {
     SCORE_CHANGE,

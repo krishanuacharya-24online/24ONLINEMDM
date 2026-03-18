@@ -1,5 +1,6 @@
 package com.e24online.mdm.config;
 
+import com.e24online.mdm.enums.PgObjectToStringConverter;
 import org.junit.jupiter.api.Test;
 import org.postgresql.util.PGobject;
 import org.springframework.core.convert.converter.Converter;
@@ -20,7 +21,7 @@ class JdbcConvertersConfigTest {
 
         List<?> converters = config.userConverters();
         assertEquals(1, converters.size());
-        assertSame(JdbcConvertersConfig.PgObjectToStringConverter.INSTANCE, converters.getFirst());
+        assertSame(PgObjectToStringConverter.INSTANCE, converters.getFirst());
 
         Converter<PGobject, String> converter = (Converter<PGobject, String>) converters.getFirst();
         PGobject pg = new PGobject();

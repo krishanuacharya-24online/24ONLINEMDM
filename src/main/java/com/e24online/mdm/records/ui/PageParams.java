@@ -1,4 +1,4 @@
-package com.e24online.mdm.records;
+package com.e24online.mdm.records.ui;
 
 /**
  * Holds pagination parameters after normalization.

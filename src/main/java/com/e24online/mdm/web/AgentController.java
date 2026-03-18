@@ -4,6 +4,7 @@ import com.e24online.mdm.domain.DeviceDecisionResponse;
 import com.e24online.mdm.domain.DevicePosturePayload;
 import com.e24online.mdm.domain.Tenant;
 import com.e24online.mdm.domain.TenantApiKey;
+import com.e24online.mdm.records.cache.CachedTenantAccess;
 import com.e24online.mdm.repository.DeviceDecisionResponseRepository;
 import com.e24online.mdm.repository.DevicePosturePayloadRepository;
 import com.e24online.mdm.repository.TenantApiKeyRepository;
@@ -427,6 +428,4 @@ public class AgentController {
         return response;
     }
 
-    private record CachedTenantAccess(long expiresAtEpochMillis) {
-    }
 }

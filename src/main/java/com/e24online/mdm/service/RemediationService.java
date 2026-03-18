@@ -25,7 +25,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.e24online.mdm.service.AgentWorkflowValueUtils.*;
+import static com.e24online.mdm.utils.AgentWorkflowValueUtils.*;
 
 /**
  * Service for managing remediation rules and generating remediation actions.

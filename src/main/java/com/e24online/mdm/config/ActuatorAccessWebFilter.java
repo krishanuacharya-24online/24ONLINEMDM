@@ -1,5 +1,6 @@
 package com.e24online.mdm.config;
 
+import com.e24online.mdm.records.CidrBlock;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,8 +72,7 @@ public class ActuatorAccessWebFilter implements WebFilter {
     }
 
     private boolean isPublicProbePath(String path) {
-        return "/actuator/health/liveness".equals(path)
-                || "/actuator/health/readiness".equals(path);
+        return "/actuator/health/liveness".equals(path) || "/actuator/health/readiness".equals(path);
     }
 
     private List<CidrBlock> parseCidrList(String raw) {
@@ -107,7 +107,7 @@ public class ActuatorAccessWebFilter implements WebFilter {
             }
             try {
                 prefixLength = Integer.parseInt(prefixPart);
-            } catch (NumberFormatException ex) {
+            } catch (NumberFormatException _) {
                 throw new IllegalArgumentException("CIDR prefix is not numeric");
             }
         }
@@ -121,31 +121,9 @@ public class ActuatorAccessWebFilter implements WebFilter {
                 throw new IllegalArgumentException("CIDR prefix out of range for address family");
             }
             return new CidrBlock(network, resolvedPrefix);
-        } catch (UnknownHostException ex) {
+        } catch (UnknownHostException _) {
             throw new IllegalArgumentException("Invalid CIDR address");
         }
     }
 
-    private record CidrBlock(byte[] network, int prefixLength) {
-
-        private boolean contains(InetAddress address) {
-            byte[] candidate = address.getAddress();
-            if (candidate.length != network.length) {
-                return false;
-            }
-            int fullBytes = prefixLength / 8;
-            int remainingBits = prefixLength % 8;
-
-            for (int i = 0; i < fullBytes; i++) {
-                if (network[i] != candidate[i]) {
-                    return false;
-                }
-            }
-            if (remainingBits == 0) {
-                return true;
-            }
-            int mask = (0xFF << (8 - remainingBits)) & 0xFF;
-            return (network[fullBytes] & mask) == (candidate[fullBytes] & mask);
-        }
-    }
 }

@@ -1,6 +1,7 @@
 package com.e24online.mdm.service;
 
 import com.e24online.mdm.domain.*;
+import com.e24online.mdm.records.cache.CacheEntry;
 import com.e24online.mdm.records.posture.evaluation.*;
 import com.e24online.mdm.repository.*;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,7 +28,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-import static com.e24online.mdm.service.AgentWorkflowValueUtils.*;
+import static com.e24online.mdm.utils.AgentWorkflowValueUtils.*;
 
 /**
  * Service for evaluating device posture against rules and policies.
@@ -678,6 +679,4 @@ public class EvaluationEngineService {
         }
     }
 
-    private record CacheEntry<T>(long expiresAtEpochMillis, T value) {
-    }
 }

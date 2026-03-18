@@ -1,4 +1,11 @@
 package com.e24online.mdm.records;
 
-public class AgentEnrollmentClaim {
+import java.time.OffsetDateTime;
+
+public record AgentEnrollmentClaim(
+        String enrollmentNo,
+        String deviceToken,
+        String tokenHint,
+        OffsetDateTime deviceTokenExpiresAt
+) {
 }

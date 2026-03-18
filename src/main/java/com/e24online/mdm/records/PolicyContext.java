@@ -1,4 +1,4 @@
 package com.e24online.mdm.records;
 
-public class PolicyContext {
+public record PolicyContext(String actor, String role, String tenantId) {
 }

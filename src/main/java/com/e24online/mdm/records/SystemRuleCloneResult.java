@@ -1,4 +1,6 @@
 package com.e24online.mdm.records;
 
-public class SystemRuleCloneResult {
+import com.e24online.mdm.domain.SystemInformationRule;
+
+public record SystemRuleCloneResult(SystemInformationRule rule, int clonedConditions) {
 }

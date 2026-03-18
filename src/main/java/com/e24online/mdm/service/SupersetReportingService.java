@@ -1,6 +1,8 @@
 package com.e24online.mdm.service;
 
 import com.e24online.mdm.config.SupersetReportingProperties;
+import com.e24online.mdm.records.EmbedConfig;
+import com.e24online.mdm.records.user.guest.GuestToken;
 import com.e24online.mdm.records.user.UserPrincipal;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
@@ -453,21 +455,4 @@ public class SupersetReportingService {
         return ". Response: " + trimmed;
     }
 
-    public record EmbedConfig(
-            boolean enabled,
-            String iframeUrl,
-            String iframeSandbox,
-            boolean guestTokenEnabled,
-            String message,
-            String supersetDomain,
-            String resourceId,
-            String embeddedDashboardId
-    ) {
-    }
-
-    public record GuestToken(
-            String token,
-            String resourceId
-    ) {
-    }
 }

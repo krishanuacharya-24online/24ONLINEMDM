@@ -1,5 +1,6 @@
 package com.e24online.mdm.web;
 
+import com.e24online.mdm.records.SyncReport;
 import com.e24online.mdm.service.BlockingDb;
 import com.e24online.mdm.service.ReferenceDataSyncService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,7 +32,7 @@ public class ReferenceDataSyncAdminController {
             @RequestParam(name = "trigger", defaultValue = "manual-api") String trigger
     ) {
         return blockingDb.mono(() -> {
-            ReferenceDataSyncService.SyncReport report = syncService.syncAll(trigger);
+            SyncReport report = syncService.syncAll(trigger);
             return toResponse(report);
         });
     }
@@ -41,7 +42,7 @@ public class ReferenceDataSyncAdminController {
         return blockingDb.mono(() -> toResponse(syncService.latestReport().orElse(null)));
     }
 
-    private Map<String, Object> toResponse(ReferenceDataSyncService.SyncReport report) {
+    private Map<String, Object> toResponse(SyncReport report) {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("has_report", report != null);
         response.put("trigger", report == null ? null : report.trigger());
