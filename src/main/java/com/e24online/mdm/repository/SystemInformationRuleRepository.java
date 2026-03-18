@@ -59,7 +59,7 @@ public interface SystemInformationRuleRepository extends CrudRepository<SystemIn
               AND status = 'ACTIVE'
               AND effective_from <= :asOf
               AND (effective_to IS NULL OR effective_to > :asOf)
-              AND (:osType IS NULL OR os_type = :osType)
+              AND (:osType IS NULL OR os_type = :osType::text)
               AND (
                 (:tenantId IS NULL AND tenant_id IS NULL)
                 OR (

@@ -2,11 +2,21 @@ package com.e24online.mdm.service;
 
 import com.e24online.mdm.domain.*;
 import com.e24online.mdm.records.cache.CacheEntry;
-import com.e24online.mdm.records.posture.evaluation.*;
-import com.e24online.mdm.repository.*;
-import org.springframework.beans.factory.annotation.Value;
+import com.e24online.mdm.records.posture.evaluation.AppliedPolicy;
+import com.e24online.mdm.records.posture.evaluation.EvaluationComputation;
+import com.e24online.mdm.records.posture.evaluation.LifecycleResolution;
+import com.e24online.mdm.records.posture.evaluation.MatchDraft;
+import com.e24online.mdm.records.posture.evaluation.ParsedPosture;
+import com.e24online.mdm.records.posture.evaluation.ScoreSignal;
+import com.e24online.mdm.repository.DeviceTrustScoreEventRepository;
+import com.e24online.mdm.repository.RejectApplicationRepository;
+import com.e24online.mdm.repository.SystemInformationRuleConditionRepository;
+import com.e24online.mdm.repository.SystemInformationRuleRepository;
+import com.e24online.mdm.repository.TrustScoreDecisionPolicyRepository;
+import com.e24online.mdm.repository.TrustScorePolicyRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.scheduler.Scheduler;
 import tools.jackson.databind.JsonNode;
@@ -32,7 +42,7 @@ import static com.e24online.mdm.utils.AgentWorkflowValueUtils.*;
 
 /**
  * Service for evaluating device posture against rules and policies.
- * Handles rule matching, trust score computation, and decision making.
+ * Handles rule matching, trust score computation, and decision-making.
  */
 @Service
 public class EvaluationEngineService {
@@ -258,7 +268,7 @@ public class EvaluationEngineService {
     }
 
     private List<SystemInformationRule> activeSystemRules(ParsedPosture parsed, OffsetDateTime now) {
-        String cacheKey = String.valueOf(parsed.tenantId()) + "|" + String.valueOf(parsed.osType());
+        String cacheKey = parsed.tenantId() + "|" + parsed.osType();
         List<SystemInformationRule> rules = getCached(
                 systemRuleCache,
                 cacheKey,
@@ -302,7 +312,7 @@ public class EvaluationEngineService {
     }
 
     private List<RejectApplication> activeRejectApps(String tenantId, String osType, OffsetDateTime now) {
-        String cacheKey = String.valueOf(tenantId) + "|" + String.valueOf(osType);
+        String cacheKey = tenantId + "|" + osType;
         return getCached(
                 rejectApplicationCache,
                 cacheKey,

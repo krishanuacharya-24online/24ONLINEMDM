@@ -8,22 +8,30 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class SupersetReportingService {
 
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
             new ParameterizedTypeReference<>() {};
+    private static final List<String> DEFAULT_ALLOWED_DOMAINS = List.of(
+            "http://localhost:8080",
+            "http://127.0.0.1:8080"
+    );
     private static final TypeReference<Map<String, Object>> JACKSON_MAP_TYPE =
             new TypeReference<>() {};
 
@@ -170,9 +178,7 @@ public class SupersetReportingService {
                                            String tenantId,
                                            String resourceId) {
         Map<String, Object> body = buildGuestTokenRequest(principal, tenantId, resourceId);
-        if (body == null) {
-            return Mono.error(new IllegalStateException("Superset guest token request cannot be created from current configuration."));
-        }
+        String referer = normalizeBaseUrl(properties.getBaseUrl());
 
         return webClient.post()
                 .uri("/api/v1/security/guest_token/")
@@ -182,41 +188,52 @@ public class SupersetReportingService {
                     if (!isBlank(csrfToken)) {
                         headers.set("X-CSRFToken", csrfToken);
                     }
-                    String referer = normalizeBaseUrl(properties.getBaseUrl());
                     if (referer != null) {
                         headers.set(HttpHeaders.REFERER, referer);
                     }
                 })
                 .bodyValue(body)
-                .exchangeToMono(response -> {
-                    return response.bodyToMono(String.class)
-                            .defaultIfEmpty("")
-                            .flatMap(raw -> {
-                                if (!response.statusCode().is2xxSuccessful()) {
-                                    return Mono.error(new IllegalStateException(
-                                            "Superset guest token request failed with status "
-                                                    + response.statusCode().value() + formatBodyHint(raw)));
-                                }
-                                if (isBlank(raw)) {
-                                    return Mono.error(new IllegalStateException("Superset guest token response is empty."));
-                                }
+                .exchangeToMono(response ->
+                        response.bodyToMono(String.class)
+                                .defaultIfEmpty("")
+                                .flatMap(rawResponse -> handleGuestTokenResponse(response, rawResponse))
+                );
+    }
 
-                                Map<String, Object> payload;
-                                try {
-                                    payload = objectMapper.readValue(raw, JACKSON_MAP_TYPE);
-                                } catch (Exception ex) {
-                                    return Mono.error(new IllegalStateException(
-                                            "Superset guest token response is not valid JSON." + formatBodyHint(raw)));
-                                }
+    private Mono<String> handleGuestTokenResponse(ClientResponse response, String rawResponse) {
+        if (!response.statusCode().is2xxSuccessful()) {
+            return Mono.error(new IllegalStateException(
+                    "Superset guest token request failed with status "
+                            + response.statusCode().value()
+                            + formatBodyHint(rawResponse)
+            ));
+        }
 
-                                String token = extractGuestToken(payload);
-                                if (token == null) {
-                                    return Mono.error(new IllegalStateException(
-                                            "Superset guest token response is missing token." + formatBodyHint(raw)));
-                                }
-                                return Mono.just(token);
-                            });
-                });
+        if (isBlank(rawResponse)) {
+            return Mono.error(new IllegalStateException(
+                    "Superset guest token response is empty."
+            ));
+        }
+
+        Map<String, Object> payload;
+        try {
+            payload = objectMapper.readValue(rawResponse, JACKSON_MAP_TYPE);
+        } catch (Exception _) {
+            return Mono.error(new IllegalStateException(
+                    "Superset guest token response is not valid JSON."
+                            + formatBodyHint(rawResponse)
+            ));
+        }
+
+        String token = extractGuestToken(payload);
+        if (token == null) {
+            return Mono.error(new IllegalStateException(
+                    "Superset guest token response is missing token."
+                            + formatBodyHint(rawResponse)
+            ));
+        }
+
+        return Mono.just(token);
     }
 
     private Mono<String> resolveGuestResourceId(WebClient webClient, String accessToken) {
@@ -282,17 +299,18 @@ public class SupersetReportingService {
 
     private List<String> parseEmbeddedAllowedDomains() {
         String raw = normalizeOptionalText(properties.getEmbeddedAllowedDomains());
+
         if (raw == null) {
-            return List.of("http://localhost:8080", "http://127.0.0.1:8080");
+            return DEFAULT_ALLOWED_DOMAINS;
         }
-        List<String> parsed = List.of(raw.split(",")).stream()
+
+        List<String> parsed = Arrays.stream(raw.split(","))
                 .map(this::normalizeOptionalText)
-                .filter(value -> value != null)
+                .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-        return parsed.isEmpty()
-                ? List.of("http://localhost:8080", "http://127.0.0.1:8080")
-                : parsed;
+
+        return parsed.isEmpty() ? DEFAULT_ALLOWED_DOMAINS : parsed;
     }
 
     private Mono<String> extractEmbeddedDashboardId(Map<String, Object> body) {
@@ -310,7 +328,7 @@ public class SupersetReportingService {
     private Map<String, Object> buildGuestTokenRequest(UserPrincipal principal, String tenantId, String resourceId) {
         String resourceType = defaultString(normalizeOptionalText(properties.getResourceType()), "dashboard");
         if (resourceId == null) {
-            return null;
+            return Collections.emptyMap();
         }
 
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -379,7 +397,7 @@ public class SupersetReportingService {
                 return normalized.substring(0, normalized.length() - 1);
             }
             return normalized;
-        } catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException _) {
             return null;
         }
     }
@@ -432,9 +450,7 @@ public class SupersetReportingService {
         Object data = payload.get("data");
         if (data instanceof Map<?, ?> nested) {
             token = normalizeOptionalText(asText(nested.get("token")));
-            if (token != null) {
-                return token;
-            }
+            return token;
         }
         return null;
     }

@@ -396,7 +396,8 @@ public class DeviceStateService {
         if (normalized == null) {
             return null;
         }
-        return Set.of("PHONE", "TABLET", "LAPTOP", "DESKTOP", "IOT", "SERVER").contains(normalized) ? normalized : null;
+        Set<String> deviceType = Set.of("PHONE", "TABLET", "LAPTOP", "DESKTOP", "IOT", "SERVER");
+        return deviceType.contains(normalized) ? normalized : null;
     }
 
     private <T> List<T> toList(Iterable<T> iterable) {

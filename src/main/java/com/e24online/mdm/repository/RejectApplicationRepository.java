@@ -13,7 +13,7 @@ public interface RejectApplicationRepository extends CrudRepository<RejectApplic
     @Query("""
             SELECT * FROM reject_application_list
             WHERE is_deleted = false
-              AND (:osType IS NULL OR app_os_type = :osType)
+              AND (:osType IS NULL OR app_os_type = :osType::text)
               AND (:status IS NULL OR status = :status)
               AND (
                 (:tenantId IS NULL AND tenant_id IS NULL)
@@ -41,7 +41,7 @@ public interface RejectApplicationRepository extends CrudRepository<RejectApplic
     @Query("""
             SELECT COUNT(*) FROM reject_application_list
             WHERE is_deleted = false
-              AND (:osType IS NULL OR app_os_type = :osType)
+              AND (:osType IS NULL OR app_os_type = :osType::text)
               AND (:status IS NULL OR status = :status)
               AND (
                 (:tenantId IS NULL AND tenant_id IS NULL)
@@ -61,7 +61,7 @@ public interface RejectApplicationRepository extends CrudRepository<RejectApplic
             SELECT * FROM reject_application_list
             WHERE is_deleted = false
               AND status = 'ACTIVE'
-              AND app_os_type = :osType
+              AND app_os_type = :osType::text
               AND effective_from <= :asOf
               AND (effective_to IS NULL OR effective_to > :asOf)
               AND (

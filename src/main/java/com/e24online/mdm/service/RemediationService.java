@@ -81,13 +81,15 @@ public class RemediationService {
 
         // Add remediations from decision action
         for (RuleRemediationMapping mapping : mappings) {
-            if (!"DECISION".equalsIgnoreCase(mapping.getSourceType())) {
-                continue;
+            boolean isDecisionSource = "DECISION".equalsIgnoreCase(mapping.getSourceType());
+            boolean isMatchingDecisionAction = equalsIgnoreCase(
+                    mapping.getDecisionAction(),
+                    run.getDecisionAction()
+            );
+
+            if (isDecisionSource && isMatchingDecisionAction) {
+                candidates.add(new RemediationCandidate(mapping, null, "DECISION"));
             }
-            if (!equalsIgnoreCase(mapping.getDecisionAction(), run.getDecisionAction())) {
-                continue;
-            }
-            candidates.add(new RemediationCandidate(mapping, null, "DECISION"));
         }
 
         // Sort by rank order
@@ -101,27 +103,25 @@ public class RemediationService {
             Long remediationRuleId = mapping.getRemediationRuleId();
             RemediationRule rule = remediationById.get(remediationRuleId);
 
-            if (!matchesRemediationTarget(rule, posture, now)) {
-                continue;
-            }
-
             String dedupeKey = run.getId() + "|" + remediationRuleId + "|" + candidate.matchId();
-            if (!dedupe.add(dedupeKey)) {
-                continue;
+            boolean shouldPersist =
+                    matchesRemediationTarget(rule, posture, now)
+                            && dedupe.add(dedupeKey);
+
+            if (shouldPersist) {
+                PostureEvaluationRemediation remediation = new PostureEvaluationRemediation();
+                remediation.setPostureEvaluationRunId(run.getId());
+                remediation.setRemediationRuleId(remediationRuleId);
+                remediation.setPostureEvaluationMatchId(candidate.matchId());
+                remediation.setSourceType(candidate.sourceType());
+                remediation.setRemediationStatus("PENDING");
+                remediation.setInstructionOverride(rule.getInstructionJson());
+                remediation.setCreatedAt(now);
+                remediation.setCreatedBy("rule-engine");
+
+                PostureEvaluationRemediation persistedRemediation = remediationRepository.save(remediation);
+                saved.add(new SavedRemediation(persistedRemediation, rule, mapping.getEnforceMode()));
             }
-
-            PostureEvaluationRemediation row = new PostureEvaluationRemediation();
-            row.setPostureEvaluationRunId(run.getId());
-            row.setRemediationRuleId(remediationRuleId);
-            row.setPostureEvaluationMatchId(candidate.matchId());
-            row.setSourceType(candidate.sourceType());
-            row.setRemediationStatus("PENDING");
-            row.setInstructionOverride(rule.getInstructionJson());
-            row.setCreatedAt(now);
-            row.setCreatedBy("rule-engine");
-
-            PostureEvaluationRemediation persisted = remediationRepository.save(row);
-            saved.add(new SavedRemediation(persisted, rule, mapping.getEnforceMode()));
         }
 
         return saved;
@@ -130,14 +130,14 @@ public class RemediationService {
     /**
      * Build decision response payload.
      */
-    public String buildDecisionPayload(PostureEvaluationRun run, List<SavedRemediation> remediations) {
+    public String buildDecisionPayload(PostureEvaluationRun run, List<SavedRemediation> remediation) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("evaluation_run_id", run.getId());
         payload.put("decision_action", run.getDecisionAction());
         payload.put("trust_score", run.getTrustScoreAfter());
         payload.put("decision_reason", run.getDecisionReason());
         payload.put("remediation_required", run.isRemediationRequired());
-        payload.put("remediations", toRemediationPayload(remediations));
+        payload.put("remediation", toRemediationPayload(remediation));
         return toJson(payload);
     }
 
@@ -177,19 +177,30 @@ public class RemediationService {
         for (RuleRemediationMapping mapping : mappings) {
             String source = normalizeUpper(mapping.getSourceType());
 
-            if ("SYSTEM_RULE".equals(source) && "SYSTEM_RULE".equals(draft.matchSource())
-                    && Objects.equals(mapping.getSystemInformationRuleId(), draft.systemRuleId())) {
-                out.add(mapping);
-            } else if ("REJECT_APPLICATION".equals(source) && "REJECT_APPLICATION".equals(draft.matchSource())
-                    && Objects.equals(mapping.getRejectApplicationListId(), draft.rejectApplicationId())) {
-                out.add(mapping);
-            } else if ("TRUST_POLICY".equals(source) && "TRUST_POLICY".equals(draft.matchSource())
-                    && Objects.equals(mapping.getTrustScorePolicyId(), draft.trustScorePolicyId())) {
-                out.add(mapping);
-            }
+            addIfMatches(draft, mapping, source, out);
         }
 
         return out;
+    }
+
+    private static void addIfMatches(
+            MatchDraft draft,
+            RuleRemediationMapping mapping,
+            String source,
+            List<RuleRemediationMapping> out
+    ) {
+        if (!Objects.equals(source, draft.matchSource())) {
+            return;
+        }
+        boolean matches = switch (source) {
+            case "SYSTEM_RULE" -> Objects.equals(mapping.getSystemInformationRuleId(), draft.systemRuleId());
+            case "REJECT_APPLICATION" -> Objects.equals(mapping.getRejectApplicationListId(), draft.rejectApplicationId());
+            case "TRUST_POLICY" -> Objects.equals(mapping.getTrustScorePolicyId(), draft.trustScorePolicyId());
+            default -> false;
+        };
+        if (matches) {
+            out.add(mapping);
+        }
     }
 
     private boolean matchesRemediationTarget(RemediationRule rule, ParsedPosture posture, OffsetDateTime now) {

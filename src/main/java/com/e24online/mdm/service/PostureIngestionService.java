@@ -5,6 +5,7 @@ import com.e24online.mdm.records.IngestionResult;
 import com.e24online.mdm.repository.DevicePosturePayloadRepository;
 import com.e24online.mdm.web.dto.PosturePayloadIngestRequest;
 import io.github.resilience4j.retry.annotation.Retry;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -95,14 +96,7 @@ public class PostureIngestionService {
 
             OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
             String serialized;
-            try {
-                serialized = objectMapper.writeValueAsString(payloadNode);
-                if (serialized.getBytes(StandardCharsets.UTF_8).length > MAX_PAYLOAD_JSON_BYTES) {
-                    throw new IllegalArgumentException("payload_json exceeds max allowed size");
-                }
-            } catch (JacksonException e) {
-                throw new IllegalArgumentException("Invalid payload_json", e);
-            }
+            serialized = getSerialized(payloadNode);
 
             String payloadHash = payloadHashInput != null ? payloadHashInput : sha256Hex(serialized);
             String idempotencyKey = buildIdempotencyKey(normalizedTenantId, deviceExternalId, payloadHash);
@@ -135,27 +129,44 @@ public class PostureIngestionService {
             payload.setCreatedAt(now);
             payload.setCreatedBy("agent-ingest");
 
-            try {
-                log.debug("Payload mode: INSERT_NEW for device: {} tenant: {}", deviceExternalId, normalizedTenantId);
-                DevicePosturePayload saved = repository.save(payload);
-                auditIngestionEvent("SUCCESS", normalizedTenantId, deviceExternalId, saved.getId(), "INSERT_NEW", null);
-                return new IngestionResult(saved, true);
-            } catch (DataIntegrityViolationException ex) {
-                // Concurrency-safe fallback when two requests race on the same idempotency key.
-                Optional<DevicePosturePayload> raced = repository.findByIdempotencyKey(
-                        normalizedTenantId,
-                        deviceExternalId,
-                        idempotencyKey
-                );
-                if (raced.isPresent()) {
-                    DevicePosturePayload racedPayload = raced.get();
-                    auditIngestionEvent("SUCCESS", normalizedTenantId, deviceExternalId, racedPayload.getId(), "IDEMPOTENT_DUPLICATE", null);
-                    return new IngestionResult(racedPayload, false);
-                }
-                throw ex;
-            }
+            return getIngestionResult(deviceExternalId, normalizedTenantId, payload, idempotencyKey);
         } catch (RuntimeException ex) {
             auditIngestionEvent("FAILURE", normalizedTenantId, deviceExternalId, null, "FAILED", ex.getMessage());
+            throw ex;
+        }
+    }
+
+    private @NonNull String getSerialized(JsonNode payloadNode) {
+        String serialized;
+        try {
+            serialized = objectMapper.writeValueAsString(payloadNode);
+            if (serialized.getBytes(StandardCharsets.UTF_8).length > MAX_PAYLOAD_JSON_BYTES) {
+                throw new IllegalArgumentException("payload_json exceeds max allowed size");
+            }
+        } catch (JacksonException e) {
+            throw new IllegalArgumentException("Invalid payload_json", e);
+        }
+        return serialized;
+    }
+
+    private @NonNull IngestionResult getIngestionResult(String deviceExternalId, String normalizedTenantId, DevicePosturePayload payload, String idempotencyKey) {
+        try {
+            log.debug("Payload mode: INSERT_NEW for device: {} tenant: {}", deviceExternalId, normalizedTenantId);
+            DevicePosturePayload saved = repository.save(payload);
+            auditIngestionEvent("SUCCESS", normalizedTenantId, deviceExternalId, saved.getId(), "INSERT_NEW", null);
+            return new IngestionResult(saved, true);
+        } catch (DataIntegrityViolationException ex) {
+            // Concurrency-safe fallback when two requests race on the same idempotency key.
+            Optional<DevicePosturePayload> raced = repository.findByIdempotencyKey(
+                    normalizedTenantId,
+                    deviceExternalId,
+                    idempotencyKey
+            );
+            if (raced.isPresent()) {
+                DevicePosturePayload racedPayload = raced.get();
+                auditIngestionEvent("SUCCESS", normalizedTenantId, deviceExternalId, racedPayload.getId(), "IDEMPOTENT_DUPLICATE", null);
+                return new IngestionResult(racedPayload, false);
+            }
             throw ex;
         }
     }

@@ -21,7 +21,7 @@ public interface ApplicationCatalogRepository extends CrudRepository<Application
     @Query("""
             SELECT * FROM application_catalog
             WHERE is_deleted = false
-              AND (:osType IS NULL OR os_type = :osType)
+              AND (:osType IS NULL OR os_type = :osType::text)
               AND (:search IS NULL
                    OR lower(app_name) LIKE CONCAT('%', lower(:search), '%')
                    OR lower(COALESCE(package_id, '')) LIKE CONCAT('%', lower(:search), '%'))
@@ -38,7 +38,7 @@ public interface ApplicationCatalogRepository extends CrudRepository<Application
     @Query("""
             SELECT COUNT(*) FROM application_catalog
             WHERE is_deleted = false
-              AND (:osType IS NULL OR os_type = :osType)
+              AND (:osType IS NULL OR os_type = :osType::text)
               AND (:search IS NULL
                    OR lower(app_name) LIKE CONCAT('%', lower(:search), '%')
                    OR lower(COALESCE(package_id, '')) LIKE CONCAT('%', lower(:search), '%'))

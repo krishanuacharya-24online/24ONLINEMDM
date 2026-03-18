@@ -351,7 +351,7 @@ public class ReferenceDataSyncService {
             if (reports.isEmpty()) {
                 return Optional.empty();
             }
-            return Optional.ofNullable(reports.get(0));
+            return Optional.ofNullable(reports.getFirst());
         } catch (DataAccessException ex) {
             log.warn("Unable to load persisted reference sync state: {}", ex.getMessage());
             return Optional.empty();
@@ -600,7 +600,7 @@ public class ReferenceDataSyncService {
         }
         try {
             return LocalDate.parse(raw);
-        } catch (Exception ignored) {
+        } catch (Exception _) {
             return null;
         }
     }

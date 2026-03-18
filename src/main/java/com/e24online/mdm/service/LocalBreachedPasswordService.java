@@ -31,21 +31,23 @@ import java.util.regex.Pattern;
 public class LocalBreachedPasswordService {
 
     private static final Logger log = LoggerFactory.getLogger(LocalBreachedPasswordService.class);
-    
+    private static final String KEYBOARD_PATTERN_STR = "(qwerty|qwertyuiop|asdf|asdfgh|asdfghjkl|zxcv|zxcvbn|zxcvbnm|1qaz|2wsx|3edc|4rfv|5tgb|6yhn|7ujm|8ik,|9ol.|0p;/|qazwsx|wsxedc|edcrfv|rfvtgb|tgbyhn|yhnujm|ujmik,|qweasd|asdzxc|123qwe|123qaz|abc123|123abc)";
+    private static final String SEQUENCE_PATTERN_STR = "(012|123|234|345|456|567|678|789|890|901|abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)";
+
     // Common patterns that indicate weak passwords
     private static final Pattern KEYBOARD_PATTERN = Pattern.compile(
-        "(qwerty|qwertyuiop|asdf|asdfgh|asdfghjkl|zxcv|zxcvbn|zxcvbnm|1qaz|2wsx|3edc|4rfv|5tgb|6yhn|7ujm|8ik,|9ol.|0p;/|qazwsx|wsxedc|edcrfv|rfvtgb|tgbyhn|yhnujm|ujmik,|qweasd|asdzxc|123qwe|123qaz|abc123|123abc)",
-        Pattern.CASE_INSENSITIVE
+            KEYBOARD_PATTERN_STR, Pattern.CASE_INSENSITIVE
     );
     
     private static final Pattern SEQUENCE_PATTERN = Pattern.compile(
-        "(012|123|234|345|456|567|678|789|890|901|abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)",
-        Pattern.CASE_INSENSITIVE
+            SEQUENCE_PATTERN_STR, Pattern.CASE_INSENSITIVE
     );
     
     private static final Pattern REPEAT_PATTERN = Pattern.compile("(.)\\1{2,}");
-    private static final Pattern DATE_PATTERN = Pattern.compile("(19|20)\\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\\d|3[01])");
-    private static final Pattern SIMPLE_PATTERN = Pattern.compile("^(password|admin|user|login|welcome|hello|test|guest|master|root|pass|root|toor)$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DATE_PATTERN = Pattern.compile(
+            "(19|20)\\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\\d|3[01])");
+    private static final Pattern SIMPLE_PATTERN = Pattern.compile(
+            "^(password|admin|user|login|welcome|hello|test|guest|master|root|pass|root|toor)$", Pattern.CASE_INSENSITIVE);
     
     // In-memory set of breached passwords
     private final Set<String> breachedPasswords = new HashSet<>();

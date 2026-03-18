@@ -1,11 +1,20 @@
 package com.e24online.mdm.service;
 
-import com.e24online.mdm.domain.*;
+import com.e24online.mdm.constants.DeviceEnrollmentServiceConstants;
+import com.e24online.mdm.domain.AuthUser;
+import com.e24online.mdm.domain.DeviceAgentCredential;
+import com.e24online.mdm.domain.DeviceEnrollment;
+import com.e24online.mdm.domain.DeviceSetupKey;
+import com.e24online.mdm.domain.Tenant;
 import com.e24online.mdm.records.AgentEnrollmentClaim;
 import com.e24online.mdm.records.devices.DeviceTokenPrincipal;
 import com.e24online.mdm.records.devices.DeviceTokenRotation;
 import com.e24online.mdm.records.SetupKeyIssue;
-import com.e24online.mdm.repository.*;
+import com.e24online.mdm.repository.AuthUserRepository;
+import com.e24online.mdm.repository.DeviceAgentCredentialRepository;
+import com.e24online.mdm.repository.DeviceEnrollmentRepository;
+import com.e24online.mdm.repository.DeviceSetupKeyRepository;
+import com.e24online.mdm.repository.TenantRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -29,20 +38,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
-import java.util.regex.Pattern;
 
 @Service
 public class DeviceEnrollmentService {
-
-    private static final int DEFAULT_SETUP_KEY_MAX_USES = 5;
-    private static final int DEFAULT_SETUP_KEY_TTL_MINUTES = 60;
-    private static final int SETUP_CODE_RAW_LENGTH = 12;
-    private static final int MAX_PAGE_SIZE = 500;
-    private static final int DEFAULT_PAGE_SIZE = 50;
-    private static final int ENROLLMENT_NO_SUFFIX_LENGTH = 10;
-    private static final String ALL_CHAR_NUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    private static final Pattern COMPACT_SETUP_CODE = Pattern.compile("^[A-Za-z0-9]{12}$");
-    private static final Pattern GROUPED_SETUP_CODE = Pattern.compile("^[A-Za-z0-9]{3}(?:-[A-Za-z0-9]{3}){3}$");
 
     private final DeviceEnrollmentRepository enrollmentRepository;
     private final DeviceSetupKeyRepository setupKeyRepository;
@@ -91,10 +89,10 @@ public class DeviceEnrollmentService {
         int safeSize = normalizePageSize(size);
         long offset = (long) Math.max(0, page) * safeSize;
         String normalizedStatus = normalizeStatusFilter(status);
-        Long normalizedOwnerUserId = normalizeOptionalPositive(ownerUserId, "owner_user_id");
+        Long normalizedOwnerUserId = normalizeOptionalPositive(ownerUserId, DeviceEnrollmentServiceConstants.OWNER_USER_ID);
         String normalizedTenant = normalizeTenantId(tenantId);
         return blockingDb.flux(() -> {
-            java.util.List<DeviceEnrollment> rows = enrollmentRepository.findPagedByTenant(
+            List<DeviceEnrollment> rows = enrollmentRepository.findPagedByTenant(
                     normalizedTenant,
                     normalizedStatus,
                     normalizedOwnerUserId,
@@ -108,14 +106,14 @@ public class DeviceEnrollmentService {
             metadata.put("size", safeSize);
             metadata.put("resultCount", rows.size());
             auditEventService.recordBestEffort(
-                    "ENROLLMENT",
-                    "DEVICE_ENROLLMENTS_VIEWED",
+                    DeviceEnrollmentServiceConstants.ENROLLMENT,
+                    DeviceEnrollmentServiceConstants.DEVICE_ENROLLMENTS_VIEWED,
                     "LIST",
                     normalizedTenant,
                     "ui",
-                    "DEVICE_ENROLLMENT",
+                    DeviceEnrollmentServiceConstants.DEVICE_ENROLLMENT,
                     null,
-                    "SUCCESS",
+                    DeviceEnrollmentServiceConstants.SUCCESS,
                     metadata
             );
             return rows;
@@ -126,17 +124,17 @@ public class DeviceEnrollmentService {
         return blockingDb.mono(() -> {
             DeviceEnrollment enrollment = getEnrollment(tenantId, id, ownerUserId);
             Map<String, Object> metadata = new LinkedHashMap<>();
-            metadata.put("enrollmentNo", enrollment.getEnrollmentNo());
-            metadata.put("ownerUserIdFilter", normalizeOptionalPositive(ownerUserId, "owner_user_id"));
+            metadata.put(DeviceEnrollmentServiceConstants.ENROLLMENT_NO, enrollment.getEnrollmentNo());
+            metadata.put("ownerUserIdFilter", normalizeOptionalPositive(ownerUserId, DeviceEnrollmentServiceConstants.OWNER_USER_ID));
             auditEventService.recordBestEffort(
-                    "ENROLLMENT",
+                    DeviceEnrollmentServiceConstants.ENROLLMENT,
                     "DEVICE_ENROLLMENT_VIEWED",
                     "VIEW",
                     normalizeTenantId(tenantId),
                     "ui",
-                    "DEVICE_ENROLLMENT",
+                    DeviceEnrollmentServiceConstants.DEVICE_ENROLLMENT,
                     enrollment.getId() == null ? null : String.valueOf(enrollment.getId()),
-                    "SUCCESS",
+                    DeviceEnrollmentServiceConstants.SUCCESS,
                     metadata
             );
             return enrollment;
@@ -198,8 +196,8 @@ public class DeviceEnrollmentService {
         AuthUser issuer = requireActiveTenantUser(activeTenant.getId(), issuedByUserId, HttpStatus.FORBIDDEN, "issuer_user_id");
         AuthUser targetUser = requireActiveTenantUser(activeTenant.getId(), targetUserId, HttpStatus.BAD_REQUEST, "target_user_id");
         String effectiveActor = normalizeActor(actor);
-        int safeMaxUses = normalizeBounded(maxUses, DEFAULT_SETUP_KEY_MAX_USES, 1, 1000, "max_uses");
-        int safeTtlMinutes = normalizeBounded(ttlMinutes, DEFAULT_SETUP_KEY_TTL_MINUTES, 1, 7 * 24 * 60, "ttl_minutes");
+        int safeMaxUses = normalizeBounded(maxUses, DeviceEnrollmentServiceConstants.DEFAULT_SETUP_KEY_MAX_USES, 1, 1000, "max_uses");
+        int safeTtlMinutes = normalizeBounded(ttlMinutes, DeviceEnrollmentServiceConstants.DEFAULT_SETUP_KEY_TTL_MINUTES, 1, 7 * 24 * 60, "ttl_minutes");
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime expiresAt = now.plusMinutes(safeTtlMinutes);
         String rawKey = generateSetupCode();
@@ -208,7 +206,7 @@ public class DeviceEnrollmentService {
         entity.setTenantId(normalizedTenant);
         entity.setKeyHash(sha256Hex(rawKey));
         entity.setKeyHint(mask(rawKey));
-        entity.setStatus("ACTIVE");
+        entity.setStatus(DeviceEnrollmentServiceConstants.ACTIVE);
         entity.setMaxUses(safeMaxUses);
         entity.setUsedCount(0);
         entity.setExpiresAt(expiresAt);
@@ -229,14 +227,14 @@ public class DeviceEnrollmentService {
                 saved.getIssuedByUserId()
         );
         auditEventService.recordBestEffort(
-                "ENROLLMENT",
+                DeviceEnrollmentServiceConstants.ENROLLMENT,
                 "SETUP_KEY_CREATED",
                 "CREATE",
                 normalizedTenant,
                 effectiveActor,
                 "DEVICE_SETUP_KEY",
                 saved.getId() == null ? null : String.valueOf(saved.getId()),
-                "SUCCESS",
+                DeviceEnrollmentServiceConstants.SUCCESS,
                 Map.of(
                         "targetUserId", saved.getTargetUserId(),
                         "issuedByUserId", saved.getIssuedByUserId(),
@@ -250,29 +248,37 @@ public class DeviceEnrollmentService {
 
     private DeviceEnrollment getEnrollment(String tenantId, Long id, Long ownerUserId) {
         String normalizedTenant = normalizeTenantId(tenantId);
-        Long normalizedOwnerUserId = normalizeOptionalPositive(ownerUserId, "owner_user_id");
+        Long normalizedOwnerUserId = normalizeOptionalPositive(ownerUserId, DeviceEnrollmentServiceConstants.OWNER_USER_ID);
         DeviceEnrollment enrollment = enrollmentRepository.findByIdAndTenant(id, normalizedTenant)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Enrollment not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, DeviceEnrollmentServiceConstants.ENROLLMENT_NOT_FOUND));
         enforceOwnerScope(enrollment, normalizedOwnerUserId);
         return enrollment;
     }
 
     private DeviceEnrollment deEnroll(String tenantId, String actor, Long ownerUserId, Long id, String reason) {
         String normalizedTenant = normalizeTenantId(tenantId);
-        Long normalizedOwnerUserId = normalizeOptionalPositive(ownerUserId, "owner_user_id");
+        Long normalizedOwnerUserId = normalizeOptionalPositive(ownerUserId, DeviceEnrollmentServiceConstants.OWNER_USER_ID);
         String effectiveActor = normalizeActor(actor);
         String normalizedReason = normalizeOptional(reason, 1000);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-
+        String query = """
+                    UPDATE device_trust_profile
+                    SET is_deleted = true,
+                        modified_at = :now,
+                        modified_by = :actor
+                    WHERE is_deleted = false
+                      AND COALESCE(tenant_id, '') = COALESCE(:tenantId, '')
+                      AND device_external_id = :deviceExternalId
+                    """;
         DeviceEnrollment result = requiredTransaction(() -> {
             DeviceEnrollment enrollment = enrollmentRepository.findByIdAndTenant(id, normalizedTenant)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Enrollment not found"));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, DeviceEnrollmentServiceConstants.ENROLLMENT_NOT_FOUND));
             enforceOwnerScope(enrollment, normalizedOwnerUserId);
-            if ("DE_ENROLLED".equals(enrollment.getStatus())) {
+            if (DeviceEnrollmentServiceConstants.DE_ENROLLED.equals(enrollment.getStatus())) {
                 return enrollment;
             }
 
-            enrollment.setStatus("DE_ENROLLED");
+            enrollment.setStatus(DeviceEnrollmentServiceConstants.DE_ENROLLED);
             enrollment.setDeEnrolledAt(now);
             enrollment.setDeEnrollReason(normalizedReason);
             enrollment.setModifiedAt(now);
@@ -292,31 +298,24 @@ public class DeviceEnrollmentService {
                     .addValue("deviceExternalId", saved.getEnrollmentNo())
                     .addValue("now", now)
                     .addValue("actor", effectiveActor);
-            jdbc.update("""
-                    UPDATE device_trust_profile
-                    SET is_deleted = true,
-                        modified_at = :now,
-                        modified_by = :actor
-                    WHERE is_deleted = false
-                      AND COALESCE(tenant_id, '') = COALESCE(:tenantId, '')
-                      AND device_external_id = :deviceExternalId
-                    """, profileParams);
+
+            jdbc.update(query, profileParams);
             return saved;
         });
         java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
-        metadata.put("enrollmentNo", result.getEnrollmentNo());
+        metadata.put(DeviceEnrollmentServiceConstants.ENROLLMENT_NO, result.getEnrollmentNo());
         metadata.put("ownerUserId", result.getOwnerUserId());
         metadata.put("reason", result.getDeEnrollReason());
 
         auditEventService.recordBestEffort(
-                "ENROLLMENT",
+                DeviceEnrollmentServiceConstants.ENROLLMENT,
                 "DEVICE_DE_ENROLLED",
                 "DE_ENROLL",
                 normalizedTenant,
                 effectiveActor,
-                "DEVICE_ENROLLMENT",
+                DeviceEnrollmentServiceConstants.DEVICE_ENROLLMENT,
                 result.getId() == null ? null : String.valueOf(result.getId()),
-                "SUCCESS",
+                DeviceEnrollmentServiceConstants.SUCCESS,
                 metadata
         );
         return result;
@@ -333,7 +332,17 @@ public class DeviceEnrollmentService {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         String[] tenantRef = new String[1];
         Long[] setupKeyIdRef = new Long[1];
-
+        String query = """
+                    UPDATE device_setup_key
+                    SET used_count = used_count + 1,
+                        status = CASE WHEN used_count + 1 >= max_uses THEN 'CLAIMED' ELSE status END,
+                        modified_at = :now,
+                        modified_by = :actor
+                    WHERE id = :id
+                      AND status = 'ACTIVE'
+                      AND expires_at > :now
+                      AND used_count < max_uses
+                    """;
         AgentEnrollmentClaim claim = requiredTransaction(() -> {
             String setupKeyHash = sha256Hex(normalizedSetupKey);
             List<DeviceSetupKey> matchingKeys = setupKeyRepository.findActiveByHash(setupKeyHash);
@@ -353,7 +362,7 @@ public class DeviceEnrollmentService {
             ).getId();
 
             if (key.getExpiresAt() == null || !key.getExpiresAt().isAfter(now)) {
-                key.setStatus("EXPIRED");
+                key.setStatus(DeviceEnrollmentServiceConstants.EXPIRED);
                 key.setModifiedAt(now);
                 key.setModifiedBy("claim-expiry");
                 setupKeyRepository.save(key);
@@ -364,17 +373,7 @@ public class DeviceEnrollmentService {
                     .addValue("id", key.getId())
                     .addValue("now", now)
                     .addValue("actor", "setup-claim");
-            int updated = jdbc.update("""
-                    UPDATE device_setup_key
-                    SET used_count = used_count + 1,
-                        status = CASE WHEN used_count + 1 >= max_uses THEN 'CLAIMED' ELSE status END,
-                        modified_at = :now,
-                        modified_by = :actor
-                    WHERE id = :id
-                      AND status = 'ACTIVE'
-                      AND expires_at > :now
-                      AND used_count < max_uses
-                    """, params);
+            int updated = jdbc.update(query, params);
             if (updated != 1) {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid setup key");
             }
@@ -393,7 +392,7 @@ public class DeviceEnrollmentService {
         metadata.put("agentId", normalizedAgentId);
         metadata.put("deviceFingerprint", normalizedFingerprint);
         metadata.put("deviceLabel", normalizedDeviceLabel);
-        metadata.put("enrollmentNo", claim.enrollmentNo());
+        metadata.put(DeviceEnrollmentServiceConstants.ENROLLMENT_NO, claim.enrollmentNo());
         metadata.put("deviceTokenExpiresAt", claim.deviceTokenExpiresAt());
 
         auditEventService.recordBestEffort(
@@ -402,9 +401,9 @@ public class DeviceEnrollmentService {
                 "CLAIM",
                 tenantRef[0],
                 normalizedAgentId,
-                "DEVICE_ENROLLMENT",
+                DeviceEnrollmentServiceConstants.DEVICE_ENROLLMENT,
                 claim.enrollmentNo(),
-                "SUCCESS",
+                DeviceEnrollmentServiceConstants.SUCCESS,
                 metadata
         );
         return claim;
@@ -418,7 +417,7 @@ public class DeviceEnrollmentService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid X-Device-Token"));
 
         if (credential.getExpiresAt() != null && !credential.getExpiresAt().isAfter(now)) {
-            credential.setStatus("EXPIRED");
+            credential.setStatus(DeviceEnrollmentServiceConstants.EXPIRED);
             credential.setRevokedAt(now);
             credential.setRevokedBy("device-token-expiry");
             credentialRepository.save(credential);
@@ -427,7 +426,7 @@ public class DeviceEnrollmentService {
 
         DeviceEnrollment enrollment = enrollmentRepository.findById(credential.getDeviceEnrollmentId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid X-Device-Token"));
-        if (!"ACTIVE".equals(enrollment.getStatus())) {
+        if (!DeviceEnrollmentServiceConstants.ACTIVE.equals(enrollment.getStatus())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Enrollment is not active");
         }
 
@@ -447,13 +446,13 @@ public class DeviceEnrollmentService {
                                                                Long setupKeyId) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         Tenant tenant = requireActiveTenant(tenantId, HttpStatus.UNAUTHORIZED);
-        AuthUser owner = requireActiveTenantUser(tenant.getId(), ownerUserId, HttpStatus.UNAUTHORIZED, "owner_user_id");
+        AuthUser owner = requireActiveTenantUser(tenant.getId(), ownerUserId, HttpStatus.UNAUTHORIZED, DeviceEnrollmentServiceConstants.OWNER_USER_ID);
         String enrollmentNo = generateEnrollmentNo(tenantId);
         DeviceEnrollment enrollment = new DeviceEnrollment();
         enrollment.setTenantId(tenantId);
         enrollment.setEnrollmentNo(enrollmentNo);
         enrollment.setEnrollmentMethod("SETUP_KEY");
-        enrollment.setStatus("ACTIVE");
+        enrollment.setStatus(DeviceEnrollmentServiceConstants.ACTIVE);
         enrollment.setAgentId(agentId);
         enrollment.setDeviceLabel(deviceLabel);
         enrollment.setDeviceFingerprint(deviceFingerprint);
@@ -461,9 +460,9 @@ public class DeviceEnrollmentService {
         enrollment.setSetupKeyId(setupKeyId);
         enrollment.setEnrolledAt(now);
         enrollment.setCreatedAt(now);
-        enrollment.setCreatedBy("agent-enroll");
+        enrollment.setCreatedBy(DeviceEnrollmentServiceConstants.AGENT_ENROLL);
         enrollment.setModifiedAt(now);
-        enrollment.setModifiedBy("agent-enroll");
+        enrollment.setModifiedBy(DeviceEnrollmentServiceConstants.AGENT_ENROLL);
         DeviceEnrollment savedEnrollment = enrollmentRepository.save(enrollment);
 
         String rawToken = generateSecret("dvt");
@@ -472,7 +471,7 @@ public class DeviceEnrollmentService {
         credential.setDeviceEnrollmentId(savedEnrollment.getId());
         credential.setTokenHash(sha256Hex(rawToken));
         credential.setTokenHint(mask(rawToken));
-        credential.setStatus("ACTIVE");
+        credential.setStatus(DeviceEnrollmentServiceConstants.ACTIVE);
         credential.setExpiresAt(now.plusMinutes(deviceTokenTtlMinutes));
         credential.setCreatedAt(now);
         credential.setCreatedBy("agent-enroll");
@@ -491,15 +490,15 @@ public class DeviceEnrollmentService {
                                                   Long ownerUserId,
                                                   Long enrollmentId) {
         String normalizedTenant = normalizeTenantId(tenantId);
-        Long normalizedOwnerUserId = normalizeOptionalPositive(ownerUserId, "owner_user_id");
+        Long normalizedOwnerUserId = normalizeOptionalPositive(ownerUserId, DeviceEnrollmentServiceConstants.OWNER_USER_ID);
         String effectiveActor = normalizeActor(actor);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         DeviceTokenRotation rotation = requiredTransaction(() -> {
             DeviceEnrollment enrollment = enrollmentRepository.findByIdAndTenant(enrollmentId, normalizedTenant)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Enrollment not found"));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, DeviceEnrollmentServiceConstants.ENROLLMENT_NOT_FOUND));
             enforceOwnerScope(enrollment, normalizedOwnerUserId);
-            if (!"ACTIVE".equalsIgnoreCase(enrollment.getStatus())) {
+            if (!DeviceEnrollmentServiceConstants.ACTIVE.equalsIgnoreCase(enrollment.getStatus())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Enrollment is not ACTIVE");
             }
 
@@ -516,7 +515,7 @@ public class DeviceEnrollmentService {
             rotated.setDeviceEnrollmentId(enrollment.getId());
             rotated.setTokenHash(sha256Hex(rawToken));
             rotated.setTokenHint(mask(rawToken));
-            rotated.setStatus("ACTIVE");
+            rotated.setStatus(DeviceEnrollmentServiceConstants.ACTIVE);
             rotated.setExpiresAt(now.plusMinutes(deviceTokenTtlMinutes));
             rotated.setCreatedAt(now);
             rotated.setCreatedBy(effectiveActor);
@@ -536,11 +535,11 @@ public class DeviceEnrollmentService {
                 "ROTATE",
                 normalizedTenant,
                 effectiveActor,
-                "DEVICE_ENROLLMENT",
+                DeviceEnrollmentServiceConstants.DEVICE_ENROLLMENT,
                 rotation.enrollmentId() == null ? null : String.valueOf(rotation.enrollmentId()),
-                "SUCCESS",
+                DeviceEnrollmentServiceConstants.SUCCESS,
                 Map.of(
-                        "enrollmentNo", rotation.enrollmentNo(),
+                        DeviceEnrollmentServiceConstants.ENROLLMENT_NO, rotation.enrollmentNo(),
                         "tokenHint", rotation.tokenHint(),
                         "expiresAt", rotation.deviceTokenExpiresAt()
                 )
@@ -550,9 +549,9 @@ public class DeviceEnrollmentService {
 
     private int normalizePageSize(int size) {
         if (size <= 0) {
-            return DEFAULT_PAGE_SIZE;
+            return DeviceEnrollmentServiceConstants.DEFAULT_PAGE_SIZE;
         }
-        return Math.min(size, MAX_PAGE_SIZE);
+        return Math.min(size, DeviceEnrollmentServiceConstants.MAX_PAGE_SIZE);
     }
 
     private String normalizeStatusFilter(String status) {
@@ -561,7 +560,7 @@ public class DeviceEnrollmentService {
             return null;
         }
         String upper = normalized.toUpperCase(Locale.ROOT);
-        if (!"ACTIVE".equals(upper) && !"DE_ENROLLED".equals(upper) && !"EXPIRED".equals(upper)) {
+        if (!DeviceEnrollmentServiceConstants.ACTIVE.equals(upper) && !"DE_ENROLLED".equals(upper) && !DeviceEnrollmentServiceConstants.EXPIRED.equals(upper)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status");
         }
         return upper;
@@ -609,8 +608,8 @@ public class DeviceEnrollmentService {
     private String normalizeSetupLikeToken(String value, String fieldName) {
         String normalized = normalizeRequired(value, fieldName, 512);
         String compact = normalized.replace("-", "").replace(" ", "");
-        if (COMPACT_SETUP_CODE.matcher(compact).matches()
-                || GROUPED_SETUP_CODE.matcher(normalized).matches()) {
+        if (DeviceEnrollmentServiceConstants.COMPACT_SETUP_CODE.matcher(compact).matches()
+                || DeviceEnrollmentServiceConstants.GROUPED_SETUP_CODE.matcher(normalized).matches()) {
             String upper = compact.toUpperCase(Locale.ROOT);
             return upper.substring(0, 3) + "-"
                     + upper.substring(3, 6) + "-"
@@ -644,7 +643,7 @@ public class DeviceEnrollmentService {
 
     private Tenant requireActiveTenant(String tenantId, HttpStatus status) {
         return tenantRepository.findActiveByTenantId(tenantId)
-                .filter(t -> !t.isDeleted() && "ACTIVE".equalsIgnoreCase(t.getStatus()))
+                .filter(t -> !t.isDeleted() && DeviceEnrollmentServiceConstants.ACTIVE.equalsIgnoreCase(t.getStatus()))
                 .orElseThrow(() -> new ResponseStatusException(status, "Invalid tenant"));
     }
 
@@ -667,7 +666,7 @@ public class DeviceEnrollmentService {
         if (requiredOwnerUserId.equals(enrollment.getOwnerUserId())) {
             return;
         }
-        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Enrollment not found");
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, DeviceEnrollmentServiceConstants.ENROLLMENT_NOT_FOUND);
     }
 
     private String generateSecret(String prefix) {
@@ -678,7 +677,7 @@ public class DeviceEnrollmentService {
     }
 
     private String generateSetupCode() {
-        String raw = randomAlnum(SETUP_CODE_RAW_LENGTH);
+        String raw = randomAllNum(DeviceEnrollmentServiceConstants.SETUP_CODE_RAW_LENGTH);
         return raw.substring(0, 3) + "-"
                 + raw.substring(3, 6) + "-"
                 + raw.substring(6, 9) + "-"
@@ -695,7 +694,7 @@ public class DeviceEnrollmentService {
         }
 
         for (int i = 0; i < 12; i++) {
-            String suffix = randomAlnum(ENROLLMENT_NO_SUFFIX_LENGTH);
+            String suffix = randomAllNum(DeviceEnrollmentServiceConstants.ENROLLMENT_NO_SUFFIX_LENGTH);
             String candidate = "ENR-" + cleanedTenant + "-" + suffix;
             Optional<DeviceEnrollment> existing = enrollmentRepository.findByTenantAndEnrollmentNo(tenantId, candidate);
             if (existing.isEmpty()) {
@@ -705,11 +704,11 @@ public class DeviceEnrollmentService {
         throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to generate enrollment number");
     }
 
-    private String randomAlnum(int len) {
+    private String randomAllNum(int len) {
         StringBuilder sb = new StringBuilder(len);
         for (int i = 0; i < len; i++) {
-            int idx = secureRandom.nextInt(ALL_CHAR_NUM.length());
-            sb.append(ALL_CHAR_NUM.charAt(idx));
+            int idx = secureRandom.nextInt(DeviceEnrollmentServiceConstants.ALL_CHAR_NUM.length());
+            sb.append(DeviceEnrollmentServiceConstants.ALL_CHAR_NUM.charAt(idx));
         }
         return sb.toString();
     }
@@ -735,7 +734,7 @@ public class DeviceEnrollmentService {
     }
 
     private <T> T requiredTransaction(Supplier<T> action) {
-        T value = transactionTemplate.execute(status -> action.get());
+        T value = transactionTemplate.execute(_ -> action.get());
         return Objects.requireNonNull(value, "transaction returned null");
     }
 

@@ -1,5 +1,6 @@
 package com.e24online.mdm.service;
 
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,11 +19,11 @@ import java.util.Set;
 /**
  * Service for checking if a password has been exposed in known data breaches
  * using the Have I Been Pwned (HIBP) API.
- * 
+ * <p>
  * Uses the k-anonymity model: only sends first 5 characters of SHA-1 hash,
  * receives list of possible matches, and checks locally.
- * 
- * API: https://haveibeenpwned.com/API/v3#PwnedPasswords
+ * <p>
+ * API: <a href="https://haveibeenpwned.com/API/v3#PwnedPasswords">...</a>
  */
 @Service
 public class BreachedPasswordService {
@@ -37,8 +38,13 @@ public class BreachedPasswordService {
     
     // Timeout for HIBP API calls
     private static final Duration API_TIMEOUT = Duration.ofSeconds(10);
-    
+
+    /**
+     * -- GETTER --
+     *  Check if the HIBP service is enabled.
+     */
     // Whether to enable breached password checking
+    @Getter
     private final boolean enabled;
     
     // Optional API key for higher rate limits (not required for basic usage)
@@ -103,7 +109,7 @@ public class BreachedPasswordService {
             }
             
             // Parse response (format: HASH_SUFFIX:COUNT per line)
-            return parseHibpResponse(response, suffix);
+            return parseHIBPResponse(response, suffix);
             
         } catch (Exception e) {
             log.warn("Failed to check password against HIBP database: {}", e.getMessage());
@@ -134,7 +140,7 @@ public class BreachedPasswordService {
                     .retrieve()
                     .bodyToMono(String.class)
                     .timeout(API_TIMEOUT)
-                    .map(response -> parseHibpResponse(response, suffix))
+                    .map(response -> parseHIBPResponse(response, suffix))
                     .onErrorReturn(false); // Fail open on error
         } catch (Exception e) {
             log.warn("Failed to check password against HIBP database: {}", e.getMessage());
@@ -177,7 +183,7 @@ public class BreachedPasswordService {
         }
     }
 
-    private boolean parseHibpResponse(String response, String targetSuffix) {
+    private boolean parseHIBPResponse(String response, String targetSuffix) {
         Set<String> breachedHashes = extractBreachedHashes(response);
         return breachedHashes.contains(targetSuffix);
     }
@@ -190,7 +196,7 @@ public class BreachedPasswordService {
                 if (hashSuffix.equals(targetSuffix)) {
                     try {
                         return Integer.parseInt(parts[1].trim());
-                    } catch (NumberFormatException e) {
+                    } catch (NumberFormatException _) {
                         log.warn("Invalid breach count format: {}", parts[1]);
                         return 0;
                     }
@@ -217,10 +223,4 @@ public class BreachedPasswordService {
         return HexFormat.of().formatHex(digest);
     }
 
-    /**
-     * Check if the HIBP service is enabled.
-     */
-    public boolean isEnabled() {
-        return enabled;
-    }
 }
