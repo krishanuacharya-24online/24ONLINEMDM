@@ -113,10 +113,20 @@ function settledObject(result) {
 
 function renderKeyValues(container, pairs) {
   if (!container) return;
-  container.innerHTML = pairs.map((pair) => `
-    <div class="k">${esc(pair.label)}</div>
-    <div class="v">${esc(textOrDash(pair.value))}</div>
-  `).join('');
+
+  container.replaceChildren();
+
+  for (const pair of pairs) {
+    const keyDiv = document.createElement('div');
+    keyDiv.className = 'k';
+    keyDiv.textContent = textOrDash(pair.label);
+
+    const valueDiv = document.createElement('div');
+    valueDiv.className = 'v';
+    valueDiv.textContent = textOrDash(pair.value);
+
+    container.append(keyDiv, valueDiv);
+  }
 }
 
 function renderTableBody(tbody, rows, columns, colSpan) {
