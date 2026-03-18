@@ -1,8 +1,8 @@
 # 24Online MDM (Mobile Device Management)
 
-[![Java](https://img.shields.io/badge/Java-17+-blue.svg)](https://openjdk.java.net/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-brightgreen.svg)](https://spring.io/projects/spring-boot)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue.svg)](https://www.postgresql.org/)
+[![Java](https://img.shields.io/badge/Java-25-orange.svg)](https://openjdk.java.net/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.3-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-blue.svg)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
 
 > **Enterprise Mobile Device Management platform with real-time trust scoring, policy enforcement, and device posture evaluation.**
@@ -44,10 +44,10 @@
 | **Trust Scoring** | Dynamic trust scores based on device posture and behavior |
 | **Policy Engine** | Configurable rules for system info, remediation, and access control |
 | **Posture Evaluation** | Automated compliance checking with remediation workflows |
-| **Application Control** | Catalog-based allow/block lists for installed applications |
-| **OS Lifecycle** | Track operating system versions against end-of-life dates |
+| **Application Catalog** | Manage allowed/blocked applications |
+| **OS Lifecycle** | Track operating system versions and end-of-life dates |
 | **Audit Trail** | Complete audit logging for compliance and forensics |
-| **Multi-Tenancy** | Isolated tenant data with granular access control |
+| **Multi-Tenancy** | Isolated tenant data with API key authentication |
 
 ---
 
@@ -107,6 +107,7 @@ graph TB
 - **Database Per Tenant**: Logical isolation with tenant_id scoping
 - **CQRS Pattern**: Separate read/write models for performance
 - **Idempotency**: All write operations are idempotent
+- **Virtual Threads**: Leverages Java 25 virtual threads for concurrency
 
 ---
 
@@ -171,6 +172,12 @@ flowchart LR
 - **Tenant Admin Role**: Per-tenant administration
 - **API Key Rotation**: Secure key management
 
+### 8. Lookup Tables
+
+- **Reference Data Management**: Admin-managed lookup tables
+- **Sync State Tracking**: Track external data synchronization
+- **Data Normalization**: Normalize device data against lookups
+
 ---
 
 ## 🛠️ Technology Stack
@@ -179,19 +186,21 @@ flowchart LR
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| Java | 17+ | Runtime |
-| Spring Boot | 3.x | Application Framework |
-| Spring WebFlux | 3.x | Reactive Web |
-| Spring Data R2DBC | 3.x | Reactive Database |
-| Spring Security | 3.x | Authentication & Authorization |
-| Flyway | 9.x | Database Migrations |
+| Java | 25 | Runtime with virtual threads |
+| Spring Boot | 4.0.3 | Application Framework |
+| Spring WebFlux | 4.0.3 | Reactive Web |
+| Spring Data JDBC | 4.0.3 | Database Access |
+| Spring Security | 4.0.3 | Authentication & Authorization |
+| Flyway | 12.0.3 | Database Migrations |
 | Log4j2 | 2.x | Logging |
+| Resilience4j | 2.3.0 | Rate limiting & retries |
+| Lombok | - | Boilerplate reduction |
 
 ### Database
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| PostgreSQL | 14+ | Primary Database |
+| PostgreSQL | 18 | Primary Database |
 | pgcrypto | - | Cryptographic functions |
 | btree_gin | - | Indexing support |
 
@@ -199,8 +208,8 @@ flowchart LR
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| RabbitMQ | 3.x | Event Bus |
-| Spring AMQP | 3.x | Messaging Integration |
+| RabbitMQ | 3.13 | Event Bus |
+| Spring AMQP | 4.x | Messaging Integration |
 
 ### Frontend
 
@@ -211,6 +220,7 @@ flowchart LR
 | Custom CSS | Styling (no framework) |
 | DataTables | Table rendering |
 | QRCode.js | QR code generation |
+| Select2-lite | Dropdown enhancement |
 
 ### DevOps & Monitoring
 
@@ -219,8 +229,18 @@ flowchart LR
 | Docker | Containerization |
 | Prometheus | Metrics collection |
 | Zipkin | Distributed tracing |
-| Apache Superset | Embedded reporting |
+| Apache Superset 4.1.1 | Embedded reporting |
+| Redis 7 | Superset caching |
 | Grafana | Dashboards (optional) |
+
+### Build Tools
+
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| Maven | 3.x | Build automation |
+| GraalVM Native | 0.10.6 | Native image compilation |
+| esbuild | 0.25.1 | JavaScript bundling |
+| JavaScript Obfuscator | 4.1.1 | Code protection |
 
 ---
 
@@ -228,15 +248,15 @@ flowchart LR
 
 ### Required
 
-- **Java**: OpenJDK 17 or later
-- **PostgreSQL**: Version 14 or later
+- **Java**: OpenJDK 25
+- **PostgreSQL**: Version 18 (via Docker or local)
 - **Maven**: 3.8+ (or use included Maven wrapper)
 
 ### Optional
 
-- **Node.js**: 18+ (for package management)
+- **Node.js**: 18+ (for JavaScript asset building)
 - **Docker**: 20+ (for containerized deployment)
-- **RabbitMQ**: 3.x (for async messaging)
+- **RabbitMQ**: 3.13 (for async messaging - included in docker-compose)
 - **Git**: 2.x (for version control)
 
 ### Verify Installation
@@ -244,8 +264,9 @@ flowchart LR
 ```bash
 # Check Java
 java -version
+# Should show: openjdk version "25.x.x"
 
-# Check PostgreSQL
+# Check PostgreSQL (if installed locally)
 psql --version
 
 # Check Maven
@@ -263,32 +284,29 @@ git clone https://github.com/krishanuacharya-24online/24ONLINEMDM.git
 cd 24ONLINEMDM
 ```
 
-### 2. Database Setup
+### 2. Quick Start with Docker (Recommended)
 
-```sql
--- Create database
-CREATE DATABASE mdm;
+```bash
+# Start all services (PostgreSQL, RabbitMQ, Zipkin, Superset)
+docker-compose up -d
 
--- Create user (optional)
-CREATE USER mdm_user WITH PASSWORD 'your_secure_password';
-GRANT ALL PRIVILEGES ON DATABASE mdm TO mdm_user;
+# Wait for services to be healthy (check with:)
+docker-compose ps
 ```
 
 ### 3. Configure Application
 
-Edit `src/main/resources/application.yaml`:
+The default configuration uses these environment variables:
 
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/mdm
-    username: postgres
-    password: your_password
-  r2dbc:
-    url: r2dbc:postgresql://localhost:5432/mdm
-    username: postgres
-    password: your_password
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `POSTGRES_HOST` | localhost | Database host |
+| `POSTGRES_PORT` | 5433 | Database port (mapped) |
+| `POSTGRES_DB` | mdm | Database name |
+| `POSTGRES_USER` | mdm | Database username |
+| `POSTGRES_PASSWORD` | mdm | Database password |
+| `RABBITMQ_HOST` | localhost | RabbitMQ host |
+| `RABBITMQ_PORT` | 5672 | RabbitMQ port |
 
 ### 4. Run the Application
 
@@ -298,7 +316,7 @@ spring:
 
 # Or build and run JAR
 ./mvnw clean package
-java -jar target/*.jar
+java -jar target/24onlinemdm.jar
 ```
 
 ### 5. Access the Application
@@ -306,9 +324,12 @@ java -jar target/*.jar
 | Interface | URL | Credentials |
 |-----------|-----|-------------|
 | Web UI | http://localhost:8080 | admin / admin |
-| API | http://localhost:8080/api/v2 | JWT Token |
+| API | http://localhost:8080/api/v1 | JWT Token |
 | Actuator | http://localhost:8080/actuator | - |
 | Health | http://localhost:8080/health | - |
+| Superset | http://localhost:8088 | admin / admin |
+| Zipkin | http://localhost:9411 | - |
+| RabbitMQ Mgmt | http://localhost:15672 | guest / guest |
 
 ⚠️ **Change the default admin password immediately!**
 
@@ -320,22 +341,43 @@ java -jar target/*.jar
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SPRING_DATASOURCE_URL` | jdbc:postgresql://localhost:5432/mdm | Database URL |
-| `SPRING_DATASOURCE_USERNAME` | postgres | Database username |
-| `SPRING_DATASOURCE_PASSWORD` | - | Database password |
-| `SERVER_PORT` | 8080 | HTTP port |
-| `JWT_SECRET` | (random) | JWT signing key |
-| `JWT_EXPIRATION_MS` | 86400000 | Token validity (ms) |
-| `TENANT_ID_HEADER` | X-Tenant-ID | Tenant header name |
+| `POSTGRES_HOST` | localhost | Database host |
+| `POSTGRES_PORT` | 5433 | Database port |
+| `POSTGRES_DB` | mdm | Database name |
+| `POSTGRES_USER` | mdm | Database username |
+| `POSTGRES_PASSWORD` | mdm | Database password |
+| `HIKARI_MAX_POOL_SIZE` | 100 | Connection pool max size |
+| `HIKARI_MIN_IDLE` | 10 | Connection pool min idle |
+| `RABBITMQ_HOST` | localhost | RabbitMQ host |
+| `RABBITMQ_PORT` | 5672 | RabbitMQ port |
+| `RABBITMQ_USER` | guest | RabbitMQ username |
+| `RABBITMQ_PASSWORD` | guest | RabbitMQ password |
+| `RABBITMQ_VHOST` | / | RabbitMQ virtual host |
+| `ZIPKIN_PORT` | 9411 | Zipkin tracing port |
+| `TRACING_ENABLED` | true | Enable distributed tracing |
+| `TRACING_SAMPLING_PROBABILITY` | 1.0 | Tracing sample rate |
+| `MANAGEMENT_ALLOWED_CIDRS` | 127.0.0.1/32,::1/128 | Allowed actuator CIDRs |
+| `SUPERSET_PORT` | 8088 | Superset reporting port |
+
+### API Configuration
+
+```yaml
+api:
+  version:
+    prefix: v1
+  pagination:
+    default-page: 0
+    default-size: 50
+    max-size: 500
+    max-page: 1000
+```
 
 ### Application Profiles
 
 | Profile | Purpose |
 |---------|---------|
 | `default` | Standard configuration |
-| `aot` | Ahead-of-Time compilation |
-| `dev` | Development settings |
-| `prod` | Production settings |
+| `aot` | Ahead-of-Time native compilation |
 
 ### Configuration Files
 
@@ -344,7 +386,7 @@ src/main/resources/
 ├── application.yaml          # Main configuration
 ├── application-aot.yaml      # AOT profile
 ├── log4j2.xml               # Logging configuration
-└── db/migration/            # Flyway migrations
+└── db/migration/            # Flyway migrations (V001-V023)
 ```
 
 ---
@@ -358,12 +400,14 @@ erDiagram
     TENANT ||--o{ DEVICE_ENROLLMENT : has
     TENANT ||--o{ TENANT_API_KEY : has
     TENANT ||--o{ AUTH_USER : has
+    TENANT ||--o{ POLICY_CHANGE_AUDIT : has
     
     DEVICE_ENROLLMENT ||--o{ DEVICE_TRUST_PROFILE : has
     DEVICE_ENROLLMENT ||--o{ DEVICE_SYSTEM_SNAPSHOT : has
     DEVICE_ENROLLMENT ||--o{ DEVICE_INSTALLED_APPLICATION : has
     DEVICE_ENROLLMENT ||--o{ DEVICE_POSTURE_PAYLOAD : has
     DEVICE_ENROLLMENT ||--o{ DEVICE_DECISION_RESPONSE : has
+    DEVICE_ENROLLMENT ||--o{ DEVICE_AGENT_CREDENTIAL : has
     
     DEVICE_TRUST_PROFILE ||--o{ DEVICE_TRUST_SCORE_EVENT : has
     
@@ -375,6 +419,9 @@ erDiagram
     TRUST_SCORE_POLICY ||--o{ TRUST_SCORE_DECISION_POLICY : has
     
     APPLICATION_CATALOG_ENTRY ||--o{ REJECT_APPLICATION : blocks
+    
+    POSTURE_EVALUATION_RUN ||--o{ POSTURE_EVALUATION_MATCH : has
+    POSTURE_EVALUATION_RUN ||--o{ POSTURE_EVALUATION_REMEDIATION : has
 ```
 
 ### Key Tables
@@ -389,6 +436,10 @@ erDiagram
 | `posture_evaluation_run` | Evaluation history |
 | `policy_change_audit` | Audit trail |
 | `audit_event_log` | General audit log |
+| `os_release_lifecycle_master` | OS version tracking |
+| `application_catalog_entry` | Application catalog |
+| `reject_application` | Blocked applications |
+| `lookup_*` | Reference data tables |
 
 ### Migrations
 
@@ -403,17 +454,27 @@ Flyway migrations are in `src/main/resources/db/migration/`:
 | V005 | Schema optimization |
 | V006 | Tenant master |
 | V007 | Auth users and tokens |
-| V008+ | Additional features |
+| V008 | Seed default admin |
+| V009-V010 | Password migration to SHA-512 |
+| V011 | Tenant API keys |
+| V012-V017 | Device enrollment enhancements |
+| V018-V023 | Posture queue, policy audit, reference sync |
 
 ---
 
 ## 🌐 API Reference
 
+### Base URL
+
+```
+http://localhost:8080/api/v1
+```
+
 ### Authentication
 
 #### Get Token
 ```bash
-curl -X POST http://localhost:8080/api/v2/auth/token \
+curl -X POST http://localhost:8080/api/v1/auth/token \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin"}'
 ```
@@ -422,7 +483,7 @@ Response:
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiresIn": 86400000
+  "expires_in": 86400000
 }
 ```
 
@@ -430,13 +491,13 @@ Response:
 
 #### List Devices
 ```bash
-curl -X GET http://localhost:8080/api/v2/devices \
+curl -X GET http://localhost:8080/api/v1/devices \
   -H "Authorization: Bearer <token>"
 ```
 
 #### Get Device Timeline
 ```bash
-curl -X GET http://localhost:8080/api/v2/devices/{deviceId}/timeline \
+curl -X GET http://localhost:8080/api/v1/devices/{deviceId}/timeline \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -444,19 +505,19 @@ curl -X GET http://localhost:8080/api/v2/devices/{deviceId}/timeline \
 
 #### List Trust Score Policies
 ```bash
-curl -X GET http://localhost:8080/api/v2/policies/trust-score \
+curl -X GET http://localhost:8080/api/v1/policies/trust-score \
   -H "Authorization: Bearer <token>"
 ```
 
 #### Create Trust Score Policy
 ```bash
-curl -X POST http://localhost:8080/api/v2/policies/trust-score \
+curl -X POST http://localhost:8080/api/v1/policies/trust-score \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Default Trust Policy",
-    "osType": "windows",
-    "minTrustScore": 50
+    "os_type": "windows",
+    "min_trust_score": 50
   }'
 ```
 
@@ -464,33 +525,48 @@ curl -X POST http://localhost:8080/api/v2/policies/trust-score \
 
 #### Register Device
 ```bash
-curl -X POST http://localhost:8080/api/v2/agent/register \
+curl -X POST http://localhost:8080/api/v1/agent/register \
   -H "X-API-Key: <tenant-api-key>" \
   -H "Content-Type: application/json" \
   -d '{
-    "deviceName": "DESKTOP-ABC123",
-    "osType": "windows",
-    "osVersion": "10.0.19041"
+    "device_name": "DESKTOP-ABC123",
+    "os_type": "windows",
+    "os_version": "10.0.19041"
   }'
 ```
 
 #### Submit Posture Payload
 ```bash
-curl -X POST http://localhost:8080/api/v2/agent/posture \
+curl -X POST http://localhost:8080/api/v1/agent/posture \
   -H "Authorization: Bearer <agent-token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "systemSnapshot": {...},
-    "installedApplications": [...]
+    "system_snapshot": {...},
+    "installed_applications": [...]
   }'
 ```
 
-### API Versioning
+### API Endpoints
 
-| Version | Status | Base Path |
-|---------|--------|-----------|
-| v1 | Deprecated | `/api/v1` |
-| v2 | Current | `/api/v2` |
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/auth/token` | POST | Get JWT token |
+| `/devices` | GET | List devices |
+| `/devices/{id}` | GET | Get device details |
+| `/devices/{id}/timeline` | GET | Get device timeline |
+| `/enrollments` | GET | List enrollments |
+| `/policies/trust-score` | GET/POST | Manage trust score policies |
+| `/policies/system-rules` | GET/POST | Manage system information rules |
+| `/policies/remediation` | GET/POST | Manage remediation rules |
+| `/policies/decision` | GET/POST | Manage trust decision policies |
+| `/agent/register` | POST | Register device |
+| `/agent/posture` | POST | Submit posture data |
+| `/catalog` | GET/POST | Manage application catalog |
+| `/lookups` | GET/POST | Manage lookup tables |
+| `/tenants` | GET/POST | Manage tenants |
+| `/users` | GET/POST | Manage users |
+| `/evaluations` | POST | Trigger evaluation run |
+| `/reports` | GET | Access Superset reports |
 
 ---
 
@@ -510,6 +586,9 @@ curl -X POST http://localhost:8080/api/v2/agent/posture \
 | Users | `/users` | User management |
 | Reports | `/reports` | Embedded Superset dashboards |
 | Audit Trail | `/audit-trail` | Audit log viewer |
+| OS Lifecycle | `/os-lifecycle` | OS version management |
+| Catalog | `/catalog` | Application catalog |
+| Lookups | `/lookups` | Reference data management |
 
 ### Navigation
 
@@ -570,7 +649,7 @@ sequenceDiagram
 
 | Endpoint | Description |
 |----------|-------------|
-| `/actuator/health` | Health status |
+| `/actuator/health` | Health status with probes |
 | `/actuator/info` | Application info |
 | `/actuator/metrics` | Metrics |
 | `/actuator/prometheus` | Prometheus format |
@@ -579,8 +658,9 @@ sequenceDiagram
 
 ### Prometheus Metrics
 
+Example alert rules in `docs/ops/prometheus/policy-alert-rules.yml`:
+
 ```yaml
-# Example policy-alert-rules.yml
 groups:
   - name: MDM Alerts
     rules:
@@ -592,16 +672,9 @@ groups:
 
 ### Zipkin Tracing
 
-Enable distributed tracing:
-```yaml
-management:
-  zipkin:
-    tracing:
-      endpoint: http://localhost:9411/api/v2/spans
-  tracing:
-    sampling:
-      probability: 1.0
-```
+Distributed tracing is enabled by default:
+- **Endpoint**: `http://localhost:9411`
+- **Sampling**: 100% (configurable via `TRACING_SAMPLING_PROBABILITY`)
 
 ### Superset Reporting
 
@@ -632,7 +705,7 @@ Embedded dashboards accessible at `/reports`:
 ### Password Policy
 
 - Minimum 8 characters
-- Not in breached passwords list (HaveIBeenPwned)
+- Checked against breached passwords list (top 1000)
 - SHA-512 hashing with salt
 
 ### Security Headers
@@ -644,6 +717,11 @@ Embedded dashboards accessible at `/reports`:
 - X-XSS-Protection: 1; mode=block
 - Content-Security-Policy: default-src 'self'
 ```
+
+### Rate Limiting
+
+- Configured via Resilience4j
+- Per-endpoint rate limits available
 
 ---
 
@@ -689,52 +767,43 @@ target/site/jacoco/index.html
 ### Docker Deployment
 
 ```bash
-# Build image
-docker build -t 24online/mdm:latest .
+# Start infrastructure
+docker-compose up -d mdm-db rabbitmq zipkin superset-db superset-redis
 
-# Run container
+# Build and run application
+./mvnw clean package
+docker build -t 24online/mdm:latest .
 docker run -p 8080:8080 \
-  -e SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/mdm \
-  -e SPRING_DATASOURCE_PASSWORD=secret \
+  -e POSTGRES_HOST=host.docker.internal \
+  -e POSTGRES_PORT=5433 \
   24online/mdm:latest
 ```
 
-### Docker Compose
+### Docker Compose Services
 
-```yaml
-# docker-compose.yml
-services:
-  app:
-    image: 24online/mdm:latest
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/mdm
-    depends_on:
-      - db
-  
-  db:
-    image: postgres:14
-    environment:
-      - POSTGRES_DB=mdm
-      - POSTGRES_PASSWORD=secret
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-volumes:
-  pgdata:
-```
+| Service | Image | Ports | Purpose |
+|---------|-------|-------|---------|
+| `mdm-db` | postgres:18-alpine | 5433 | MDM database |
+| `rabbitmq` | rabbitmq:3.13-management | 5672, 15672 | Message broker |
+| `zipkin` | openzipkin/zipkin:3.4.1 | 9411 | Distributed tracing |
+| `superset-db` | postgres:18-alpine | - | Superset database |
+| `superset-redis` | redis:7-alpine | - | Superset caching |
+| `superset` | 24onlinemdm-superset:4.1.1 | 8088 | Reporting UI |
+| `superset-worker` | 24onlinemdm-superset:4.1.1 | - | Superset async tasks |
+| `superset-beat` | 24onlinemdm-superset:4.1.1 | - | Superset scheduler |
 
 ### Production Checklist
 
 - [ ] Change default admin password
 - [ ] Configure HTTPS/TLS
 - [ ] Set secure JWT secret
+- [ ] Set secure Superset secret key
 - [ ] Enable audit logging
 - [ ] Configure backup strategy
 - [ ] Set up monitoring alerts
 - [ ] Review security headers
 - [ ] Configure rate limiting
+- [ ] Restrict management endpoint CIDRs
 
 ---
 
@@ -744,9 +813,9 @@ volumes:
 
 #### Database Connection Failed
 ```
-Error: Connection refused to localhost:5432
+Error: Connection refused to localhost:5433
 ```
-**Solution**: Ensure PostgreSQL is running and credentials are correct.
+**Solution**: Ensure PostgreSQL container is running: `docker-compose ps mdm-db`
 
 #### Flyway Migration Failed
 ```
@@ -758,17 +827,23 @@ Error: Validate failed - Detected applied migration not resolved
 ```
 Error: 401 Unauthorized - Token expired
 ```
-**Solution**: Request a new token via `/api/v2/auth/token`.
+**Solution**: Request a new token via `/api/v1/auth/token`.
 
 #### RabbitMQ Connection Lost
 ```
 Warning: Connection to RabbitMQ lost, retrying...
 ```
-**Solution**: Check RabbitMQ service status and network connectivity.
+**Solution**: Check RabbitMQ container status: `docker-compose ps rabbitmq`
+
+#### Superset Not Loading
+```
+Error: Connection refused to localhost:8088
+```
+**Solution**: Ensure Superset services are healthy: `docker-compose ps superset`
 
 ### Debug Mode
 
-Enable debug logging:
+Enable debug logging in `application.yaml`:
 ```yaml
 logging:
   level:
@@ -780,7 +855,13 @@ logging:
 
 Logs are written to:
 - Console (stdout)
-- `logs/application.log` (if configured)
+- Check Log4j2 configuration in `src/main/resources/log4j2.xml`
+
+### Health Check
+
+```bash
+curl http://localhost:8080/actuator/health
+```
 
 ---
 
@@ -807,6 +888,16 @@ feat: Add new trust score policy endpoint
 fix: Resolve NPE in device timeline service
 docs: Update API documentation
 test: Add integration tests for enrollment flow
+```
+
+### Building JavaScript Assets
+
+```bash
+# Install dependencies
+npm install
+
+# Build obfuscated JavaScript
+npm run build:js
 ```
 
 ---
@@ -837,6 +928,8 @@ This software is confidential and proprietary. Unauthorized copying, distributio
 | Auth API Usage | `docs/AUTH_API_USAGE.md` |
 | Ops Runbooks | `docs/ops/` |
 | Schema Reference | `docs/MDM_SCHEMA_LOGIC_REFERENCE.md` |
+| Policy Ownership Model | `docs/POLICY_OWNERSHIP_MODEL.md` |
+| Features Guide | `docs/FEATURES_AND_POLICY_GUIDE.md` |
 
 ---
 
