@@ -1,0 +1,27 @@
+/* ==========================================================================
+   Color Palette & Theme Colors
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+  
+  /* Background colors */
+  --bg: #f4f8ff;
+  --bg-elevated: #ffffff;
+  
+  /* Accent colors */
+  --accent: #1d4ed8;
+  --accent-2: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.1);
+  
+  /* Text colors */
+  --text: #0f172a;
+  --text-soft: #1e293b;
+  --muted: #475569;
+  
+  /* Border colors */
+  --border: #cfe3ff;
+  
+  /* Status colors */
+  --danger: #dc2626;
+}

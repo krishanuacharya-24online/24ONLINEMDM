@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<section>
+    <section class="card">
+        <div class="page-head">
+            <div>
+                <h2>Users</h2>
+                <div class="muted">Product admins and tenant admins can create and manage users within allowed scope.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card mt-1">
+        <h2>User directory</h2>
+        <table id="usersTable" class="display responsive nowrap w-100">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Tenant</th>
+                <th>Status</th>
+                <th>Modified</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+        </table>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Create / edit</h2>
+        <form id="usersForm" class="split">
+            <div>
+                <div class="kvs">
+                    <div class="k"><label for="username">Username</label></div>
+                    <div class="v"><input id="username" type="text" required/></div>
+                    <div class="k"><label for="password">Password</label></div>
+                    <div class="v"><input id="password" type="password"/></div>
+                    <div class="k"><label for="role">Role</label></div>
+                    <div class="v">
+                        <select id="role" required></select>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="kvs">
+                    <div class="k" id="tenantIdLabelWrap"><label for="tenant_id">Tenant ID</label></div>
+                    <div class="v" id="tenantIdFieldWrap">
+                        <select id="tenant_id"></select>
+                    </div>
+                    <div class="k"><label for="status">Status</label></div>
+                    <div class="v"><select id="status"></select></div>
+                </div>
+                <div class="form-row mt-075">
+                    <input id="edit_id" type="hidden"/>
+                    <button type="submit">Save</button>
+                    <button id="resetBtn" class="secondary" type="button">Reset</button>
+                </div>
+                <div class="muted mt-05">
+                    New password is required on create and optional on update. Password must be at least 12 chars with upper/lower/digit/special.
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <section class="card mt-1" id="userEnrollmentsCard">
+        <h2>Selected user enrolled devices</h2>
+        <div id="userEnrollmentsHint" class="muted">Select a user row to view enrolled devices.</div>
+        <table id="userEnrollmentsTable" class="display responsive nowrap w-100">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Enrollment no</th>
+                <th>Method</th>
+                <th>Status</th>
+                <th>Agent</th>
+                <th>Enrolled at</th>
+                <th>De-enrolled at</th>
+                <th>Reason</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody id="userEnrollmentsTableBody">
+            <tr><td colspan="9" class="muted">No user selected.</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <script type="module" th:src="@{/assets/js/pages/users.js}"></script>
+</section>
+</html>
+
+

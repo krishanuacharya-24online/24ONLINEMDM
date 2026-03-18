@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<section>
+    <section class="card">
+        <div class="page-head">
+            <div>
+                <h2>OS lifecycle master</h2>
+                <div class="muted">Platform/cycle catalog used by lifecycle-aware decisions.</div>
+            </div>
+            <div class="page-head__actions">
+                <div class="sync-action">
+                    <button
+                            id="syncNowOsLifecycleBtn"
+                            type="button"
+                            class="secondary btn-inline-icon"
+                            data-sync-now="true"
+                            data-sync-trigger="manual-ui-os-lifecycle"
+                            data-no-icon="true">
+                        <span class="btn-inline-icon__glyph" aria-hidden="true">&#x21bb;</span>
+                        <span>Sync Now</span>
+                    </button>
+                    <span class="sync-last-label muted" data-sync-last="true" aria-live="polite">Last sync: Never</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card mt-1">
+        <h2>OS lifecycle</h2>
+        <table id="osLifecycleTable" class="display responsive nowrap w-100">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Platform</th>
+                <th>Cycle</th>
+                <th>Released</th>
+                <th>EOL</th>
+                <th>Support</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+        </table>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Create / edit</h2>
+        <form id="osLifecycleForm" class="split">
+            <div>
+                <div class="kvs">
+                    <div class="k"><label for="platform_code">Platform code</label></div>
+                    <div class="v"><input id="platform_code" type="text" required/></div>
+                    <div class="k"><label for="os_type">OS type</label></div>
+                    <div class="v"><input id="os_type" type="text" placeholder="WINDOWS"/></div>
+                    <div class="k"><label for="os_name">OS name</label></div>
+                    <div class="v"><input id="os_name" type="text" placeholder="Optional"/></div>
+                    <div class="k"><label for="cycle">Cycle</label></div>
+                    <div class="v"><input id="cycle" type="text" required/></div>
+                    <div class="k"><label for="released_on">Released on</label></div>
+                    <div class="v"><input id="released_on" type="text" placeholder="YYYY-MM-DD"/></div>
+                    <div class="k"><label for="eol_on">EOL on</label></div>
+                    <div class="v"><input id="eol_on" type="text" placeholder="YYYY-MM-DD"/></div>
+                </div>
+            </div>
+            <div>
+                <div class="kvs">
+                    <div class="k"><label for="eeol_on">Extended EOL</label></div>
+                    <div class="v"><input id="eeol_on" type="text" placeholder="Optional YYYY-MM-DD"/></div>
+                    <div class="k"><label for="latest_version">Latest version</label></div>
+                    <div class="v"><input id="latest_version" type="text" placeholder="Optional"/></div>
+                    <div class="k"><label for="support_state">Support state</label></div>
+                    <div class="v"><select id="support_state" required></select></div>
+                    <div class="k"><label for="source_name">Source name</label></div>
+                    <div class="v"><input id="source_name" type="text" placeholder="endoflife.date"/></div>
+                    <div class="k"><label for="source_url">Source URL</label></div>
+                    <div class="v"><input id="source_url" type="text" placeholder="Optional"/></div>
+                    <div class="k"><label for="notes">Notes</label></div>
+                    <div class="v"><textarea id="notes" placeholder="Optional"></textarea></div>
+                    <div class="k"><label for="status">Status</label></div>
+                    <div class="v"><select id="status"></select></div>
+                </div>
+                <div class="form-row mt-075">
+                    <input id="edit_id" type="hidden"/>
+                    <button type="submit">Save</button>
+                    <button id="resetBtn" class="secondary" type="button">Reset</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <script type="module" th:src="@{/assets/js/pages/os_lifecycle_dt.js}"></script>
+</section>
+</html>
+
+

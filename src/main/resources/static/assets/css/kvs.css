@@ -1,0 +1,32 @@
+/* ==========================================================================
+   Key-Value List (KVS)
+   ========================================================================== */
+
+.kvs {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 0.4rem 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.kvs .k {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.kvs .v {
+  font-size: 0.85rem;
+  word-break: break-word;
+}
+
+/* Overview inspector */
+.overview-inspector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.overview-inspector .kvs {
+  grid-template-columns: 118px minmax(0, 1fr);
+  margin-top: 0.35rem;
+}

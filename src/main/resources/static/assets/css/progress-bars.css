@@ -1,0 +1,69 @@
+/* ==========================================================================
+   Progress Bars
+   ========================================================================== */
+
+.overview-bars {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.overview-bar {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.overview-bar__label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.overview-bar__track {
+  width: 100%;
+  border-radius: 999px;
+  height: 0.62rem;
+  background: rgba(203, 213, 225, 0.55);
+  overflow: hidden;
+}
+
+.overview-bar__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1d4ed8, #60a5fa);
+}
+
+.overview-bar__meta {
+  font-size: 0.74rem;
+  color: #1e293b;
+  min-width: 92px;
+  text-align: right;
+}
+
+/* Progress bar color variants */
+.overview-bar--ok .overview-bar__fill,
+.overview-bar--trusted .overview-bar__fill {
+  background: linear-gradient(90deg, #15803d, #4ade80);
+}
+
+.overview-bar--low-risk .overview-bar__fill {
+  background: linear-gradient(90deg, #0f766e, #2dd4bf);
+}
+
+.overview-bar--medium-risk .overview-bar__fill {
+  background: linear-gradient(90deg, #ca8a04, #facc15);
+}
+
+.overview-bar--high-risk .overview-bar__fill {
+  background: linear-gradient(90deg, #ea580c, #fb923c);
+}
+
+.overview-bar--critical .overview-bar__fill,
+.overview-bar--danger .overview-bar__fill {
+  background: linear-gradient(90deg, #b91c1c, #ef4444);
+}
+
+.overview-bar--warn .overview-bar__fill {
+  background: linear-gradient(90deg, #d97706, #f59e0b);
+}

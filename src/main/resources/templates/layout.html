@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:fragment="layout(content)">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="${title} ?: 'MDM Console'">MDM Console</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="api-version" th:content="${@environment.getProperty('api.version.prefix', 'v1')}"/>
+    <link rel="stylesheet" th:href="@{/assets/css/app.css(v=202603176)}"/>
+    <link rel="stylesheet" th:href="@{/assets/css/device-timeline.css(v=202603171)}"/>
+    <link rel="icon" th:href="@{/assets/favicon.svg}" type="image/x-icon"/>
+    <script th:src="@{/assets/js/dt-helpers.js(v=202603062)}" defer></script>
+    <script th:src="@{/assets/js/app.js(v=202603175)}" defer></script>
+    <script type="module" th:src="@{/assets/js/reference-sync.js(v=202603176)}"></script>
+    <script type="module" th:src="@{/assets/js/pages/device-timeline.js(v=202603177)}" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#mainContent">Skip to main content</a>
+<div class="shell">
+    <header>
+        <div class="brand">
+            <div class="brand-pill"></div>
+            <span>24Online MDM</span>
+        </div>
+        <div class="header-right">
+            <button id="menuToggleBtn" type="button" class="secondary menu-toggle" aria-expanded="true" aria-controls="primaryNavShell">
+                Menu
+            </button>
+            <div id="headerUserMenuWrap" class="header-user-menu" hidden>
+                <button
+                        id="headerUser"
+                        type="button"
+                        class="user-chip user-menu-trigger"
+                        data-no-icon="true"
+                        aria-haspopup="menu"
+                        aria-expanded="false"
+                        aria-controls="headerUserMenu"
+                        hidden>
+                </button>
+                <div id="headerUserMenu" class="header-user-menu__panel" role="menu" hidden>
+                    <a th:href="@{/ui/change-password}" role="menuitem" data-drawer-close="true">Change Password</a>
+                    <button id="logoutBtn" type="button" class="secondary header-user-menu__logout" data-no-icon="true" role="menuitem">Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="shell-body">
+        <aside id="primaryNavShell" class="nav-shell" aria-label="Primary navigation">
+            <nav id="primaryNav">
+                <a th:if="${nav.overview}" th:href="@{/ui}" th:attr="data-active=${activePage == 'overview'}">Overview</a>
+                <a th:if="${nav.devices}" th:href="@{/ui/devices}" th:attr="data-active=${activePage == 'devices'}">Devices</a>
+                <a th:if="${nav.enrollments}" th:href="@{/ui/enrollments}" th:attr="data-active=${activePage == 'enrollments'}">Enrollments</a>
+                <a th:if="${nav.payloads}" th:href="@{/ui/payloads}" th:attr="data-active=${activePage == 'payloads'}">Payloads</a>
+                <a th:if="${nav.audit}" th:href="@{/ui/audit-trail}" th:attr="data-active=${activePage == 'audit'}">Audit</a>
+                <a th:if="${nav.policies}" th:href="@{/ui/policies/system-rules}" th:attr="data-active=${activePage == 'policies'}">Policies</a>
+                <a th:if="${nav.catalog}" th:href="@{/ui/catalog/applications}" th:attr="data-active=${activePage == 'catalog'}">Catalog</a>
+                <a th:if="${nav.lookups}" th:href="@{/ui/lookups}" th:attr="data-active=${activePage == 'lookups'}">Lookups</a>
+                <a th:if="${nav.tenants}" th:href="@{/ui/tenants}" th:attr="data-active=${activePage == 'tenants'}">Tenants</a>
+                <a th:if="${nav.users}" th:href="@{/ui/users}" th:attr="data-active=${activePage == 'users'}">Users</a>
+                <a th:if="${nav.reports}" th:href="@{/ui/reports}" th:attr="data-active=${activePage == 'reports'}">Reports</a>
+                <a th:if="${nav.osLifecycle}" th:href="@{/ui/os-lifecycle}" th:attr="data-active=${activePage == 'os-lifecycle'}">OS Lifecycle</a>
+                <details th:if="${nav.management}" class="nav-dropdown">
+                    <summary>Management</summary>
+                    <div class="nav-dropdown__menu">
+                        <div class="sync-action sync-action--menu">
+                            <button
+                                    id="managementSyncNowBtn"
+                                    type="button"
+                                    class="secondary btn-inline-icon"
+                                    data-sync-now="true"
+                                    data-sync-trigger="manual-ui-management"
+                                    data-drawer-close="true"
+                                    data-no-icon="true">
+                                <span class="btn-inline-icon__glyph" aria-hidden="true">&#x21bb;</span>
+                                <span>Sync Now</span>
+                            </button>
+                            <span class="sync-last-label muted" data-sync-last="true" aria-live="polite">Last sync: Never</span>
+                        </div>
+                        <a href="http://localhost:8088/superset/dashboard/1/?standalone=1" rel="noopener noreferrer" data-drawer-close="true">Superset Dashboard</a>
+                        <a th:href="@{/swagger-ui.html}" target="_blank" rel="noopener noreferrer" data-drawer-close="true">Swagger</a>
+                        <a th:href="${@environment.getProperty('management.zipkin.ui-url', 'http://localhost:9411')}" target="_blank" rel="noopener noreferrer" data-drawer-close="true">Zipkin</a>
+                        <a th:href="${@environment.getProperty('management.rabbitmq.ui-url', 'http://localhost:15672')}" target="_blank" rel="noopener noreferrer" data-drawer-close="true">RabbitMQ</a>
+                    </div>
+                </details>
+            </nav>
+        </aside>
+
+        <main id="mainContent" tabindex="-1">
+            <div th:replace="${content}"></div>
+        </main>
+    </div>
+
+    <div id="navBackdrop" class="nav-backdrop"></div>
+
+    <footer>
+        <span>24online MDM & posture engine</span>
+    </footer>
+</div>
+</body>
+</html>

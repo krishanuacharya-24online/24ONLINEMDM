@@ -1,0 +1,112 @@
+/* ==========================================================================
+   Select2 Lite Component
+   Custom select dropdown implementation
+   ========================================================================== */
+
+.select2-lite {
+  position: relative;
+  width: 100%;
+}
+
+.select2-lite__native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+button.select2-lite__trigger {
+  width: 100%;
+  min-height: 2.15rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(191, 219, 254, 0.95);
+  background: rgba(255, 255, 255, 0.98);
+  color: var(--text);
+  box-shadow: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  padding: 0.45rem 2rem 0.45rem 0.7rem;
+  text-align: left;
+  position: relative;
+}
+
+button.select2-lite__trigger::after {
+  content: "▾";
+  position: absolute;
+  right: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+button.select2-lite__trigger:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+button.select2-lite__trigger:disabled {
+  background: rgba(241, 245, 249, 0.9);
+}
+
+.select2-lite__panel {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  left: 0;
+  right: 0;
+  z-index: 240;
+  border: 1px solid rgba(191, 219, 254, 0.95);
+  background: rgba(255, 255, 255, 0.99);
+  border-radius: 0.82rem;
+  box-shadow: 0 16px 30px rgba(2, 6, 23, 0.15);
+  padding: 0.45rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.select2-lite[data-open="false"] .select2-lite__panel,
+.select2-lite__panel[hidden] {
+  display: none !important;
+}
+
+.select2-lite__search {
+  width: 100%;
+}
+
+.select2-lite__options {
+  max-height: 220px;
+  overflow: auto;
+  display: grid;
+  gap: 0.2rem;
+}
+
+button.select2-lite__option {
+  width: 100%;
+  border-radius: 0.55rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  box-shadow: none;
+  text-align: left;
+  letter-spacing: 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 0.35rem 0.5rem;
+}
+
+button.select2-lite__option:hover,
+button.select2-lite__option:focus-visible {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(147, 197, 253, 0.6);
+  background: rgba(239, 246, 255, 0.9);
+}
+
+button.select2-lite__option.is-selected {
+  border-color: rgba(37, 99, 235, 0.4);
+  background: rgba(219, 234, 254, 0.95);
+  color: #1e3a8a;
+}

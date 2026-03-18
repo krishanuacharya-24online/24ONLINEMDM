@@ -1,0 +1,139 @@
+/* ==========================================================================
+   Tables
+   Table styles, sorting, responsive
+   ========================================================================== */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+}
+
+.table-scroll-wrap {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+table.table--responsive {
+  width: max(100%, 700px);
+}
+
+th,
+td {
+  padding: 0.45rem 0.4rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(219, 234, 254, 0.95);
+  vertical-align: top;
+}
+
+th {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+th.sortable {
+  position: relative;
+  padding-right: 1rem;
+}
+
+th.sortable::after {
+  content: "↕";
+  position: absolute;
+  right: 0.2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+th.sortable[data-sort-dir="asc"]::after {
+  content: "↑";
+}
+
+th.sortable[data-sort-dir="desc"]::after {
+  content: "↓";
+}
+
+tr:hover td {
+  background: rgba(239, 246, 255, 0.65);
+}
+
+#device-table tbody tr[data-index] {
+  cursor: default;
+}
+
+#device-table tbody tr.is-selected td {
+  background: rgba(219, 234, 254, 0.95);
+  box-shadow: inset 0 -1px 0 rgba(37, 99, 235, 0.25);
+}
+
+#device-table .compact-btn {
+  padding: 0.18rem 0.58rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+}
+
+#catalogAppsTable tbody td:last-child {
+  white-space: nowrap;
+}
+
+#catalogAppsTable tbody td:last-child button.icon-btn + button.icon-btn {
+  margin-left: 0.45rem;
+}
+
+/* Table controls */
+.table-controls {
+  margin-top: 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.table-controls__left,
+.table-controls__right {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.table-controls__right input {
+  min-width: 220px;
+}
+
+.table-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+/* Responsive tables */
+@media (max-width: 960px) {
+  .table-controls__right input {
+    min-width: 150px;
+  }
+
+  table.table--responsive {
+    width: max(100%, 620px);
+  }
+
+  #catalogAppsTable tbody td:last-child {
+    white-space: normal;
+  }
+
+  #catalogAppsTable tbody td:last-child button.icon-btn {
+    display: flex;
+  }
+
+  #catalogAppsTable tbody td:last-child button.icon-btn + button.icon-btn {
+    margin-left: 0;
+    margin-top: 0.4rem;
+  }
+}

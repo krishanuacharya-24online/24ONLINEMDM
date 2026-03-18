@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<section>
+    <section class="card">
+        <div class="page-head">
+            <div>
+                <h2>System information rules</h2>
+                <div class="muted">Create, edit, and retire posture rules used by the evaluator.</div>
+            </div>
+            <div class="tab-links">
+                <a class="link-btn" th:href="@{/ui/policies/system-rules}" th:attr="data-active=${activePolicy == 'system-rules'}">System rules</a>
+                <a class="link-btn" th:href="@{/ui/policies/reject-apps}" th:attr="data-active=${activePolicy == 'reject-apps'}">Reject apps</a>
+                <a class="link-btn" th:href="@{/ui/policies/trust-score-policies}" th:attr="data-active=${activePolicy == 'trust-score-policies'}">Trust policies</a>
+                <a class="link-btn" th:href="@{/ui/policies/trust-decision-policies}" th:attr="data-active=${activePolicy == 'trust-decision-policies'}">Decision policies</a>
+                <a class="link-btn" th:href="@{/ui/policies/remediation-rules}" th:attr="data-active=${activePolicy == 'remediation-rules'}">Remediations</a>
+                <a class="link-btn" th:href="@{/ui/policies/rule-remediation-mappings}" th:attr="data-active=${activePolicy == 'rule-remediation-mappings'}">Mappings</a>
+                <a class="link-btn" th:href="@{/ui/policies/audit-trail}" th:attr="data-active=${activePolicy == 'audit-trail'}">Audit trail</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Conditions</h2>
+        <div class="muted">Open the condition editor for a specific system rule code.</div>
+        <form class="form-row" id="open-conditions-form">
+            <div>
+                <label for="ruleCodePicker">System rule code</label><br/>
+                <select id="ruleCodePicker" required>
+                    <option value="" disabled selected>Loading rule codes...</option>
+                </select>
+            </div>
+            <div>
+                <label>&nbsp;</label><br/>
+                <button type="submit" data-no-icon="true">Open conditions</button>
+            </div>
+        </form>
+        <div class="muted mt-075">Tip: Pick a code from this dropdown, or use the row action to open conditions directly.</div>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Rules</h2>
+        <table id="systemRulesTable" class="display responsive nowrap w-100">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Code</th>
+                <th>OS</th>
+                <th>Device</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+        </table>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Create / edit</h2>
+        <form id="systemRuleForm" class="split">
+            <div>
+                <div class="kvs">
+                    <div class="k"><label for="rule_code">Rule code</label></div>
+                    <div class="v">
+                        <input id="rule_code" name="rule_code" type="text" required readonly placeholder="Auto generated"/>
+                    </div>
+                    <div class="k"><label for="rule_tag">Rule tag</label></div>
+                    <div class="v"><input id="rule_tag" name="rule_tag" type="text" required/></div>
+                    <div class="k"><label for="os_type">OS type</label></div>
+                    <div class="v">
+                        <select id="os_type" name="os_type" required></select>
+                    </div>
+                    <div class="k"><label for="device_type">Device type</label></div>
+                    <div class="v">
+                        <select id="device_type" name="device_type"></select>
+                    </div>
+                    <div class="k"><label for="status">Status</label></div>
+                    <div class="v"><select id="status" name="status"></select></div>
+                </div>
+            </div>
+            <div>
+                <div class="kvs">
+                    <div class="k"><label for="severity">Severity</label></div>
+                    <div class="v">
+                        <select id="severity" name="severity" required>
+                            <option value="1">1 - Low</option>
+                            <option value="2">2 - Guarded</option>
+                            <option value="3" selected>3 - Medium</option>
+                            <option value="4">4 - High</option>
+                            <option value="5">5 - Critical</option>
+                        </select>
+                        <div id="severity_hint" class="muted"></div>
+                    </div>
+                    <div class="k"><label for="priority">Priority</label></div>
+                    <div class="v">
+                        <input id="priority" name="priority" type="number" value="100" required/>
+                        <div id="priority_hint" class="muted"></div>
+                    </div>
+                    <div class="k"><label for="version">Version</label></div>
+                    <div class="v"><input id="version" name="version" type="number" value="1" required/></div>
+                    <div class="k"><label for="match_mode">Match mode</label></div>
+                    <div class="v"><select id="match_mode" name="match_mode"></select></div>
+                    <div class="k"><label for="compliance_action">Compliance action</label></div>
+                    <div class="v"><select id="compliance_action" name="compliance_action"></select></div>
+                    <div class="k"><label for="risk_score_delta">Risk delta</label></div>
+                    <div class="v">
+                        <input id="risk_score_delta" name="risk_score_delta" type="number" value="0" required/>
+                        <div id="risk_delta_hint" class="muted"></div>
+                    </div>
+                    <div class="k"><label for="score_preview_examples">Score preview</label></div>
+                    <div class="v">
+                        <div id="score_preview_formula" class="muted"></div>
+                        <div id="score_preview_examples" class="muted"></div>
+                        <div id="score_preview_override_note" class="muted"></div>
+                    </div>
+                    <div class="k"><label for="description">Description</label></div>
+                    <div class="v"><textarea id="description" name="description"></textarea></div>
+                </div>
+                <div class="form-row mt-075">
+                    <input id="edit_id" type="hidden"/>
+                    <button type="submit">Save</button>
+                    <button id="resetBtn" class="secondary" type="button">Reset</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <script type="module" th:src="@{/assets/js/pages/policies_system_rules_dt.js(v=202603063)}"></script>
+</section>
+</html>
+
+
+
+
+

@@ -1,0 +1,108 @@
+/* ==========================================================================
+   Header User Menu Dropdown
+   ========================================================================== */
+
+.header-user-menu {
+  position: relative;
+}
+
+.user-menu-trigger {
+  position: relative;
+  cursor: pointer;
+  text-align: left;
+  padding-right: 1.7rem;
+  letter-spacing: 0;
+  box-shadow: none;
+}
+
+.user-menu-trigger:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.user-menu-trigger::after {
+  content: "▾";
+  position: absolute;
+  right: 0.58rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #475569;
+  font-size: 0.72rem;
+}
+
+.header-user-menu[data-open="true"] .user-menu-trigger::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.header-user-menu__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.38rem);
+  min-width: 200px;
+  background: rgba(255, 255, 255, 0.99);
+  border: 1px solid rgba(191, 219, 254, 0.95);
+  border-radius: 0.8rem;
+  box-shadow: 0 14px 32px rgba(2, 6, 23, 0.14);
+  padding: 0.35rem;
+  display: grid;
+  gap: 0.2rem;
+  z-index: 260;
+}
+
+.header-user-menu__panel[hidden] {
+  display: none !important;
+}
+
+.header-user-menu__panel a {
+  display: block;
+  border-radius: 0.6rem;
+  padding: 0.48rem 0.62rem;
+  color: var(--text);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.header-user-menu__panel a:hover {
+  background: rgba(239, 246, 255, 0.95);
+  border-color: rgba(147, 197, 253, 0.45);
+}
+
+.header-user-menu__panel button {
+  width: 100%;
+  border-radius: 0.6rem;
+  justify-content: flex-start;
+  letter-spacing: 0;
+  padding: 0.48rem 0.62rem;
+  box-shadow: none;
+}
+
+.header-user-menu__panel button:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.header-user-menu__logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.header-user-menu__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-user-menu__icon svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.logout-btn {
+  padding-inline: 1rem;
+}

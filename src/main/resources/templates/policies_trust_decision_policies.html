@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<section>
+    <section class="card">
+        <div class="page-head">
+            <div>
+                <h2>Trust decision policies</h2>
+                <div class="muted">Maps trust-score ranges to actions (ALLOW / QUARANTINE / BLOCK / NOTIFY).</div>
+            </div>
+            <div class="tab-links">
+                <a class="link-btn" th:href="@{/ui/policies/system-rules}" th:attr="data-active=${activePolicy == 'system-rules'}">System rules</a>
+                <a class="link-btn" th:href="@{/ui/policies/reject-apps}" th:attr="data-active=${activePolicy == 'reject-apps'}">Reject apps</a>
+                <a class="link-btn" th:href="@{/ui/policies/trust-score-policies}" th:attr="data-active=${activePolicy == 'trust-score-policies'}">Trust policies</a>
+                <a class="link-btn" th:href="@{/ui/policies/trust-decision-policies}" th:attr="data-active=${activePolicy == 'trust-decision-policies'}">Decision policies</a>
+                <a class="link-btn" th:href="@{/ui/policies/remediation-rules}" th:attr="data-active=${activePolicy == 'remediation-rules'}">Remediations</a>
+                <a class="link-btn" th:href="@{/ui/policies/rule-remediation-mappings}" th:attr="data-active=${activePolicy == 'rule-remediation-mappings'}">Mappings</a>
+                <a class="link-btn" th:href="@{/ui/policies/audit-trail}" th:attr="data-active=${activePolicy == 'audit-trail'}">Audit trail</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Decision policies</h2>
+        <table id="decisionPoliciesTable" class="display responsive nowrap w-100">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Min</th>
+                <th>Max</th>
+                <th>Action</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+        </table>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Create / edit</h2>
+        <form id="decisionPoliciesForm" class="split">
+            <div>
+                <div class="kvs">
+                    <div class="k"><label for="policy_name">Policy name</label></div>
+                    <div class="v"><input id="policy_name" type="text" required/></div>
+                    <div class="k"><label for="score_min">Score min</label></div>
+                    <div class="v">
+                        <input id="score_min" type="number" value="0" min="0" max="100" required/>
+                        <div id="decision_score_min_hint" class="muted"></div>
+                    </div>
+                    <div class="k"><label for="score_max">Score max</label></div>
+                    <div class="v">
+                        <input id="score_max" type="number" value="100" min="0" max="100" required/>
+                        <div id="decision_score_max_hint" class="muted"></div>
+                    </div>
+                    <div class="k"><label for="decision_action">Decision action</label></div>
+                    <div class="v">
+                        <select id="decision_action" required></select>
+                    </div>
+                    <div class="k"><label for="decision_range_preview_examples">Range preview</label></div>
+                    <div class="v">
+                        <div id="decision_range_preview_formula" class="muted"></div>
+                        <div id="decision_range_preview_examples" class="muted"></div>
+                        <div id="decision_range_preview_warning" class="muted"></div>
+                    </div>
+                    <div class="k"><label for="remediation_required">Remediation required</label></div>
+                    <div class="v"><input id="remediation_required" type="checkbox"/></div>
+                </div>
+            </div>
+            <div>
+                <div class="kvs">
+                    <div class="k"><label for="response_message">Response message</label></div>
+                    <div class="v"><input id="response_message" type="text" placeholder="Optional"/></div>
+                    <div class="k"><label for="status">Status</label></div>
+                    <div class="v"><select id="status"></select></div>
+                    <div class="k"><label for="effective_from">Effective from</label></div>
+                    <div class="v"><input id="effective_from" type="date"/></div>
+                    <div class="k"><label for="effective_to">Effective to</label></div>
+                    <div class="v"><input id="effective_to" type="date"/></div>
+                </div>
+                <div class="form-row mt-075">
+                    <input id="edit_id" type="hidden"/>
+                    <button type="submit">Save</button>
+                    <button id="resetBtn" class="secondary" type="button">Reset</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <script type="module" th:src="@{/assets/js/pages/policies_trust_decision_policies_dt.js}"></script>
+</section>
+</html>
+
+
+
+
+

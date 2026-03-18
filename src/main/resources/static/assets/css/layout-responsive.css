@@ -1,0 +1,20 @@
+/* ==========================================================================
+   Responsive Layout
+   ========================================================================== */
+
+@media (max-width: 960px) {
+  .grid,
+  .split,
+  .lookup-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  header {
+    padding-inline: 1.1rem;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

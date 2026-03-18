@@ -1,0 +1,73 @@
+/* ==========================================================================
+   Base & Reset Styles
+   Global resets, body, skip links, main layout
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", "Trebuchet MS", "Segoe UI", Tahoma, sans-serif;
+  background:
+    radial-gradient(circle at 8% 12%, rgba(59, 130, 246, 0.14), transparent 30%),
+    radial-gradient(circle at 92% -2%, rgba(191, 219, 254, 0.72), transparent 36%),
+    linear-gradient(180deg, #f7fbff 0%, #edf5ff 54%, #f7fbff 100%);
+  color: var(--text);
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  transform: translateY(-200%);
+  background: #ffffff;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  text-decoration: none;
+  z-index: 500;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+  padding: 1.5rem min(4vw, 2.5rem);
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Focus styles */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+th.sortable:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.7);
+  outline-offset: 2px;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

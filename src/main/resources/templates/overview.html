@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<section>
+    <div class="grid">
+        <section class="card">
+            <h2>
+                Fleet posture
+                <span class="badge badge--ok" th:text="${healthyDevices + ' / ' + totalDevices + ' healthy'}">0 / 0 healthy</span>
+            </h2>
+            <p class="muted">
+                Live trust and remediation posture across the managed fleet.
+            </p>
+            <div class="stat-row">
+                <div class="stat">
+                    <div class="stat-label">Total devices</div>
+                    <div id="fleetTotalDevices" class="stat-value" th:text="${totalDevices} ?: '--'" th:attr="data-value=${totalDevices}">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Trusted</div>
+                    <div id="fleetTrustedDevices" class="stat-value" th:text="${trustedDevices} ?: '--'" th:attr="data-value=${trustedDevices}">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">High risk</div>
+                    <div id="fleetHighRiskDevices" class="stat-value" th:text="${highRiskDevices} ?: '--'" th:attr="data-value=${highRiskDevices}">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Open remediation</div>
+                    <div id="fleetOpenRemediations" class="stat-value" th:text="${openRemediations} ?: '--'" th:attr="data-value=${openRemediations}">--</div>
+                </div>
+            </div>
+            <div id="overviewDerivedStats" class="stat-row mt-08">
+                <div class="stat">
+                    <div class="stat-label">Healthy ratio</div>
+                    <div class="stat-value">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">High-risk ratio</div>
+                    <div class="stat-value">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Remediation pressure</div>
+                    <div class="stat-value">--</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="page-head">
+                <div>
+                    <h2>Platform pulse</h2>
+                    <div class="muted">Service health and ingestion pipeline activity.</div>
+                </div>
+                <button id="overviewRefreshBtn" class="secondary" type="button">Refresh</button>
+            </div>
+
+            <div class="kvs mt-08">
+                <div class="k">API status</div>
+                <div class="v"><span id="overviewHealthStatus" class="badge">Unknown</span></div>
+                <div class="k">Service</div>
+                <div id="overviewHealthService" class="v">--</div>
+                <div class="k">Server time</div>
+                <div id="overviewHealthTime" class="v">--</div>
+                <div class="k">Last refresh</div>
+                <div id="overviewHealthRefresh" class="v">--</div>
+            </div>
+
+            <h3 class="overview-subhead">Payload processing</h3>
+            <div id="overviewPayloadStatuses" class="overview-metric-list">
+                <div class="overview-metric">
+                    <div class="overview-metric__label">Loading...</div>
+                    <div class="overview-metric__value">--</div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <section class="card mt-125">
+        <h2>Trust band distribution</h2>
+        <p class="muted">
+            Distribution by score band from current active device trust profiles.
+        </p>
+        <div id="overviewBandRows" class="overview-bars">
+            <div class="muted">Loading distribution...</div>
+        </div>
+    </section>
+
+    <div class="split">
+        <section class="card">
+            <h2>Top active tenants</h2>
+            <p class="muted">
+                Ranked from the most recent payload sample.
+            </p>
+            <table id="overviewTopTenants">
+                <thead>
+                <tr>
+                    <th>Tenant</th>
+                    <th>Payloads</th>
+                    <th>Latest payload</th>
+                </tr>
+                </thead>
+                <tbody id="overviewTopTenantsBody">
+                <tr>
+                    <td colspan="3" class="muted">Loading...</td>
+                </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="card">
+            <h2>Quick inspector</h2>
+            <p class="muted">
+                Inspect latest profile, snapshot, decision, payload, and evaluation run for a device.
+            </p>
+            <form class="form-row" id="device-lookup-form">
+                <div>
+                    <label for="tenantId">Tenant ID (optional)</label><br/>
+                    <input id="tenantId" type="text" placeholder="demo-tenant"/>
+                </div>
+                <div>
+                    <label for="deviceId">Device external ID</label><br/>
+                    <input id="deviceId" type="text" placeholder="device-1234" required/>
+                </div>
+                <div>
+                    <label>&nbsp;</label><br/>
+                    <button type="submit">Inspect device</button>
+                </div>
+            </form>
+
+            <div id="device-lookup-result" class="overview-inspector mt-08" hidden>
+                <div id="device-lookup-error" class="login-error" hidden></div>
+                <div id="device-lookup-summary" class="stat-row"></div>
+
+                <div class="overview-inspector-grid mt-08">
+                    <section>
+                        <h3 class="overview-subhead">Trust profile</h3>
+                        <div id="device-lookup-profile" class="kvs"></div>
+                    </section>
+                    <section>
+                        <h3 class="overview-subhead">Latest snapshot</h3>
+                        <div id="device-lookup-snapshot" class="kvs"></div>
+                    </section>
+                    <section>
+                        <h3 class="overview-subhead">Decision and run</h3>
+                        <div id="device-lookup-decision" class="kvs"></div>
+                    </section>
+                </div>
+
+                <details class="mt-08">
+                    <summary>Raw response</summary>
+                    <pre id="device-lookup-raw" class="mono-block mono-block--boxed">No data.</pre>
+                </details>
+            </div>
+        </section>
+    </div>
+
+    <section class="card mt-125">
+        <h2>Recent posture payloads</h2>
+        <p class="muted">
+            Latest ingested payloads across tenants with processing status and age.
+        </p>
+        <table id="recent-payloads">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tenant</th>
+                <th>Device</th>
+                <th>Status</th>
+                <th>Received at</th>
+                <th>Age</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td colspan="6" class="muted">Loading...</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <script type="module" th:src="@{/assets/js/pages/overview.js}"></script>
+</section>
+</html>

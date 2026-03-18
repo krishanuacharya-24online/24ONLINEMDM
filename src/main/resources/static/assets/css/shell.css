@@ -1,0 +1,19 @@
+/* ==========================================================================
+   Main Shell Layout
+   ========================================================================== */
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+  padding: 1.5rem min(4vw, 2.5rem);
+  max-width: 1200px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+  overflow-x: hidden;
+}

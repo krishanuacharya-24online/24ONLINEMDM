@@ -1,0 +1,50 @@
+/* ==========================================================================
+   Overview Metrics
+   ========================================================================== */
+
+/* Overview page */
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.overview-subhead {
+  margin: 0.8rem 0 0.35rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.overview-metric-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.5rem;
+}
+
+.overview-metric {
+  border: 1px solid rgba(191, 219, 254, 0.9);
+  border-radius: 0.7rem;
+  padding: 0.5rem 0.6rem;
+  background: rgba(239, 246, 255, 0.62);
+}
+
+.overview-metric__label {
+  font-size: 0.73rem;
+  color: var(--muted);
+}
+
+.overview-metric__value {
+  margin-top: 0.15rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.overview-metric__meta {
+  margin-top: 0.1rem;
+  font-size: 0.72rem;
+  color: #334155;
+}

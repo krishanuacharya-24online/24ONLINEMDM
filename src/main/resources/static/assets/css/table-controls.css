@@ -1,0 +1,31 @@
+/* ==========================================================================
+   Table Controls & Pager
+   ========================================================================== */
+
+.table-controls {
+  margin-top: 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.table-controls__left,
+.table-controls__right {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.table-controls__right input {
+  min-width: 220px;
+}
+
+.table-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}

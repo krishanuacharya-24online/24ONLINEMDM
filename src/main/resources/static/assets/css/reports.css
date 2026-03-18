@@ -1,0 +1,34 @@
+.reports-frame {
+  --reports-frame-min-height: clamp(640px, 78vh, 980px);
+  width: 100%;
+  min-height: var(--reports-frame-min-height);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
+#reportsEmbedMount {
+  display: block;
+}
+
+#reportsEmbedMount > iframe {
+  display: block;
+  width: 100%;
+  height: var(--reports-frame-min-height);
+  min-height: var(--reports-frame-min-height);
+  border: 0;
+  border-radius: inherit;
+}
+
+@media (max-width: 1200px) {
+  .reports-frame {
+    --reports-frame-min-height: clamp(560px, 74vh, 900px);
+  }
+}
+
+@media (max-width: 900px) {
+  .reports-frame {
+    --reports-frame-min-height: clamp(460px, 68vh, 760px);
+  }
+}

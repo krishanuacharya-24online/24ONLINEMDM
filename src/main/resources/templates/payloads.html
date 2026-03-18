@@ -1,0 +1,51 @@
+﻿<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<section>
+<section class="card">
+    <h2>Ingest posture payload</h2>
+    <p class="muted">
+        Send a test posture payload into the ingestion pipeline. This uses the same WebFlux + Netty + Resilience4j path as real agents.
+    </p>
+    <form class="form-row" id="ingest-form">
+        <div>
+            <label for="tenantId">Tenant ID</label><br/>
+            <input id="tenantId" type="text" placeholder="demo-tenant"/>
+        </div>
+        <div>
+            <label for="tenantKey">Tenant key (optional)</label><br/>
+            <input id="tenantKey" type="password" placeholder="tk_..."/>
+        </div>
+        <div>
+            <label for="deviceExternalId">Device ID</label><br/>
+            <input id="deviceExternalId" type="text" placeholder="device-1234" required/>
+        </div>
+        <div>
+            <label>&nbsp;</label><br/>
+            <button type="submit">Send payload</button>
+        </div>
+    </form>
+    <pre id="ingest-result" class="muted mt-08 pre-wrap-muted"></pre>
+</section>
+
+<section class="card mt-125">
+    <h2>Recent ingests (raw)</h2>
+    <table id="payload-table">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Tenant</th>
+            <th>Device</th>
+            <th>Status</th>
+            <th>Received at</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr><td colspan="5" class="muted">Loading...</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<script type="module" th:src="@{/assets/js/pages/payloads.js}"></script>
+</section>
+</html>
+

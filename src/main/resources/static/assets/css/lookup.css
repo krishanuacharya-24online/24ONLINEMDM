@@ -1,0 +1,40 @@
+/* ==========================================================================
+   Lookup Pages
+   Lookup toolbar, form, actions
+   ========================================================================== */
+
+.lookup-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.lookup-toolbar__meta,
+.lookup-toolbar__actions {
+  align-self: end;
+}
+
+.lookup-toolbar__actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.lookup-form {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.lookup-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+/* Responsive lookup */
+@media (max-width: 960px) {
+  .lookup-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+}

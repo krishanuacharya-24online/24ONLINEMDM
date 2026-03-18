@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<section>
+    <section class="card">
+        <div class="page-head">
+            <div>
+                <h2>Tenants</h2>
+                <div class="muted">Manage tenant records and rotate per-tenant agent keys used with <code>X-Tenant-Id</code>.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Tenant directory</h2>
+        <table id="tenantsTable" class="display responsive nowrap w-100">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tenant ID</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Modified</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+        </table>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Create / edit</h2>
+        <form id="tenantsForm" class="split">
+            <div>
+                <div class="kvs">
+                    <div class="k"><label for="tenant_id">Tenant ID</label></div>
+                    <div class="v"><input id="tenant_id" type="text" required/></div>
+                    <div class="k"><label for="name">Name</label></div>
+                    <div class="v"><input id="name" type="text" required/></div>
+                </div>
+            </div>
+            <div>
+                <div class="kvs">
+                    <div class="k"><label for="status">Status</label></div>
+                    <div class="v"><select id="status"></select></div>
+                </div>
+                <div class="form-row mt-075">
+                    <input id="edit_id" type="hidden"/>
+                    <button type="submit">Save</button>
+                    <button id="resetBtn" class="secondary" type="button">Reset</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <section class="card mt-1">
+        <div class="page-head">
+            <div>
+                <h2>Tenant Access Key</h2>
+                <div class="muted">Generate or rotate a key for tenant-agent ingestion. The raw key is shown only once.</div>
+            </div>
+        </div>
+
+        <form id="tenantKeyForm" class="kvs mt-09">
+            <div class="k"><label for="tenantKeyTenant">Tenant</label></div>
+            <div class="v">
+                <select id="tenantKeyTenant" required></select>
+                <button id="reloadTenantKeyTenants" type="button" class="secondary ml-045">Reload tenants</button>
+            </div>
+
+            <div class="k"><label>Current key</label></div>
+            <div class="v">
+                <span id="tenantKeyMeta" class="muted">No active key.</span>
+            </div>
+
+            <div class="k"></div>
+            <div class="v">
+                <button id="rotateTenantKeyBtn" type="submit">Generate / Rotate key</button>
+            </div>
+        </form>
+
+        <div id="tenantKeyResult" class="tenant-key-result" hidden>
+            <div class="muted">Copy and store this key now. It cannot be retrieved again.</div>
+            <div class="secret-field">
+                <input id="tenantGeneratedKey" type="text" readonly/>
+                <button id="copyTenantGeneratedKey" type="button" class="secondary">Copy</button>
+            </div>
+        </div>
+    </section>
+
+    <script type="module" th:src="@{/assets/js/pages/tenants.js}"></script>
+</section>
+</html>
+

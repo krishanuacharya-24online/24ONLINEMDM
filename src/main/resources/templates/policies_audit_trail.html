@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<section>
+    <section class="card">
+        <div class="page-head">
+            <div>
+                <h2>Policy audit trail</h2>
+                <div class="muted">Track who changed policies, what changed, and when the change happened.</div>
+            </div>
+            <div class="tab-links">
+                <a class="link-btn" th:href="@{/ui/policies/system-rules}" th:attr="data-active=${activePolicy == 'system-rules'}">System rules</a>
+                <a class="link-btn" th:href="@{/ui/policies/reject-apps}" th:attr="data-active=${activePolicy == 'reject-apps'}">Reject apps</a>
+                <a class="link-btn" th:href="@{/ui/policies/trust-score-policies}" th:attr="data-active=${activePolicy == 'trust-score-policies'}">Trust policies</a>
+                <a class="link-btn" th:href="@{/ui/policies/trust-decision-policies}" th:attr="data-active=${activePolicy == 'trust-decision-policies'}">Decision policies</a>
+                <a class="link-btn" th:href="@{/ui/policies/remediation-rules}" th:attr="data-active=${activePolicy == 'remediation-rules'}">Remediations</a>
+                <a class="link-btn" th:href="@{/ui/policies/rule-remediation-mappings}" th:attr="data-active=${activePolicy == 'rule-remediation-mappings'}">Mappings</a>
+                <a class="link-btn" th:href="@{/ui/policies/audit-trail}" th:attr="data-active=${activePolicy == 'audit-trail'}">Audit trail</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Filters</h2>
+        <div class="form-row">
+            <div>
+                <label for="audit_policy_type">Policy type</label><br/>
+                <select id="audit_policy_type">
+                    <option value="">All</option>
+                    <option value="SYSTEM_RULE">SYSTEM_RULE</option>
+                    <option value="REJECT_APPLICATION">REJECT_APPLICATION</option>
+                    <option value="TRUST_SCORE_POLICY">TRUST_SCORE_POLICY</option>
+                    <option value="TRUST_DECISION_POLICY">TRUST_DECISION_POLICY</option>
+                    <option value="REMEDIATION_RULE">REMEDIATION_RULE</option>
+                    <option value="RULE_REMEDIATION_MAPPING">RULE_REMEDIATION_MAPPING</option>
+                </select>
+            </div>
+            <div>
+                <label for="audit_operation">Operation</label><br/>
+                <select id="audit_operation">
+                    <option value="">All</option>
+                    <option value="CREATE">CREATE</option>
+                    <option value="UPDATE">UPDATE</option>
+                    <option value="DELETE">DELETE</option>
+                    <option value="CLONE">CLONE</option>
+                </select>
+            </div>
+            <div>
+                <label for="audit_actor">Actor</label><br/>
+                <input id="audit_actor" type="text" placeholder="username"/>
+            </div>
+        </div>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Events</h2>
+        <table id="policyAuditTable" class="display responsive nowrap w-100">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>When</th>
+                <th>Type</th>
+                <th>Policy ID</th>
+                <th>Operation</th>
+                <th>Tenant</th>
+                <th>Actor</th>
+                <th>Approval ticket</th>
+            </tr>
+            </thead>
+        </table>
+    </section>
+
+    <script type="module" th:src="@{/assets/js/pages/policies_audit_trail_dt.js}"></script>
+</section>
+</html>

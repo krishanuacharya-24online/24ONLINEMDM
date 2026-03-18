@@ -1,0 +1,778 @@
+openapi: 3.0.3
+info:
+  title: MDM Device Posture API
+  version: 1.0.0
+  description: |
+    Complete API contract for the MDM + device-posture platform.
+
+    Coverage:
+    - Agent posture ingestion and decision acknowledgment
+    - Device trust profile and event APIs
+    - Evaluation run APIs
+    - Policy CRUD APIs (system rules, reject apps, trust policies, remediation)
+    - Catalog and lookup APIs
+servers:
+  - url: https://api.mdm.example.com
+    description: Production
+  - url: https://staging-api.mdm.example.com
+    description: Staging
+security:
+  - bearerAuth: []
+tags:
+  - name: Health
+  - name: Agent
+  - name: Devices
+  - name: Evaluations
+  - name: Policies
+  - name: Catalog
+  - name: Lookups
+paths:
+  /v1/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: Service status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /v1/agent/posture-payloads:
+    post:
+      tags: [Agent]
+      summary: Submit posture payload from device agent
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PosturePayloadIngestRequest'
+      responses:
+        '200':
+          description: Accepted and queued for evaluation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PosturePayloadIngestResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+    get:
+      tags: [Agent]
+      summary: List ingested payloads
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - in: query
+          name: device_external_id
+          schema: { type: string }
+        - in: query
+          name: process_status
+          schema: { $ref: '#/components/schemas/PayloadProcessStatus' }
+      responses:
+        '200':
+          description: Paged payload list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedEnvelope'
+
+  /v1/agent/posture-payloads/{payload_id}:
+    get:
+      tags: [Agent]
+      summary: Get one posture payload
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/PayloadId'
+      responses:
+        '200':
+          description: Payload detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevicePosturePayload'
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/agent/devices/{device_external_id}/decision/latest:
+    get:
+      tags: [Agent]
+      summary: Pull latest decision for a device
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/DeviceExternalId'
+      responses:
+        '200':
+          description: Latest decision response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceDecisionResponse'
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/agent/decision-responses/{response_id}/ack:
+    post:
+      tags: [Agent]
+      summary: Acknowledge decision delivery/apply status
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/ResponseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionAckRequest'
+      responses:
+        '200':
+          description: Acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionAckResponse'
+
+  /v1/devices/trust-profiles:
+    get:
+      tags: [Devices]
+      summary: List trust profiles
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - in: query
+          name: os_type
+          schema: { $ref: '#/components/schemas/OsType' }
+        - in: query
+          name: os_name
+          description: Linux distro filter. Applies when `os_type=LINUX`.
+          schema: { $ref: '#/components/schemas/LinuxOsName' }
+        - in: query
+          name: score_band
+          schema: { $ref: '#/components/schemas/ScoreBand' }
+      responses:
+        '200':
+          description: Paged profile list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedEnvelope'
+
+  /v1/devices/trust-profiles/{profile_id}:
+    get:
+      tags: [Devices]
+      summary: Get trust profile
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/ProfileId'
+      responses:
+        '200':
+          description: Trust profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceTrustProfile'
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Devices]
+      summary: Patch trust profile
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/ProfileId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceTrustProfilePatchRequest'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceTrustProfile'
+
+  /v1/devices/{device_external_id}/trust-score-events:
+    get:
+      tags: [Devices]
+      summary: List trust score event history
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/DeviceExternalId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Paged event list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedEnvelope'
+
+  /v1/devices/{device_external_id}/snapshots/latest:
+    get:
+      tags: [Devices]
+      summary: Get latest system snapshot
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/DeviceExternalId'
+      responses:
+        '200':
+          description: Latest snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceSystemSnapshot'
+
+  /v1/devices/{device_external_id}/installed-apps/latest:
+    get:
+      tags: [Devices]
+      summary: List latest installed applications
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/DeviceExternalId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Paged app list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedEnvelope'
+
+  /v1/evaluations/runs:
+    post:
+      tags: [Evaluations]
+      summary: Trigger evaluation for payload
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEvaluationRunRequest'
+      responses:
+        '202':
+          description: Evaluation queued/started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostureEvaluationRun'
+    get:
+      tags: [Evaluations]
+      summary: List evaluation runs
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Paged run list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedEnvelope'
+
+  /v1/evaluations/runs/{run_id}:
+    get:
+      tags: [Evaluations]
+      summary: Get evaluation run
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Run detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostureEvaluationRun'
+
+  /v1/evaluations/runs/{run_id}/matches:
+    get:
+      tags: [Evaluations]
+      summary: List findings/matches for run
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Match list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PostureEvaluationMatch' }
+
+  /v1/evaluations/runs/{run_id}/remediations:
+    get:
+      tags: [Evaluations]
+      summary: List remediations for run
+      parameters:
+        - $ref: '#/components/parameters/XTenantId'
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Remediation list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PostureEvaluationRemediation' }
+
+  /v1/policies/system-rules:
+    $ref: '#/components/pathItems/PolicyCollection'
+  /v1/policies/system-rules/{id}:
+    $ref: '#/components/pathItems/PolicyItem'
+  /v1/policies/system-rules/{id}/conditions:
+    $ref: '#/components/pathItems/ConditionCollection'
+  /v1/policies/system-rules/{id}/conditions/{condition_id}:
+    $ref: '#/components/pathItems/ConditionItem'
+
+  /v1/policies/reject-apps:
+    $ref: '#/components/pathItems/PolicyCollection'
+  /v1/policies/reject-apps/{id}:
+    $ref: '#/components/pathItems/PolicyItem'
+
+  /v1/policies/trust-score-policies:
+    $ref: '#/components/pathItems/PolicyCollection'
+  /v1/policies/trust-score-policies/{id}:
+    $ref: '#/components/pathItems/PolicyItem'
+
+  /v1/policies/trust-decision-policies:
+    $ref: '#/components/pathItems/PolicyCollection'
+  /v1/policies/trust-decision-policies/{id}:
+    $ref: '#/components/pathItems/PolicyItem'
+
+  /v1/policies/remediation-rules:
+    $ref: '#/components/pathItems/PolicyCollection'
+  /v1/policies/remediation-rules/{id}:
+    $ref: '#/components/pathItems/PolicyItem'
+
+  /v1/policies/rule-remediation-mappings:
+    $ref: '#/components/pathItems/PolicyCollection'
+  /v1/policies/rule-remediation-mappings/{id}:
+    $ref: '#/components/pathItems/PolicyItem'
+
+  /v1/catalog/applications:
+    get:
+      tags: [Catalog]
+      summary: List application catalog entries
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Paged catalog list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedEnvelope'
+
+  /v1/catalog/applications/{application_catalog_id}:
+    get:
+      tags: [Catalog]
+      summary: Get application catalog entry
+      parameters:
+        - $ref: '#/components/parameters/ApplicationCatalogId'
+      responses:
+        '200':
+          description: App catalog entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationCatalogEntry'
+
+  /v1/lookups:
+    get:
+      tags: [Lookups]
+      summary: List lookup types from lkp_master
+      responses:
+        '200':
+          description: Lookup type list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LookupTypeInfo' }
+
+  /v1/lookups/{lookup_type}:
+    get:
+      tags: [Lookups]
+      summary: List lookup values
+      parameters:
+        - $ref: '#/components/parameters/LookupType'
+      responses:
+        '200':
+          description: Lookup values
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LookupEntry' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    XTenantId:
+      in: header
+      name: X-Tenant-Id
+      required: true
+      schema: { type: string }
+    Page:
+      in: query
+      name: page
+      schema: { type: integer, minimum: 0, default: 0 }
+    Size:
+      in: query
+      name: size
+      schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+    PayloadId:
+      in: path
+      name: payload_id
+      required: true
+      schema: { type: integer, format: int64 }
+    DeviceExternalId:
+      in: path
+      name: device_external_id
+      required: true
+      schema: { type: string }
+    ResponseId:
+      in: path
+      name: response_id
+      required: true
+      schema: { type: integer, format: int64 }
+    ProfileId:
+      in: path
+      name: profile_id
+      required: true
+      schema: { type: integer, format: int64 }
+    RunId:
+      in: path
+      name: run_id
+      required: true
+      schema: { type: integer, format: int64 }
+    ApplicationCatalogId:
+      in: path
+      name: application_catalog_id
+      required: true
+      schema: { type: integer, format: int64 }
+    PolicyId:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer, format: int64 }
+    ConditionId:
+      in: path
+      name: condition_id
+      required: true
+      schema: { type: integer, format: int64 }
+    LookupType:
+      in: path
+      name: lookup_type
+      required: true
+      schema:
+        type: string
+        enum:
+          - lkp_os_type
+          - lkp_os_name
+          - lkp_os_platform
+          - lkp_os_lifecycle_state
+          - lkp_device_type
+          - lkp_record_status
+          - lkp_match_mode
+          - lkp_compliance_action
+          - lkp_rule_condition_operator
+          - lkp_signal_source
+          - lkp_score_band
+          - lkp_posture_status
+          - lkp_payload_process_status
+          - lkp_installed_app_status
+          - lkp_remediation_type
+          - lkp_rule_remediation_source
+          - lkp_enforce_mode
+          - lkp_evaluation_status
+          - lkp_match_source
+          - lkp_remediation_source
+          - lkp_remediation_status
+          - lkp_delivery_status
+          - lkp_app_category
+          - lkp_threat_type
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status: { type: string, example: UP }
+        service: { type: string, example: mdm-posture-api }
+        timestamp: { type: string, format: date-time }
+      required: [status, service, timestamp]
+    ErrorResponse:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        trace_id: { type: string }
+      required: [code, message]
+    PagedEnvelope:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { type: object, additionalProperties: true }
+        page:
+          type: object
+          properties:
+            page: { type: integer }
+            size: { type: integer }
+            total_elements: { type: integer }
+            total_pages: { type: integer }
+
+    OsType:
+      type: string
+      enum: [ANDROID, IOS, WINDOWS, MACOS, LINUX]
+    LinuxOsName:
+      type: string
+      enum: [DEBIAN, CENTOS, FEDORA, MINT, REDHAT, UBUNTU, ROCKY, ALMALINUX, SUSE, OTHER]
+    ScoreBand:
+      type: string
+      enum: [CRITICAL, HIGH_RISK, MEDIUM_RISK, LOW_RISK, TRUSTED]
+    PayloadProcessStatus:
+      type: string
+      enum: [RECEIVED, QUEUED, VALIDATED, EVALUATED, FAILED]
+
+    PosturePayloadIngestRequest:
+      type: object
+      properties:
+        device_external_id: { type: string }
+        agent_id: { type: string }
+        payload_version: { type: string }
+        payload_hash: { type: string }
+        capture_time: { type: string, format: date-time }
+        payload_json:
+          type: object
+          additionalProperties: true
+      required: [device_external_id, agent_id, payload_version, payload_json]
+    PosturePayloadIngestResponse:
+      type: object
+      properties:
+        payload_id: { type: integer, format: int64 }
+        status: { $ref: '#/components/schemas/PayloadProcessStatus' }
+        evaluation_run_id: { type: integer, format: int64, nullable: true }
+
+    DevicePosturePayload:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        tenant_id: { type: string, nullable: true }
+        device_external_id: { type: string }
+        agent_id: { type: string, nullable: true }
+        payload_version: { type: string, nullable: true }
+        process_status: { $ref: '#/components/schemas/PayloadProcessStatus' }
+        received_at: { type: string, format: date-time }
+        processed_at: { type: string, format: date-time, nullable: true }
+        payload_json: { type: object, additionalProperties: true }
+
+    DeviceTrustProfile:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        tenant_id: { type: string, nullable: true }
+        device_external_id: { type: string }
+        os_type: { $ref: '#/components/schemas/OsType' }
+        os_name:
+          type: string
+          nullable: true
+          enum: [DEBIAN, CENTOS, FEDORA, MINT, REDHAT, UBUNTU, ROCKY, ALMALINUX, SUSE, OTHER]
+        current_score: { type: integer, minimum: 0, maximum: 100 }
+        score_band: { $ref: '#/components/schemas/ScoreBand' }
+        posture_status: { type: string }
+        last_recalculated_at: { type: string, format: date-time }
+
+    DeviceTrustProfilePatchRequest:
+      type: object
+      properties:
+        current_score: { type: integer, minimum: 0, maximum: 100 }
+        score_band: { $ref: '#/components/schemas/ScoreBand' }
+        posture_status: { type: string }
+        os_name:
+          type: string
+          nullable: true
+          enum: [DEBIAN, CENTOS, FEDORA, MINT, REDHAT, UBUNTU, ROCKY, ALMALINUX, SUSE, OTHER]
+        modified_by: { type: string }
+
+    DeviceSystemSnapshot:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        device_posture_payload_id: { type: integer, format: int64 }
+        device_trust_profile_id: { type: integer, format: int64, nullable: true }
+        os_type: { $ref: '#/components/schemas/OsType' }
+        os_name:
+          type: string
+          nullable: true
+          enum: [DEBIAN, CENTOS, FEDORA, MINT, REDHAT, UBUNTU, ROCKY, ALMALINUX, SUSE, OTHER]
+        os_version: { type: string, nullable: true }
+        manufacturer: { type: string, nullable: true }
+        root_detected: { type: boolean, nullable: true }
+        running_on_emulator: { type: boolean, nullable: true }
+        usb_debugging_status: { type: boolean, nullable: true }
+        capture_time: { type: string, format: date-time }
+
+    PostureEvaluationRun:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        device_posture_payload_id: { type: integer, format: int64 }
+        device_trust_profile_id: { type: integer, format: int64 }
+        evaluation_status: { type: string }
+        trust_score_before: { type: integer }
+        trust_score_delta_total: { type: integer }
+        trust_score_after: { type: integer }
+        decision_action: { type: string }
+        remediation_required: { type: boolean }
+        evaluated_at: { type: string, format: date-time }
+
+    CreateEvaluationRunRequest:
+      type: object
+      properties:
+        payload_id: { type: integer, format: int64 }
+        force_recalculate: { type: boolean, default: false }
+        requested_by: { type: string }
+      required: [payload_id, requested_by]
+
+    PostureEvaluationMatch:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        posture_evaluation_run_id: { type: integer, format: int64 }
+        match_source: { type: string }
+        score_delta: { type: integer }
+        severity: { type: integer, nullable: true }
+        compliance_action: { type: string, nullable: true }
+
+    PostureEvaluationRemediation:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        posture_evaluation_run_id: { type: integer, format: int64 }
+        remediation_rule_id: { type: integer, format: int64 }
+        remediation_status: { type: string }
+        source_type: { type: string }
+
+    DeviceDecisionResponse:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        posture_evaluation_run_id: { type: integer, format: int64 }
+        device_external_id: { type: string }
+        decision_action: { type: string }
+        trust_score: { type: integer, minimum: 0, maximum: 100 }
+        remediation_required: { type: boolean }
+        delivery_status: { type: string }
+        response_payload: { type: object, additionalProperties: true }
+
+    DecisionAckRequest:
+      type: object
+      properties:
+        delivery_status: { type: string, enum: [ACKED, FAILED, TIMEOUT] }
+        acknowledged_at: { type: string, format: date-time }
+        error_message: { type: string }
+      required: [delivery_status]
+    DecisionAckResponse:
+      type: object
+      properties:
+        response_id: { type: integer, format: int64 }
+        delivery_status: { type: string }
+        acknowledged_at: { type: string, format: date-time, nullable: true }
+
+    ApplicationCatalogEntry:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        os_type: { $ref: '#/components/schemas/OsType' }
+        package_id: { type: string, nullable: true }
+        app_name: { type: string }
+        publisher: { type: string, nullable: true }
+
+    LookupTypeInfo:
+      type: object
+      properties:
+        lookup_type: { type: string }
+        description: { type: string }
+      required: [lookup_type]
+    LookupEntry:
+      type: object
+      properties:
+        lookup_type: { type: string }
+        code: { type: string }
+        description: { type: string }
+      required: [lookup_type, code, description]
+
+  pathItems:
+    PolicyCollection:
+      get:
+        tags: [Policies]
+        summary: List policy records
+        responses:
+          '200':
+            description: Paged list
+            content:
+              application/json:
+                schema: { $ref: '#/components/schemas/PagedEnvelope' }
+      post:
+        tags: [Policies]
+        summary: Create policy record
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        responses:
+          '201': { description: Created }
+
+    PolicyItem:
+      parameters:
+        - $ref: '#/components/parameters/PolicyId'
+      get: { tags: [Policies], summary: Get policy record, responses: { '200': { description: OK } } }
+      put: { tags: [Policies], summary: Replace policy record, responses: { '200': { description: Updated } } }
+      patch: { tags: [Policies], summary: Patch policy record, responses: { '200': { description: Updated } } }
+      delete: { tags: [Policies], summary: Soft delete policy record, responses: { '204': { description: Deleted } } }
+
+    ConditionCollection:
+      parameters:
+        - $ref: '#/components/parameters/PolicyId'
+      get: { tags: [Policies], summary: List rule conditions, responses: { '200': { description: OK } } }
+      post: { tags: [Policies], summary: Create rule condition, responses: { '201': { description: Created } } }
+
+    ConditionItem:
+      parameters:
+        - $ref: '#/components/parameters/PolicyId'
+        - $ref: '#/components/parameters/ConditionId'
+      get: { tags: [Policies], summary: Get rule condition, responses: { '200': { description: OK } } }
+      put: { tags: [Policies], summary: Replace rule condition, responses: { '200': { description: Updated } } }
+      patch: { tags: [Policies], summary: Patch rule condition, responses: { '200': { description: Updated } } }
+      delete: { tags: [Policies], summary: Soft delete rule condition, responses: { '204': { description: Deleted } } }

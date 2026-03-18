@@ -1,0 +1,75 @@
+﻿<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<section>
+    <section class="card">
+        <div class="page-head">
+            <div>
+                <h2>Lookups</h2>
+                <div class="muted">Manage lookup values in <code>lkp_master</code> (composite key: lookup_type + code).</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card mt-1">
+        <div class="lookup-toolbar">
+            <div class="lookup-toolbar__field">
+                <label for="lookupType">Lookup type</label><br/>
+                <select id="lookupType"></select>
+            </div>
+            <div class="lookup-toolbar__meta">
+                <span class="pill"><span class="pill-dot"></span><span id="lookupTypeBadge">No type selected</span></span>
+            </div>
+            <div class="lookup-toolbar__actions">
+                <button id="refreshTypes" class="secondary" type="button">Refresh</button>
+            </div>
+        </div>
+        <div id="lookupTypeHint" class="muted mt-05">Select a type to load values and manage entries.</div>
+    </section>
+
+    <div class="lookup-layout">
+        <section class="card">
+            <div class="page-head">
+                <div>
+                    <h2>Lookup values</h2>
+                    <div class="muted">Codes and descriptions for the selected lookup type.</div>
+                </div>
+            </div>
+            <table id="lookupValues">
+                <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr><td colspan="3" class="muted">Select a lookup type.</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="card">
+            <h2 id="lookupEditorTitle">Create / update value</h2>
+            <div class="muted">Codes are unique for each lookup type in <code>lkp_master</code>.</div>
+            <form id="lookupForm" class="lookup-form mt-08">
+                <div>
+                    <label for="code">Code</label><br/>
+                    <input id="code" type="text" required placeholder="EOL"/>
+                </div>
+                <div>
+                    <label for="description">Description</label><br/>
+                    <input id="description" type="text" required placeholder="End-of-life"/>
+                </div>
+                <div class="lookup-form__actions">
+                    <button type="submit">Save</button>
+                    <button id="resetLookupForm" class="secondary" type="button">Reset</button>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    <script type="module" th:src="@{/assets/js/pages/lookups_admin.js}"></script>
+</section>
+</html>
+
+

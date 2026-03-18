@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<section>
+    <section class="card">
+        <div class="page-head">
+            <div>
+                <h2>Audit trail</h2>
+                <div class="muted">Unified events across policy, auth, enrollment, and posture workflows.</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Filters</h2>
+        <div class="form-row">
+            <div>
+                <label for="audit_event_category">Category</label><br/>
+                <select id="audit_event_category">
+                    <option value="">All</option>
+                    <option value="POLICY">POLICY</option>
+                    <option value="AUTH">AUTH</option>
+                    <option value="ENROLLMENT">ENROLLMENT</option>
+                    <option value="POSTURE">POSTURE</option>
+                    <option value="TENANT_ADMIN">TENANT_ADMIN</option>
+                    <option value="USER_ADMIN">USER_ADMIN</option>
+                    <option value="LOOKUP_ADMIN">LOOKUP_ADMIN</option>
+                    <option value="SYSTEM">SYSTEM</option>
+                </select>
+            </div>
+            <div>
+                <label for="audit_status">Status</label><br/>
+                <select id="audit_status">
+                    <option value="">All</option>
+                    <option value="SUCCESS">SUCCESS</option>
+                    <option value="FAILURE">FAILURE</option>
+                </select>
+            </div>
+            <div>
+                <label for="audit_event_type">Event type</label><br/>
+                <input id="audit_event_type" type="text" placeholder="e.g. USER_LOGIN"/>
+            </div>
+            <div>
+                <label for="audit_action">Action</label><br/>
+                <input id="audit_action" type="text" placeholder="e.g. CREATE"/>
+            </div>
+            <div>
+                <label for="audit_actor">Actor</label><br/>
+                <input id="audit_actor" type="text" placeholder="username / service"/>
+            </div>
+        </div>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Events</h2>
+        <table id="auditEventTable" class="display responsive nowrap w-100">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>When</th>
+                <th>Category</th>
+                <th>Event type</th>
+                <th>Action</th>
+                <th>Status</th>
+                <th>Tenant</th>
+                <th>Actor</th>
+                <th>Entity type</th>
+                <th>Entity ID</th>
+            </tr>
+            </thead>
+        </table>
+    </section>
+
+    <script type="module" th:src="@{/assets/js/pages/audit_trail_dt.js}"></script>
+</section>
+</html>

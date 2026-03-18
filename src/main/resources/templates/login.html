@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Sign in | 24Online MDM</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="icon" th:href="@{/assets/favicon.svg}" type="image/x-icon"/>
+    <link rel="stylesheet" th:href="@{/assets/css/app.css}"/>
+    <link rel="stylesheet" th:href="@{/assets/css/password-strength.css}"/>
+</head>
+<body class="login-body">
+<div class="login-shell">
+    <section class="login-panel login-panel--brand">
+        <div class="login-brand-pill"></div>
+        <h1>24Online MDM Console</h1>
+        <p>Secure, high-performance device posture and MDM operations in a clean workspace.</p>
+    </section>
+
+    <section class="login-panel login-panel--form">
+            <div class="page-head">
+                <div>
+                    <h2>Sign in</h2>
+                    <div class="muted">Use your assigned administrator credentials.</div>
+                </div>
+            </div>
+
+        <form id="loginForm" class="login-form">
+            <label for="username">Username</label>
+            <input id="username" type="text" autocomplete="username" required autofocus/>
+
+            <label for="password">Password</label>
+            <div class="password-field-wrapper">
+                <input id="password" type="password" autocomplete="current-password" required/>
+            </div>
+            
+            <div id="breachedWarning" class="password-breached-warning" hidden>
+                <strong>⚠ Security Warning</strong>
+                <div>This password has been exposed in known data breaches.</div>
+                <div class="breach-count" id="breachCount"></div>
+                <div style="margin-top: 0.5rem; font-size: 0.75rem;">
+                    We strongly recommend changing your password after login.
+                </div>
+            </div>
+            
+            <div id="loginError" class="login-error" hidden></div>
+            
+            <div class="login-actions">
+                <button id="loginBtn" type="submit">Login</button>
+            </div>
+        </form>
+    </section>
+</div>
+
+<script type="module" th:src="@{/assets/js/pages/login.js}"></script>
+</body>
+</html>

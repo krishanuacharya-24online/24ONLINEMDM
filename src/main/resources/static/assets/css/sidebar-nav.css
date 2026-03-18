@@ -1,0 +1,209 @@
+/* ==========================================================================
+   Sidebar Navigation Layout
+   ========================================================================== */
+
+.shell {
+  --sidebar-width: 250px;
+  --header-offset: 72px;
+}
+
+button.menu-toggle {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+}
+
+header .header-right {
+  margin-left: auto;
+  flex-wrap: nowrap;
+  gap: 0.65rem;
+}
+
+.shell-body {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+
+.shell-body > main {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+#primaryNavShell {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(239, 246, 255, 0.95)),
+    repeating-linear-gradient(180deg, rgba(37, 99, 235, 0.03), rgba(37, 99, 235, 0.03) 2px, transparent 2px, transparent 10px);
+  border-right: 1px solid var(--border);
+  padding: 0.9rem 0.75rem;
+  overflow-y: auto;
+  position: sticky;
+  top: var(--header-offset);
+  align-self: start;
+  height: calc(100vh - var(--header-offset));
+  transition: transform 0.2s ease, opacity 0.2s ease, width 0.2s ease, padding 0.2s ease;
+}
+
+#primaryNav {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+#primaryNav a,
+#primaryNav .nav-dropdown > summary {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+
+#primaryNav .nav-dropdown {
+  width: 100%;
+}
+
+#primaryNav .nav-dropdown > summary {
+  padding: 0.42rem 1.45rem 0.42rem 0.9rem;
+}
+
+#primaryNav .nav-dropdown__menu {
+  position: static;
+  min-width: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 0.2rem 0 0.1rem 0.45rem;
+  margin-top: 0.08rem;
+  gap: 0.18rem;
+}
+
+#primaryNav .nav-dropdown__menu a,
+#primaryNav .nav-dropdown__menu button {
+  display: block;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(147, 197, 253, 0.38);
+  background: rgba(255, 255, 255, 0.82);
+  padding: 0.45rem 0.62rem;
+}
+
+#primaryNav .nav-dropdown__menu button {
+  width: 100%;
+  text-align: left;
+  box-shadow: none;
+  color: var(--text);
+  letter-spacing: 0;
+  font-size: 0.9rem;
+}
+
+#primaryNav .nav-dropdown:not([open]) .nav-dropdown__menu {
+  display: none;
+}
+
+.nav-backdrop {
+  display: none;
+}
+
+@media (min-width: 961px) {
+  body[data-nav-collapsed="true"] .shell-body {
+    grid-template-columns: 0 minmax(0, 1fr);
+  }
+
+  body[data-nav-collapsed="true"] #primaryNavShell {
+    width: 0;
+    padding: 0;
+    border-right-width: 0;
+    opacity: 0;
+    transform: translateX(-115%);
+    pointer-events: none;
+  }
+}
+
+@media (max-width: 960px) {
+  .shell {
+    --header-offset: 0px;
+  }
+
+  header .header-right {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    transform: none !important;
+    background: transparent !important;
+    border-right: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+  }
+
+  .shell-body {
+    display: block;
+  }
+
+  .shell-body > main {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  #primaryNavShell {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(320px, 86vw);
+    height: 100vh;
+    border-right: 1px solid var(--border);
+    box-shadow: var(--shadow-strong);
+    transform: translateX(-110%);
+    z-index: 200;
+    padding: 1rem;
+    background: #ffffff;
+  }
+
+  body[data-nav-open="true"] #primaryNavShell {
+    transform: translateX(0);
+  }
+
+  #primaryNav {
+    margin-top: 0.2rem;
+  }
+
+  #primaryNav .nav-dropdown__menu {
+    padding-left: 0.3rem;
+  }
+
+  .header-user-menu__panel {
+    position: absolute !important;
+    right: 0 !important;
+    width: max-content !important;
+    min-width: 200px !important;
+    margin-top: 0.35rem !important;
+    box-shadow: 0 14px 32px rgba(2, 6, 23, 0.14) !important;
+    border: 1px solid rgba(191, 219, 254, 0.95) !important;
+    background: rgba(255, 255, 255, 0.99) !important;
+  }
+
+  .nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.38);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 190;
+  }
+
+  body[data-nav-open="true"] .nav-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}

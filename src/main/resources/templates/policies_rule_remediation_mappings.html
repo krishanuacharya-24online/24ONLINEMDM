@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<section>
+    <section class="card">
+        <div class="page-head">
+            <div>
+                <h2>Rule to remediation mappings</h2>
+                <div class="muted">Connect rules/policies/decision actions to remediation.</div>
+            </div>
+            <div class="tab-links">
+                <a class="link-btn" th:href="@{/ui/policies/system-rules}" th:attr="data-active=${activePolicy == 'system-rules'}">System rules</a>
+                <a class="link-btn" th:href="@{/ui/policies/reject-apps}" th:attr="data-active=${activePolicy == 'reject-apps'}">Reject apps</a>
+                <a class="link-btn" th:href="@{/ui/policies/trust-score-policies}" th:attr="data-active=${activePolicy == 'trust-score-policies'}">Trust policies</a>
+                <a class="link-btn" th:href="@{/ui/policies/trust-decision-policies}" th:attr="data-active=${activePolicy == 'trust-decision-policies'}">Decision policies</a>
+                <a class="link-btn" th:href="@{/ui/policies/remediation-rules}" th:attr="data-active=${activePolicy == 'remediation-rules'}">Remediations</a>
+                <a class="link-btn" th:href="@{/ui/policies/rule-remediation-mappings}" th:attr="data-active=${activePolicy == 'rule-remediation-mappings'}">Mappings</a>
+                <a class="link-btn" th:href="@{/ui/policies/audit-trail}" th:attr="data-active=${activePolicy == 'audit-trail'}">Audit trail</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Mappings</h2>
+        <table id="mappingsTable" class="display responsive nowrap w-100">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Source</th>
+                <th>System Rule</th>
+                <th>Reject App</th>
+                <th>Trust Policy / Decision</th>
+                <th>Remediation Rule</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+        </table>
+    </section>
+
+    <section class="card mt-1">
+        <h2>Create / edit</h2>
+        <form id="mappingsForm" class="split">
+            <div>
+                <div class="kvs">
+                    <div class="k"><label for="source_type">Source type</label></div>
+                    <div class="v">
+                        <select id="source_type" required></select>
+                        <div id="mapping_source_hint" class="muted"></div>
+                        <div id="mapping_target_hint" class="muted"></div>
+                    </div>
+                    <div class="k"><label for="system_information_rule_id">System rule ID</label></div>
+                    <div class="v">
+                        <select id="system_information_rule_id">
+                            <option value="">Select system rule</option>
+                        </select>
+                    </div>
+                    <div class="k"><label for="reject_application_list_id">Reject app ID</label></div>
+                    <div class="v">
+                        <select id="reject_application_list_id">
+                            <option value="">Select reject app</option>
+                        </select>
+                    </div>
+                    <div class="k"><label for="trust_score_policy_id">Trust policy ID</label></div>
+                    <div class="v">
+                        <select id="trust_score_policy_id">
+                            <option value="">Select trust policy</option>
+                        </select>
+                    </div>
+                    <div class="k"><label for="decision_action">Decision action</label></div>
+                    <div class="v">
+                        <select id="decision_action"></select>
+                        <div id="mapping_decision_hint" class="muted"></div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="kvs">
+                    <div class="k"><label for="remediation_rule_id">Remediation rule ID</label></div>
+                    <div class="v">
+                        <select id="remediation_rule_id" required>
+                            <option value="">Select remediation rule</option>
+                        </select>
+                    </div>
+                    <div class="k"><label for="enforce_mode">Enforce mode</label></div>
+                    <div class="v">
+                        <select id="enforce_mode" required></select>
+                        <div id="mapping_enforce_hint" class="muted"></div>
+                    </div>
+                    <div class="k"><label for="rank_order">Rank order</label></div>
+                    <div class="v">
+                        <input id="rank_order" type="number" value="1" min="1" max="1000" required/>
+                        <div id="mapping_rank_hint" class="muted"></div>
+                    </div>
+                    <div class="k"><label for="status">Status</label></div>
+                    <div class="v"><select id="status"></select></div>
+                    <div class="k"><label for="effective_from">Effective from</label></div>
+                    <div class="v"><input id="effective_from" type="date"/></div>
+                    <div class="k"><label for="effective_to">Effective to</label></div>
+                    <div class="v"><input id="effective_to" type="date"/></div>
+                </div>
+                <div class="form-row mt-075">
+                    <input id="edit_id" type="hidden"/>
+                    <button type="submit">Save</button>
+                    <button id="resetBtn" class="secondary" type="button">Reset</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <script type="module" th:src="@{/assets/js/pages/policies_rule_remediation_mappings_dt.js}"></script>
+</section>
+</html>

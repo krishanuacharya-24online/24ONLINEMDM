@@ -1,0 +1,175 @@
+MDM and Device Posture System
+End-to-End Business + Technical Logic
+
+1) Business Objective
+- Protect enterprise access by continuously checking device posture before granting access.
+- Convert technical signals (OS health, risky apps, root/emulator state, policy violations) into a clear business decision:
+  ALLOW, NOTIFY, QUARANTINE, or BLOCK.
+- Provide actionable remediation so a non-compliant device can become compliant.
+
+2) Business Actors
+- Device User: Uses managed endpoint (phone/laptop/tablet/etc).
+- Security Team: Defines rules, risk weights, and decision thresholds.
+- IT/Operations Team: Monitors runs, remediation, and delivery outcomes.
+- Policy Engine (System): Evaluates posture, calculates trust score, returns decision.
+
+3) Business Inputs and Outputs
+Inputs:
+- Device agent payload (system info + installed apps).
+- Security policy configuration (rules, reject app list, scoring policies, remediation mappings).
+- OS lifecycle catalog (release, EOL, EEOL).
+
+Outputs:
+- Final access decision for device.
+- Trust score and risk band.
+- Remediation actions (if required).
+- Full audit trail for compliance and forensics.
+
+4) Business Decision Logic (Simple View)
+Step A: Collect posture data from device.
+Step B: Match against posture rules and reject app rules.
+Step C: Evaluate OS lifecycle risk (SUPPORTED, EOL, EEOL, NOT_TRACKED).
+Step D: Apply trust score policies to all matched signals.
+Step E: Map final score to action using decision thresholds.
+Step F: Attach remediation instructions for failed conditions.
+Step G: Send decision response to device and track delivery/ack.
+
+5) Technical Architecture Flow (End-to-End)
+
+Stage 1: Policy and master setup (admin/config phase)
+- Policy tables:
+  system_information_rule
+  system_information_rule_condition
+  reject_application_list
+  trust_score_policy
+  trust_score_decision_policy
+  remediation_rule
+  rule_remediation_mapping
+- Lifecycle master:
+  os_release_lifecycle_master
+- Lookup master:
+  lkp_master (single lookup table, keyed by lookup_type + code)
+- App identity normalization:
+  application_catalog
+
+Stage 2: Agent posture API execution (`POST /v1/agent/posture-payloads`)
+- Raw payload saved to:
+  device_posture_payload
+- Workflow parse step writes normalized data:
+  device_system_snapshot (one system snapshot per payload context)
+  device_installed_application (multiple app rows)
+- Device profile create/update:
+  device_trust_profile
+
+Stage 3: Evaluation run and lifecycle resolution
+- Create/finalize run record in:
+  posture_evaluation_run (current agent workflow writes COMPLETED on success)
+- Resolve lifecycle row from:
+  os_release_lifecycle_master
+  using os_type + os_name + os_cycle from snapshot.
+
+Stage 4: Rule matching
+- System posture matching:
+  snapshot vs system_information_rule + system_information_rule_condition
+- Installed app matching:
+  installed apps vs reject_application_list
+- Lifecycle signal creation:
+  OS_EOL, OS_EEOL, OS_NOT_TRACKED (as posture signals where applicable)
+- Save each finding to:
+  posture_evaluation_match
+
+Stage 5: Trust score event creation
+- For each finding/signal, fetch matching trust policy:
+  trust_score_policy
+- Apply score delta and write immutable audit event:
+  device_trust_score_event
+- Keep before/delta/after values for explainability.
+
+Stage 6: Device trust profile update
+- Update aggregated current trust state in:
+  device_trust_profile
+  (current_score, score_band, posture_status, lifecycle state)
+
+Stage 7: Final decision
+- Use score range mapping from:
+  trust_score_decision_policy
+- Produce final decision action:
+  ALLOW, NOTIFY, QUARANTINE, BLOCK.
+- Complete run record:
+  posture_evaluation_run (status COMPLETED, totals, final action)
+
+Stage 8: Remediation resolution
+- Resolve remediation mapping from:
+  rule_remediation_mapping
+- Get remediation details from:
+  remediation_rule
+- Save generated tasks to:
+  posture_evaluation_remediation
+
+Stage 9: Response generation and delivery tracking
+- Persist response to:
+  device_decision_response
+- Track delivery lifecycle:
+  PENDING, SENT, ACKED, FAILED, TIMEOUT
+- Close payload processing state:
+  device_posture_payload (EVALUATED or FAILED)
+
+Implementation note:
+- In current code path, stages 2-9 are executed inside the same API transaction and the POST response already includes `decision_action`, `trust_score`, and remediation list.
+
+6) Current Trust Score and Decision Logic (Implemented)
+- Base score:
+  device_trust_profile.current_score (new device starts at 100).
+- Signal sources:
+  SYSTEM_RULE matches, REJECT_APPLICATION matches, POSTURE_SIGNAL lifecycle signal.
+- Policy lookup:
+  trust_score_policy match by source_type + signal_key (+ optional severity/compliance_action).
+- Delta rule:
+  if policy found -> round(score_delta * weight)
+  else system rule -> risk_score_delta (or 0)
+  else reject app -> max(-80, -10 * severity) (default severity 3)
+  else lifecycle -> EEOL=-40, EOL=-25, NOT_TRACKED=-15
+- Score bounds:
+  running score is clamped to [0, 100].
+- Decision mapping:
+  trust_score_decision_policy range if matched; fallback thresholds:
+  score <40 BLOCK, <60 QUARANTINE, <80 NOTIFY, else ALLOW.
+- Remediation required:
+  from decision policy when present; otherwise `decision_action != ALLOW`.
+- Score band update:
+  <25 CRITICAL, <50 HIGH_RISK, <70 MEDIUM_RISK, <90 LOW_RISK, else TRUSTED.
+
+7) OS Lifecycle Business Impact
+- SUPPORTED: no lifecycle penalty by default (depends on trust policy).
+- EOL: risk penalty and/or restricted action.
+- EEOL: stronger penalty, often quarantine/block.
+- NOT_TRACKED: configurable policy (warn or restrict based on enterprise posture).
+
+8) Why this model works for business
+- Deterministic decisions: same posture + same policy gives same decision.
+- Explainable risk: every score change is auditable in event history.
+- Faster operations: remediation instructions are directly linked to findings.
+- Compliance-ready: complete trace from raw payload to final response.
+
+9) Why this model works for engineering
+- Clear separation:
+  ingest, normalize, evaluate, score, decide, remediate, deliver.
+- Scalable writes:
+  append-heavy event/run/match tables + indexed policy lookups.
+- Flexible policy tuning:
+  adjust rules, thresholds, weights without changing ingest pipeline.
+- Single lookup master:
+  lkp_master simplifies reference-data management across domains.
+
+10) Core success metrics
+- Security metrics:
+  blocked high-risk devices, EOL/EEOL device rate, risky app detection rate.
+- Operations metrics:
+  evaluation latency, decision delivery success, remediation completion rate.
+- Governance metrics:
+  policy coverage by OS/device type, audit completeness, false positive trend.
+
+11) Short summary
+- Business side: collect posture, evaluate risk, decide access, guide remediation.
+- Technical side: normalize payloads, match rules, compute trust score, persist audit, send decision.
+- Result: a policy-driven, auditable, lifecycle-aware device trust and access control system.

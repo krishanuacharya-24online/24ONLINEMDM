@@ -1,0 +1,11 @@
+{
+  "name": "online-mdm-asset-build",
+  "private": true,
+  "scripts": {
+    "build:js": "node tools/obfuscate-js.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.1",
+    "javascript-obfuscator": "4.1.1"
+  }
+}

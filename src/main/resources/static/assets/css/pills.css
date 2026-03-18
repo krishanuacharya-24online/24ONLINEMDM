@@ -1,0 +1,28 @@
+/* ==========================================================================
+   Pill Component
+   ========================================================================== */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(239, 246, 255, 0.95);
+  border: 1px solid rgba(191, 219, 254, 0.85);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}

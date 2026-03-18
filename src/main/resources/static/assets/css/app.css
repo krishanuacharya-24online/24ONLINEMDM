@@ -1,0 +1,67 @@
+﻿/* ==========================================================================
+   24online MDM - Main Stylesheet
+   Modular CSS architecture - imports all component styles
+   ========================================================================== */
+
+/* 1. Core variables and theme */
+@import 'colors.css';
+@import 'shadows.css';
+
+/* 2. Reset and base styles */
+@import 'reset.css';
+@import 'accessibility.css';
+@import 'focus-styles.css';
+@import 'shell.css';
+
+/* 3. Layout components */
+@import 'header.css';
+@import 'nav.css';
+@import 'grid.css';
+@import 'cards.css';
+@import 'layout-responsive.css';
+
+/* 4. Form elements */
+@import 'buttons.css';
+@import 'inputs.css';
+@import 'field-help.css';
+@import 'select2-lite.css';
+
+/* 5. Data display */
+@import 'table-base.css';
+@import 'table-controls.css';
+@import 'table-responsive.css';
+@import 'pills.css';
+@import 'badges.css';
+@import 'stat-row.css';
+@import 'overview-metrics.css';
+@import 'progress-bars.css';
+@import 'overview-responsive.css';
+
+/* 6. Interactive components */
+@import 'user-chip.css';
+@import 'user-menu-dropdown.css';
+@import 'toasts.css';
+@import 'confirm-dialog.css';
+
+/* 7. Page-specific styles */
+@import 'lookup.css';
+@import 'login.css';
+@import 'reports.css';
+
+/* 8. Misc components */
+@import 'kvs.css';
+@import 'tenant-key.css';
+@import 'secret-field.css';
+@import 'mono-blocks.css';
+
+/* 9. Utility classes */
+@import 'spacing.css';
+@import 'sizing.css';
+@import 'text-utilities.css';
+@import 'tab-links.css';
+@import 'animations.css';
+
+/* 10. Footer and third-party */
+@import 'sidebar-nav.css';
+@import 'footer.css';
+@import 'datatables.css';

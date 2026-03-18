@@ -1,0 +1,39 @@
+/* ==========================================================================
+   Accessibility Styles
+   Skip links, screen reader only
+   ========================================================================== */
+
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  transform: translateY(-200%);
+  background: #ffffff;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  text-decoration: none;
+  z-index: 500;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* Honor semantic hidden state even when component styles set display values */
+[hidden] {
+  display: none !important;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

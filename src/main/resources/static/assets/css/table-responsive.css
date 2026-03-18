@@ -1,0 +1,26 @@
+/* ==========================================================================
+   Responsive Tables
+   ========================================================================== */
+
+@media (max-width: 960px) {
+  .table-controls__right input {
+    min-width: 150px;
+  }
+
+  table.table--responsive {
+    width: max(100%, 620px);
+  }
+
+  #catalogAppsTable tbody td:last-child {
+    white-space: normal;
+  }
+
+  #catalogAppsTable tbody td:last-child button.icon-btn {
+    display: flex;
+  }
+
+  #catalogAppsTable tbody td:last-child button.icon-btn + button.icon-btn {
+    margin-left: 0;
+    margin-top: 0.4rem;
+  }
+}

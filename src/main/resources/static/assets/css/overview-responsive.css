@@ -1,0 +1,18 @@
+/* ==========================================================================
+   Responsive Overview
+   ========================================================================== */
+
+@media (max-width: 960px) {
+  .overview-inspector-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .overview-bar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+  }
+
+  .overview-bar__meta {
+    text-align: left;
+  }
+}

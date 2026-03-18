@@ -1,0 +1,11 @@
+/* ==========================================================================
+   Footer Styles
+   ========================================================================== */
+
+footer {
+  padding: 0.8rem 1.75rem 1rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  border-top: 1px solid rgba(219, 234, 254, 0.95);
+  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.95), rgba(239, 246, 255, 0.98));
+}

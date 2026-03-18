@@ -1,0 +1,61 @@
+/* ==========================================================================
+   Field Help Tooltip
+   ========================================================================== */
+
+.field-help {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  margin-left: 0.28rem;
+  border-radius: 999px;
+  border: 1px solid rgba(147, 197, 253, 0.8);
+  background: rgba(219, 234, 254, 0.95);
+  color: #1e3a8a;
+  cursor: help;
+  vertical-align: text-top;
+}
+
+.field-help::before {
+  content: "i";
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.field-help::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.4rem);
+  min-width: 220px;
+  max-width: min(340px, 72vw);
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(148, 163, 184, 0.55);
+  background: rgba(15, 23, 42, 0.96);
+  color: #f8fafc;
+  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.3);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-2px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 320;
+}
+
+.field-help::selection {
+  background: transparent;
+}
+
+.field-help:hover::after,
+.field-help:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}

@@ -1,0 +1,57 @@
+groups:
+  - name: mdm-policy-alerts
+    rules:
+      - alert: PolicyApiHigh5xxRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{uri=~"/v1/policies/.*",status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(http_server_requests_seconds_count{uri=~"/v1/policies/.*"}[5m])), 1)
+          ) > 0.01
+        for: 10m
+        labels:
+          severity: critical
+          service: mdm
+          component: policy
+        annotations:
+          summary: "Policy API 5xx rate is above 1%"
+          description: "5xx ratio for /v1/policies/* exceeded 1% for 10m."
+
+      - alert: PolicyApiHighLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(http_server_requests_seconds_bucket{uri=~"/v1/policies/.*"}[5m]))
+          ) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+          service: mdm
+          component: policy
+        annotations:
+          summary: "Policy API p95 latency is above 500ms"
+          description: "p95 latency for /v1/policies/* exceeded 500ms for 15m."
+
+      - alert: PolicyAuditWriteFailures
+        expr: |
+          sum(rate(mdm_policy_audit_events_total{outcome="failure"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: mdm
+          component: policy
+        annotations:
+          summary: "Policy audit write failures detected"
+          description: "Policy audit event counter recorded failures for 5m."
+
+      - alert: PolicyReadinessDown
+        expr: |
+          up{job=~".*mdm.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: mdm
+          component: policy
+        annotations:
+          summary: "MDM service is unreachable"
+          description: "Prometheus cannot scrape MDM target for 2m."

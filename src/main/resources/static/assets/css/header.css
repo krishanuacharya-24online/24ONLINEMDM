@@ -1,0 +1,49 @@
+/* ==========================================================================
+   Header Component
+   ========================================================================== */
+
+header {
+  padding: 0.9rem 1.75rem;
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  background:
+    linear-gradient(110deg, rgba(255, 255, 255, 0.97), rgba(239, 246, 255, 0.97)),
+    repeating-linear-gradient(135deg, rgba(37, 99, 235, 0.035), rgba(37, 99, 235, 0.035) 3px, transparent 3px, transparent 8px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+button.menu-toggle {
+  display: none !important;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+}
+
+.brand-pill {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 0, #4ade80 0, #22c55e 40%, #22c55e00 70%),
+    radial-gradient(circle at 70% 110%, #0ea5e9 0, #0284c7 45%, #0284c700 80%);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.35), 0 0 22px rgba(37, 99, 235, 0.25);
+}

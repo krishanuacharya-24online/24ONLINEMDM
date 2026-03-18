@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<section>
+    <section class="card">
+        <div class="page-head">
+            <div>
+                <h2>Reports</h2>
+            </div>
+        </div>
+    </section>
+
+    <section class="card mt-1">
+        <div id="reportsStatus" class="muted" hidden aria-live="polite"></div>
+        <div id="reportsEmbedMount" class="reports-frame mt-075" hidden></div>
+        <iframe
+                id="reportsFrame"
+                class="reports-frame mt-075"
+                title="Superset dashboard"
+                loading="lazy"
+                hidden>
+        </iframe>
+    </section>
+
+    <script th:src="@{/assets/js/vendor/superset-embedded-sdk.js(v=202603171)}" defer></script>
+    <script type="module" th:src="@{/assets/js/pages/reports.js(v=202603171)}"></script>
+</section>
+</html>

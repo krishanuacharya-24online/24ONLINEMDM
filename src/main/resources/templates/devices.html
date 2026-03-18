@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
+<section>
+<section class="card">
+    <h2>Device explorer</h2>
+    <p class="muted">
+        Filter devices by OS and score band. Use this for quick triage; bulk operations should go through APIs.
+    </p>
+    <form class="form-row" id="device-filter-form">
+        <div>
+            <label for="osType">OS type</label><br/>
+            <select id="osType"></select>
+        </div>
+        <div>
+            <label for="scoreBand">Score band</label><br/>
+            <select id="scoreBand"></select>
+        </div>
+        <div>
+            <label>&nbsp;</label><br/>
+            <button type="submit">Apply filters</button>
+        </div>
+    </form>
+
+    <table id="device-table">
+        <thead>
+        <tr>
+            <th>Device</th>
+            <th>OS</th>
+            <th>Score</th>
+            <th>Band</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr><td colspan="6" class="muted">Loading...</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<section class="card mt-1">
+    <div class="page-head">
+        <div>
+            <h2>Device posture detail</h2>
+            <p id="device-detail-caption" class="muted">
+                Click <strong>View detail</strong> on a device row to view latest posture status and historical posture information.
+            </p>
+        </div>
+        <form class="form-row" id="device-detail-controls">
+            <div>
+                <label for="detailTenantId">Tenant ID override</label><br/>
+                <input id="detailTenantId" type="text" placeholder="optional (admin only)"/>
+            </div>
+            <div>
+                <label>&nbsp;</label><br/>
+                <button id="refresh-device-detail" class="secondary" type="submit" disabled>Refresh selected</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="device-detail-loading" class="muted" hidden>Loading device detail...</div>
+    <div id="device-detail-error" class="muted" hidden></div>
+
+    <!-- Device History Timeline Section -->
+    <section class="card mt-1" id="device-timeline-section" hidden>
+        <div class="page-head">
+            <div>
+                <h2>Device History Timeline</h2>
+                <p class="muted">
+                    Visual timeline showing trust score changes, evaluations, and decisions over time.
+                </p>
+            </div>
+            <div>
+                <label>&nbsp;</label><br/>
+                <button id="refresh-timeline" class="secondary" type="button">🔄 Refresh Timeline</button>
+            </div>
+        </div>
+        
+        <div id="device-timeline-container" class="timeline-container">
+            <div class="timeline-loading">Loading timeline...</div>
+        </div>
+    </section>
+
+    <div id="device-detail-content" hidden>
+        <div class="stat-row" id="device-summary-row"></div>
+
+        <div class="split mt-1">
+            <div>
+                <h2 class="mb-025">Trust profile</h2>
+                <div class="kvs" id="device-trust-profile-meta"></div>
+            </div>
+            <div>
+                <h2 class="mb-025">Latest posture payload</h2>
+                <div class="kvs" id="device-latest-payload-meta"></div>
+            </div>
+        </div>
+
+        <div class="split mt-1">
+            <div>
+                <h2 class="mb-025">Latest snapshot</h2>
+                <div class="kvs" id="device-latest-snapshot"></div>
+            </div>
+            <div>
+                <h2 class="mb-025">Latest decision</h2>
+                <div class="kvs" id="device-latest-decision"></div>
+            </div>
+        </div>
+
+        <section class="mt-1">
+            <h2 class="mb-025">Latest installed applications</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>App</th>
+                    <th>Package</th>
+                    <th>Version</th>
+                    <th>Latest</th>
+                    <th>Status</th>
+                    <th>Source</th>
+                    <th>System</th>
+                    <th>Captured at</th>
+                </tr>
+                </thead>
+                <tbody id="device-apps-history-body">
+                <tr><td colspan="8" class="muted">No rows.</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="mt-1">
+            <h2 class="mb-025">Recent decisions</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>Decision</th>
+                    <th>Trust score</th>
+                    <th>Remediation</th>
+                    <th>Delivery</th>
+                    <th>Sent at</th>
+                    <th>Ack at</th>
+                    <th>Error</th>
+                    <th>Created at</th>
+                </tr>
+                </thead>
+                <tbody id="device-decisions-history-body">
+                <tr><td colspan="8" class="muted">No rows.</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="mt-1">
+            <h2 class="mb-025">Recent posture payloads</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>Payload ID</th>
+                    <th>Agent</th>
+                    <th>Status</th>
+                    <th>Version</th>
+                    <th>Hash</th>
+                    <th>Received at</th>
+                    <th>Processed at</th>
+                    <th>Error</th>
+                </tr>
+                </thead>
+                <tbody id="device-payload-history-body">
+                <tr><td colspan="8" class="muted">No rows.</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="mt-1">
+            <h2 class="mb-025">Recent trust score events</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>Source</th>
+                    <th>Before</th>
+                    <th>Delta</th>
+                    <th>After</th>
+                    <th>Lifecycle</th>
+                    <th>Source record</th>
+                    <th>Notes</th>
+                    <th>Event time</th>
+                </tr>
+                </thead>
+                <tbody id="device-events-history-body">
+                <tr><td colspan="8" class="muted">No rows.</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="mt-1">
+            <h2 class="mb-025">Evaluation runs</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>Run ID</th>
+                    <th>Payload ID</th>
+                    <th>Status</th>
+                    <th>Decision</th>
+                    <th>Score before</th>
+                    <th>Score after</th>
+                    <th>Rules matched</th>
+                    <th>Apps matched</th>
+                    <th>Evaluated at</th>
+                </tr>
+                </thead>
+                <tbody id="device-runs-history-body">
+                <tr><td colspan="9" class="muted">No rows.</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="mt-1">
+            <h2 class="mb-025">Latest run matches</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>Match ID</th>
+                    <th>Source</th>
+                    <th>Severity</th>
+                    <th>Action</th>
+                    <th>Score delta</th>
+                    <th>Lifecycle</th>
+                    <th>Detail</th>
+                </tr>
+                </thead>
+                <tbody id="device-run-matches-body">
+                <tr><td colspan="7" class="muted">No rows.</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="mt-1">
+            <h2 class="mb-025">Latest run remediation</h2>
+            <table>
+                <thead>
+                <tr>
+                    <th>Remediation ID</th>
+                    <th>Rule ID</th>
+                    <th>Match ID</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                    <th>Due</th>
+                    <th>Completed</th>
+                </tr>
+                </thead>
+                <tbody id="device-run-remediation-body">
+                <tr><td colspan="7" class="muted">No rows.</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="mt-1">
+            <h2 class="mb-025">Latest payload raw JSON</h2>
+            <pre id="device-raw-payload" class="mono-block mono-block--boxed">No data.</pre>
+        </section>
+
+        <section class="mt-1">
+            <h2 class="mb-025">Latest decision raw response</h2>
+            <pre id="device-raw-decision" class="mono-block mono-block--boxed">No data.</pre>
+        </section>
+
+        <section class="mt-1">
+            <h2 class="mb-025">Latest run response payload</h2>
+            <pre id="device-raw-run-response" class="mono-block mono-block--boxed">No data.</pre>
+        </section>
+    </div>
+</section>
+
+<script type="module" th:src="@{/assets/js/pages/devices.js}"></script>
+</section>
+</html>
+
