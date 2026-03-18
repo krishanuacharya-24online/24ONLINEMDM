@@ -387,28 +387,60 @@ async function inspectDevice(e) {
     }
 
     if (summaryEl) {
-      summaryEl.innerHTML = `
-        <div class="stat">
-          <div class="stat-label">Device</div>
-          <div class="stat-value">${esc(deviceId)}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Posture status</div>
-          <div class="stat-value">${esc(textOrDash(pick(profile, 'posture_status', 'postureStatus')))}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Trust score</div>
-          <div class="stat-value">${esc(textOrDash(pick(profile, 'current_score', 'currentScore')))}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Score band</div>
-          <div class="stat-value">${renderBandBadge(pick(profile, 'score_band', 'scoreBand'))}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Decision</div>
-          <div class="stat-value">${esc(textOrDash(pick(latestDecision, 'decision_action', 'decisionAction')))}</div>
-        </div>
-      `;
+      // Clear any existing content
+      summaryEl.innerHTML = '';
+
+      const makeStat = (labelText) => {
+        const stat = document.createElement('div');
+        stat.className = 'stat';
+
+        const label = document.createElement('div');
+        label.className = 'stat-label';
+        label.textContent = labelText;
+
+        const value = document.createElement('div');
+        value.className = 'stat-value';
+
+        stat.appendChild(label);
+        stat.appendChild(value);
+
+        return { stat, value };
+      };
+
+      // Device
+      {
+        const { stat, value } = makeStat('Device');
+        value.textContent = String(deviceId);
+        summaryEl.appendChild(stat);
+      }
+
+      // Posture status
+      {
+        const { stat, value } = makeStat('Posture status');
+        value.textContent = textOrDash(pick(profile, 'posture_status', 'postureStatus'));
+        summaryEl.appendChild(stat);
+      }
+
+      // Trust score
+      {
+        const { stat, value } = makeStat('Trust score');
+        value.textContent = textOrDash(pick(profile, 'current_score', 'currentScore'));
+        summaryEl.appendChild(stat);
+      }
+
+      // Score band (renderBandBadge returns HTML markup)
+      {
+        const { stat, value } = makeStat('Score band');
+        value.innerHTML = renderBandBadge(pick(profile, 'score_band', 'scoreBand'));
+        summaryEl.appendChild(stat);
+      }
+
+      // Decision
+      {
+        const { stat, value } = makeStat('Decision');
+        value.textContent = textOrDash(pick(latestDecision, 'decision_action', 'decisionAction'));
+        summaryEl.appendChild(stat);
+      }
     }
 
     renderKeyValues(profileEl, [
