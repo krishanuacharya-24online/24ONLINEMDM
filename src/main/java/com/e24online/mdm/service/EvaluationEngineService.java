@@ -95,6 +95,10 @@ public class EvaluationEngineService {
                                                    LifecycleResolution lifecycle,
                                                    OffsetDateTime now) {
         log.debug("computeEvaluation method");
+        log.debug("computeEvaluation tenantId={}, osType={}, osTypeNull={}",
+                parsed.tenantId(),
+                parsed.osType(),
+                parsed.osType() == null);
         List<SystemInformationRule> activeRules = activeSystemRules(parsed, now);
         Map<Long, List<SystemInformationRuleCondition>> conditionsByRule = activeRuleConditions(activeRules);
         List<RejectApplication> activeRejectApps = activeRejectApps(parsed.tenantId(), parsed.osType(), now);
@@ -268,7 +272,7 @@ public class EvaluationEngineService {
     }
 
     private List<SystemInformationRule> activeSystemRules(ParsedPosture parsed, OffsetDateTime now) {
-        String cacheKey = parsed.tenantId() + "|" + parsed.osType();
+        String cacheKey = String.valueOf(parsed.tenantId()) + "|" + String.valueOf(parsed.osType());
         List<SystemInformationRule> rules = getCached(
                 systemRuleCache,
                 cacheKey,
@@ -312,7 +316,7 @@ public class EvaluationEngineService {
     }
 
     private List<RejectApplication> activeRejectApps(String tenantId, String osType, OffsetDateTime now) {
-        String cacheKey = tenantId + "|" + osType;
+        String cacheKey = String.valueOf(tenantId) + "|" + String.valueOf(osType);
         return getCached(
                 rejectApplicationCache,
                 cacheKey,

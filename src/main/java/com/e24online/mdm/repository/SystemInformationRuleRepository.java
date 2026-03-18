@@ -11,22 +11,20 @@ import java.util.List;
 public interface SystemInformationRuleRepository extends CrudRepository<SystemInformationRule, Long> {
 
     @Query("""
-            SELECT * FROM system_information_rule
+            SELECT *
+            FROM system_information_rule
             WHERE is_deleted = false
-              AND (:status IS NULL OR status = :status)
+              AND (CAST(:status AS varchar) IS NULL OR status = :status)
               AND (
-                (:tenantId IS NULL AND tenant_id IS NULL)
-                OR (
-                  :tenantId IS NOT NULL
-                  AND (tenant_id IS NULL OR tenant_id = :tenantId)
-                )
+                    (CAST(:tenantId AS varchar) IS NULL AND tenant_id IS NULL)
+                 OR (CAST(:tenantId AS varchar) IS NOT NULL AND (tenant_id IS NULL OR tenant_id = :tenantId))
               )
             ORDER BY
-              CASE
-                WHEN :tenantId IS NOT NULL AND tenant_id = :tenantId THEN 0
-                ELSE 1
-              END,
-              os_type, os_name, priority
+              CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END,
+              os_type,
+              os_name,
+              priority,
+              id
             LIMIT :limit OFFSET :offset
             """)
     List<SystemInformationRule> findPaged(
@@ -37,15 +35,13 @@ public interface SystemInformationRuleRepository extends CrudRepository<SystemIn
     );
 
     @Query("""
-            SELECT COUNT(*) FROM system_information_rule
+            SELECT COUNT(*)
+            FROM system_information_rule
             WHERE is_deleted = false
-              AND (:status IS NULL OR status = :status)
+              AND (CAST(:status AS varchar) IS NULL OR status = :status)
               AND (
-                (:tenantId IS NULL AND tenant_id IS NULL)
-                OR (
-                  :tenantId IS NOT NULL
-                  AND (tenant_id IS NULL OR tenant_id = :tenantId)
-                )
+                    (CAST(:tenantId AS varchar) IS NULL AND tenant_id IS NULL)
+                 OR (CAST(:tenantId AS varchar) IS NOT NULL AND (tenant_id IS NULL OR tenant_id = :tenantId))
               )
             """)
     long countActive(
@@ -54,25 +50,21 @@ public interface SystemInformationRuleRepository extends CrudRepository<SystemIn
     );
 
     @Query("""
-            SELECT * FROM system_information_rule
+            SELECT *
+            FROM system_information_rule
             WHERE is_deleted = false
               AND status = 'ACTIVE'
               AND effective_from <= :asOf
               AND (effective_to IS NULL OR effective_to > :asOf)
-              AND (:osType IS NULL OR os_type = :osType::text)
+              AND (CAST(:osType AS varchar) IS NULL OR os_type = :osType)
               AND (
-                (:tenantId IS NULL AND tenant_id IS NULL)
-                OR (
-                  :tenantId IS NOT NULL
-                  AND (tenant_id IS NULL OR tenant_id = :tenantId)
-                )
+                    (CAST(:tenantId AS varchar) IS NULL AND tenant_id IS NULL)
+                 OR (CAST(:tenantId AS varchar) IS NOT NULL AND (tenant_id IS NULL OR tenant_id = :tenantId))
               )
             ORDER BY
-              CASE
-                WHEN :tenantId IS NOT NULL AND tenant_id = :tenantId THEN 0
-                ELSE 1
-              END,
-              priority, id
+              CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END,
+              priority,
+              id
             """)
     List<SystemInformationRule> findActiveForEvaluation(
             @Param("tenantId") String tenantId,

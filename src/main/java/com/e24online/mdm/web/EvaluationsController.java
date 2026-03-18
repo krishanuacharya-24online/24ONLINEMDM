@@ -1,9 +1,6 @@
 package com.e24online.mdm.web;
 
-import com.e24online.mdm.domain.DeviceDecisionResponse;
-import com.e24online.mdm.domain.PostureEvaluationMatch;
-import com.e24online.mdm.domain.PostureEvaluationRemediation;
-import com.e24online.mdm.domain.PostureEvaluationRun;
+import com.e24online.mdm.domain.*;
 import com.e24online.mdm.records.CreateRunResolution;
 import com.e24online.mdm.records.RemediationStatusUpdateRequest;
 import com.e24online.mdm.repository.DeviceDecisionResponseRepository;
@@ -16,6 +13,7 @@ import com.e24online.mdm.service.WorkflowOrchestrationService;
 import com.e24online.mdm.web.dto.CreateEvaluationRunRequest;
 import com.e24online.mdm.web.security.AuthenticatedRequestContext;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -34,12 +32,15 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @RestController
 @RequestMapping("${api.version.prefix:v1}/evaluations")
 @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+@Slf4j
 public class EvaluationsController {
 
     private static final int DEFAULT_PAGE_SIZE = 50;
@@ -301,6 +302,63 @@ public class EvaluationsController {
             return DEFAULT_PAGE_SIZE;
         }
         return Math.min(size, MAX_PAGE_SIZE);
+    }
+
+    /**
+     * Reprocess failed posture payloads for a specific device.
+     * This resets the payload status and requeues it for evaluation.
+     * Use this to manually retry payloads that failed due to transient errors.
+     */
+    @PostMapping("/reprocess-failed")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
+    public ResponseEntity<?> reprocessFailedPayloads(
+            @RequestParam String deviceExternalId,
+            @RequestParam String tenantId) {
+        
+        // Find all failed payloads for this device
+        List<DevicePosturePayload> failedPayloads = payloadRepository.findPaged(
+            tenantId, 
+            deviceExternalId, 
+            "PROCESSING_FAILED", 
+            100, 
+            0
+        );
+        
+        if (failedPayloads.isEmpty()) {
+            return ResponseEntity.ok().body(Map.of(
+                "message", "No failed payloads found",
+                "deviceExternalId", deviceExternalId,
+                "tenantId", tenantId,
+                "reprocessedCount", 0
+            ));
+        }
+        
+        // Reset each payload to PENDING status
+        int reprocessed = 0;
+        for (DevicePosturePayload payload : failedPayloads) {
+            try {
+                // Update payload status back to PENDING
+                payload.setProcessStatus("PENDING");
+                payload.setProcessError(null);
+                payload.setProcessedAt(null);
+                payloadRepository.save(payload);
+                
+                // Trigger evaluation
+                workflowService.evaluateExistingPayload(payload.getTenantId(), payload.getId());
+                reprocessed++;
+            } catch (Exception e) {
+                // Log but continue with other payloads
+                log.error("Failed to reprocess payload " + payload.getId() + ": " + e.getMessage());
+            }
+        }
+        
+        return ResponseEntity.ok().body(Map.of(
+            "message", "Reprocessing complete",
+            "deviceExternalId", deviceExternalId,
+            "tenantId", tenantId,
+            "reprocessedCount", reprocessed,
+            "totalFailed", failedPayloads.size()
+        ));
     }
 
 }

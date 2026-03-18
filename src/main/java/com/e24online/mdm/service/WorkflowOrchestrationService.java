@@ -685,10 +685,11 @@ public class WorkflowOrchestrationService {
     }
 
     private void markPayloadFailed(DevicePosturePayload payload, String errorMessage) {
-        payload.setProcessStatus("FAILED");
-        payload.setProcessedAt(OffsetDateTime.now(ZoneOffset.UTC));
-        payload.setProcessError(truncate(errorMessage, MAX_PROCESS_ERROR_LENGTH));
-        payloadRepository.save(payload);
+        payloadRepository.markPayloadFailed(
+                payload.getId(),
+                truncate(errorMessage, MAX_PROCESS_ERROR_LENGTH),
+                OffsetDateTime.now(ZoneOffset.UTC)
+        );
     }
 
     private void clearPayloadArtifacts(Long payloadId) {

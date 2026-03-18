@@ -48,6 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
@@ -226,17 +227,26 @@ class WorkflowOrchestrationServiceTest {
         DevicePosturePayload payload = payload(88L, "{invalid");
         when(payloadRepository.findByIdAndTenant(88L, "tenant-a")).thenReturn(Optional.of(payload));
         when(runRepository.findOneByPayloadId(88L)).thenReturn(Optional.empty());
-        when(payloadRepository.save(any(DevicePosturePayload.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(payloadRepository.markPayloadFailed(anyLong(), anyString(), any(OffsetDateTime.class))).thenReturn(1);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 service.evaluateExistingPayload("tenant-a", 88L));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        ArgumentCaptor<DevicePosturePayload> captor = ArgumentCaptor.forClass(DevicePosturePayload.class);
-        verify(payloadRepository, atLeastOnce()).save(captor.capture());
-        DevicePosturePayload lastSaved = captor.getAllValues().get(captor.getAllValues().size() - 1);
-        assertEquals("FAILED", lastSaved.getProcessStatus());
-        assertEquals("Invalid payload_json", lastSaved.getProcessError());
+
+        ArgumentCaptor<Long> idCaptor = ArgumentCaptor.forClass(Long.class);
+        ArgumentCaptor<String> errorCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<OffsetDateTime> timeCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
+
+        verify(payloadRepository).markPayloadFailed(
+                idCaptor.capture(),
+                errorCaptor.capture(),
+                timeCaptor.capture()
+        );
+
+        assertEquals(88L, idCaptor.getValue());
+        assertEquals("Invalid payload_json", errorCaptor.getValue());
+        assertNotNull(timeCaptor.getValue());
     }
 
     @Test

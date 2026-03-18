@@ -13,11 +13,12 @@ import java.util.Optional;
 public interface DevicePosturePayloadRepository extends CrudRepository<DevicePosturePayload, Long> {
 
     @Query("""
-            SELECT * FROM device_posture_payload
-            WHERE (:tenantId IS NULL OR COALESCE(tenant_id, '') = COALESCE(:tenantId, ''))
-              AND (:deviceExternalId IS NULL OR device_external_id = :deviceExternalId)
-              AND (:processStatus IS NULL OR process_status = :processStatus)
-            ORDER BY received_at DESC
+            SELECT *
+            FROM device_posture_payload
+            WHERE (CAST(:tenantId AS varchar) IS NULL OR tenant_id = :tenantId OR (tenant_id IS NULL AND :tenantId IS NULL))
+              AND (CAST(:deviceExternalId AS varchar) IS NULL OR device_external_id = :deviceExternalId)
+              AND (CAST(:processStatus AS varchar) IS NULL OR process_status = :processStatus)
+            ORDER BY received_at DESC, id DESC
             LIMIT :limit OFFSET :offset
             """)
     List<DevicePosturePayload> findPaged(
@@ -29,10 +30,11 @@ public interface DevicePosturePayloadRepository extends CrudRepository<DevicePos
     );
 
     @Query("""
-            SELECT * FROM device_posture_payload
-            WHERE COALESCE(tenant_id, '') = COALESCE(:tenantId, '')
+            SELECT *
+            FROM device_posture_payload
+            WHERE tenant_id IS NOT DISTINCT FROM :tenantId
               AND device_external_id = :deviceExternalId
-            ORDER BY received_at DESC
+            ORDER BY received_at DESC, id DESC
             LIMIT :limit OFFSET :offset
             """)
     List<DevicePosturePayload> findByDevice(
@@ -43,8 +45,9 @@ public interface DevicePosturePayloadRepository extends CrudRepository<DevicePos
     );
 
     @Query("""
-            SELECT * FROM device_posture_payload
-            WHERE COALESCE(tenant_id, '') = COALESCE(:tenantId, '')
+            SELECT *
+            FROM device_posture_payload
+            WHERE tenant_id IS NOT DISTINCT FROM :tenantId
               AND device_external_id = :deviceExternalId
             ORDER BY received_at DESC, id DESC
             LIMIT 1
@@ -55,8 +58,9 @@ public interface DevicePosturePayloadRepository extends CrudRepository<DevicePos
     );
 
     @Query("""
-            SELECT * FROM device_posture_payload
-            WHERE COALESCE(tenant_id, '') = COALESCE(:tenantId, '')
+            SELECT *
+            FROM device_posture_payload
+            WHERE tenant_id IS NOT DISTINCT FROM :tenantId
               AND device_external_id = :deviceExternalId
               AND idempotency_key = :idempotencyKey
             ORDER BY id DESC
@@ -94,9 +98,10 @@ public interface DevicePosturePayloadRepository extends CrudRepository<DevicePos
     );
 
     @Query("""
-            SELECT * FROM device_posture_payload
+            SELECT *
+            FROM device_posture_payload
             WHERE id = :id
-              AND COALESCE(tenant_id, '') = COALESCE(:tenantId, '')
+              AND tenant_id IS NOT DISTINCT FROM :tenantId
             LIMIT 1
             """)
     Optional<DevicePosturePayload> findByIdAndTenant(

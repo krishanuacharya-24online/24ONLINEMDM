@@ -12,22 +12,19 @@ import java.util.Optional;
 public interface TrustScoreDecisionPolicyRepository extends CrudRepository<TrustScoreDecisionPolicy, Long> {
 
     @Query("""
-            SELECT * FROM trust_score_decision_policy
+            SELECT *
+            FROM trust_score_decision_policy
             WHERE is_deleted = false
-              AND (:status IS NULL OR status = :status)
+              AND (CAST(:status AS varchar) IS NULL OR status = :status)
               AND (
-                (:tenantId IS NULL AND tenant_id IS NULL)
-                OR (
-                  :tenantId IS NOT NULL
-                  AND (tenant_id IS NULL OR tenant_id = :tenantId)
-                )
+                    (CAST(:tenantId AS varchar) IS NULL AND tenant_id IS NULL)
+                 OR (CAST(:tenantId AS varchar) IS NOT NULL AND (tenant_id IS NULL OR tenant_id = :tenantId))
               )
             ORDER BY
-              CASE
-                WHEN :tenantId IS NOT NULL AND tenant_id = :tenantId THEN 0
-                ELSE 1
-              END,
-              score_min, score_max
+              CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END,
+              score_min,
+              score_max,
+              id
             LIMIT :limit OFFSET :offset
             """)
     List<TrustScoreDecisionPolicy> findPaged(
@@ -38,21 +35,23 @@ public interface TrustScoreDecisionPolicyRepository extends CrudRepository<Trust
     );
 
     @Query("""
-            SELECT COUNT(*) FROM trust_score_decision_policy
+            SELECT COUNT(*)
+            FROM trust_score_decision_policy
             WHERE is_deleted = false
-              AND (:status IS NULL OR status = :status)
+              AND (CAST(:status AS varchar) IS NULL OR status = :status)
               AND (
-                (:tenantId IS NULL AND tenant_id IS NULL)
-                OR (
-                  :tenantId IS NOT NULL
-                  AND (tenant_id IS NULL OR tenant_id = :tenantId)
-                )
+                    (CAST(:tenantId AS varchar) IS NULL AND tenant_id IS NULL)
+                 OR (CAST(:tenantId AS varchar) IS NOT NULL AND (tenant_id IS NULL OR tenant_id = :tenantId))
               )
             """)
-    long countActive(@Param("tenantId") String tenantId, @Param("status") String status);
+    long countActive(
+            @Param("tenantId") String tenantId,
+            @Param("status") String status
+    );
 
     @Query("""
-            SELECT * FROM trust_score_decision_policy
+            SELECT *
+            FROM trust_score_decision_policy
             WHERE is_deleted = false
               AND status = 'ACTIVE'
               AND score_min <= :score
@@ -60,18 +59,14 @@ public interface TrustScoreDecisionPolicyRepository extends CrudRepository<Trust
               AND effective_from <= :asOf
               AND (effective_to IS NULL OR effective_to > :asOf)
               AND (
-                (:tenantId IS NULL AND tenant_id IS NULL)
-                OR (
-                  :tenantId IS NOT NULL
-                  AND (tenant_id IS NULL OR tenant_id = :tenantId)
-                )
+                    (CAST(:tenantId AS varchar) IS NULL AND tenant_id IS NULL)
+                 OR (CAST(:tenantId AS varchar) IS NOT NULL AND (tenant_id IS NULL OR tenant_id = :tenantId))
               )
             ORDER BY
-              CASE
-                WHEN :tenantId IS NOT NULL AND tenant_id = :tenantId THEN 0
-                ELSE 1
-              END,
-              score_min DESC, score_max ASC, id ASC
+              CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END,
+              score_min DESC,
+              score_max ASC,
+              id ASC
             LIMIT 1
             """)
     Optional<TrustScoreDecisionPolicy> findActivePolicyForScore(
