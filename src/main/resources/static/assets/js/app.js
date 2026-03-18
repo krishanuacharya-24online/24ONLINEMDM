@@ -1278,7 +1278,11 @@
       button.classList.add('icon-btn', `icon-btn--${actionType}`);
       button.setAttribute('aria-label', label);
       button.setAttribute('title', label);
-      button.innerHTML = `<span class="icon-btn__glyph" aria-hidden="true">${icon}</span><span class="sr-only">${label}</span>`;
+      button.innerHTML = `<span class="icon-btn__glyph" aria-hidden="true">${icon}</span>`;
+      const srOnlySpan = document.createElement('span');
+      srOnlySpan.className = 'sr-only';
+      srOnlySpan.textContent = label;
+      button.appendChild(srOnlySpan);
     });
   }
 
