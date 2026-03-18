@@ -1,4 +1,8 @@
-package com.e24online.mdm.web.dto;
+package com.e24online.mdm.records;
+
+import com.e24online.mdm.enums.EventCategory;
+import com.e24online.mdm.enums.EventType;
+import com.e24online.mdm.enums.Severity;
 
 import java.time.OffsetDateTime;
 
@@ -78,29 +82,5 @@ public record DeviceTimelineEvent(
      */
     String metadata
 ) {
-    public enum EventType {
-        SCORE_CHANGE,
-        EVALUATION,
-        DECISION,
-        REMEDIATION,
-        LIFECYCLE,
-        ENROLLMENT,
-        POSTURE_SUBMISSION
-    }
 
-    public enum EventCategory {
-        SCORE,        // Trust score changes
-        SECURITY,     // Security events (root, emulator, etc.)
-        APPLICATION,  // App-related events
-        LIFECYCLE,    // OS lifecycle events
-        DECISION,     // Decision changes
-        REMEDIATION,  // Remediation events
-        SYSTEM        // System events
-    }
-
-    public enum Severity {
-        INFO,       // Normal events
-        WARNING,    // Caution events
-        CRITICAL    // Critical events
-    }
 }

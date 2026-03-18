@@ -1,4 +1,4 @@
-package com.e24online.mdm.web.dto;
+package com.e24online.mdm.records;
 
 import java.util.List;
 
