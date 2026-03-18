@@ -19,7 +19,7 @@ A comprehensive Mobile Device Management solution built with Spring Boot and Rea
 
 | Component | Technology |
 |-----------|------------|
-| Backend | Spring Boot 3.x (WebFlux) |
+| Backend | Spring Boot 4.x (WebFlux) |
 | Database | PostgreSQL |
 | Security | JWT Authentication, SHA-512 Password Hashing |
 | Messaging | RabbitMQ (Audit & Posture events) |
@@ -30,7 +30,7 @@ A comprehensive Mobile Device Management solution built with Spring Boot and Rea
 
 ## 📋 Prerequisites
 
-- Java 17+
+- Java 21+
 - PostgreSQL 14+
 - Node.js (for package management)
 - Docker & Docker Compose (optional, for infrastructure)
@@ -143,7 +143,7 @@ See `docs/openapi/` for exported API specifications.
 
 ## 📝 License
 
-Proprietary - 24Online Ltd. All rights reserved.
+Proprietary - 24online Info Technologies Pvt. Ltd. All rights reserved.
 
 ## 👥 Support
 
