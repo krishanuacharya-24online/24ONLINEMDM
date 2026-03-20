@@ -11,6 +11,7 @@ import com.e24online.mdm.repository.TenantApiKeyRepository;
 import com.e24online.mdm.repository.TenantRepository;
 import com.e24online.mdm.service.BlockingDb;
 import com.e24online.mdm.service.DeviceEnrollmentService;
+import com.e24online.mdm.service.RemediationService;
 import com.e24online.mdm.service.WorkflowOrchestrationService;
 import com.e24online.mdm.web.dto.DecisionAckRequest;
 import com.e24online.mdm.web.dto.PosturePayloadIngestRequest;
@@ -65,6 +66,9 @@ class AgentControllerTest {
     @Mock
     private DeviceEnrollmentService enrollmentService;
 
+    @Mock
+    private RemediationService remediationService;
+
     private AgentController controller;
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -75,6 +79,7 @@ class AgentControllerTest {
                 workflowService,
                 payloadRepository,
                 decisionRepository,
+                remediationService,
                 tenantRepository,
                 tenantApiKeyRepository,
                 passwordEncoder,
@@ -270,7 +275,7 @@ class AgentControllerTest {
         when(decisionRepository.findByIdAndTenant(44L, "tenant-a")).thenReturn(Optional.of(existing));
 
         DecisionAckRequest request = new DecisionAckRequest();
-        request.setDeliveryStatus("ACKED");
+        request.setDeliveryStatus("ACKNOWLEDGED");
         request.setAcknowledgedAt(sentAt.minusMinutes(1));
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
@@ -297,12 +302,15 @@ class AgentControllerTest {
         decision.setId(123L);
         decision.setTenantId("tenant-a");
         decision.setDeviceExternalId("dev-1");
+        decision.setPostureEvaluationRunId(500L);
+        decision.setDeliveryStatus("PENDING");
 
         when(tenantRepository.findActiveByTenantId("tenant-a")).thenReturn(Optional.of(tenant));
         when(tenantApiKeyRepository.findActiveByTenantMasterId(1L)).thenReturn(Optional.of(activeKey));
         when(passwordEncoder.matches("secret", "hash")).thenReturn(true);
         when(passwordEncoder.upgradeEncoding("hash")).thenReturn(false);
         when(decisionRepository.findLatestByDevice("tenant-a", "dev-1")).thenReturn(Optional.of(decision));
+        when(decisionRepository.save(any(DeviceDecisionResponse.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         DeviceDecisionResponse result = controller
                 .getLatestDecision("tenant-a", "secret", "dev-1")
@@ -310,6 +318,8 @@ class AgentControllerTest {
 
         assertNotNull(result);
         assertEquals(123L, result.getId());
+        assertEquals("DELIVERED", result.getDeliveryStatus());
+        verify(remediationService).markDelivered(500L);
     }
 
     @Test
@@ -367,6 +377,34 @@ class AgentControllerTest {
         );
 
         assertEquals(404, ex.getStatusCode().value());
+    }
+
+    @Test
+    void acknowledgeDecision_legacyAckAliasPersistsCanonicalStatus() {
+        Tenant tenant = activeTenant(1L, "tenant-a");
+        TenantApiKey activeKey = activeKey(1L, "hash");
+        DeviceDecisionResponse existing = new DeviceDecisionResponse();
+        existing.setId(77L);
+        existing.setPostureEvaluationRunId(700L);
+        existing.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));
+
+        when(tenantRepository.findActiveByTenantId("tenant-a")).thenReturn(Optional.of(tenant));
+        when(tenantApiKeyRepository.findActiveByTenantMasterId(1L)).thenReturn(Optional.of(activeKey));
+        when(passwordEncoder.matches("secret", "hash")).thenReturn(true);
+        when(passwordEncoder.upgradeEncoding("hash")).thenReturn(false);
+        when(decisionRepository.findByIdAndTenant(77L, "tenant-a")).thenReturn(Optional.of(existing));
+        when(decisionRepository.save(any(DeviceDecisionResponse.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        DecisionAckRequest request = new DecisionAckRequest();
+        request.setDeliveryStatus("ACKED");
+
+        var response = controller
+                .acknowledgeDecision("tenant-a", "secret", 77L, Mono.just(request))
+                .block();
+
+        assertNotNull(response);
+        assertEquals("ACKNOWLEDGED", response.getDeliveryStatus());
+        verify(remediationService).markAcknowledged(org.mockito.ArgumentMatchers.eq(700L), any(OffsetDateTime.class));
     }
 
     @Test

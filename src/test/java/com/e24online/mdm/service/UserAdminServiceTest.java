@@ -54,6 +54,8 @@ class UserAdminServiceTest {
 
     @Mock
     private LocalBreachedPasswordService localBreachedPasswordService;
+    @Mock
+    private TenantEntitlementService tenantEntitlementService;
 
     private UserAdminService service;
 
@@ -66,7 +68,8 @@ class UserAdminServiceTest {
                 passwordEncoder,
                 new BlockingDb(Schedulers.immediate()),
                 auditEventService,
-                localBreachedPasswordService
+                localBreachedPasswordService,
+                tenantEntitlementService
         );
         lenient().when(authUserRepository.save(any(AuthUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(tenantRepository.findById(anyLong())).thenReturn(Optional.empty());
@@ -258,5 +261,30 @@ class UserAdminServiceTest {
                 service.getUser(40L, new UserPrincipal(2L, "tenant-admin", "TENANT_ADMIN", 7L)).block()
         );
         assertEquals(403, ex.getStatusCode().value());
+    }
+
+    @Test
+    void createUser_activeTenantScopedUserChecksEntitlements() {
+        Tenant tenant = new Tenant();
+        tenant.setId(11L);
+        tenant.setTenantId("acme");
+        tenant.setStatus("ACTIVE");
+        when(authUserRepository.findByUsernameAndIsDeletedFalse("alice")).thenReturn(Optional.empty());
+        when(tenantRepository.findActiveByTenantId("acme")).thenReturn(Optional.of(tenant));
+        when(tenantRepository.findById(11L)).thenReturn(Optional.of(tenant));
+        when(passwordEncoder.encode("StrongPassword1!")).thenReturn("encoded");
+
+        UserResponse response = service.createUser(
+                new UserPrincipal(1L, "root", "PRODUCT_ADMIN", null),
+                "alice",
+                "StrongPassword1!",
+                "TENANT_USER",
+                "ACTIVE",
+                "acme"
+        ).block();
+
+        assertNotNull(response);
+        verify(tenantEntitlementService, times(1)).assertCanCreateActiveTenantUser(11L);
+        verify(tenantEntitlementService, times(1)).refreshUsageSnapshotForTenantId(11L);
     }
 }

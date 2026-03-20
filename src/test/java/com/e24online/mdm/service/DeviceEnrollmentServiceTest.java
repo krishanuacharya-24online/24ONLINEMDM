@@ -64,6 +64,8 @@ class DeviceEnrollmentServiceTest {
     private TransactionTemplate transactionTemplate;
     @Mock
     private AuditEventService auditEventService;
+    @Mock
+    private TenantEntitlementService tenantEntitlementService;
 
     private DeviceEnrollmentService service;
 
@@ -79,6 +81,7 @@ class DeviceEnrollmentServiceTest {
                 new BlockingDb(Schedulers.immediate()),
                 transactionTemplate,
                 auditEventService,
+                tenantEntitlementService,
                 1440L
         );
 
@@ -330,6 +333,8 @@ class DeviceEnrollmentServiceTest {
         assertTrue(claim.deviceToken().startsWith("dvt_"));
         assertNotNull(claim.tokenHint());
         assertNotNull(claim.deviceTokenExpiresAt());
+        verify(tenantEntitlementService, times(1)).assertCanEnrollDevice("tenant-a");
+        verify(tenantEntitlementService, times(1)).refreshUsageSnapshotForTenantCode("tenant-a");
     }
 
     @Test

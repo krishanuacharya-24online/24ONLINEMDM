@@ -26,10 +26,15 @@ import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+
+import static com.e24online.mdm.utils.WorkflowStatusModel.canonicalDeliveryStatus;
+import static com.e24online.mdm.utils.WorkflowStatusModel.isAcknowledgedDeliveryStatus;
 
 /**
  * Orchestrates the complete posture evaluation workflow.
@@ -57,6 +62,7 @@ public class WorkflowOrchestrationService {
     private final ObjectMapper objectMapper;
     private final PostureEvaluationPublisher posturePublisher;
     private final AuditEventService auditEventService;
+    private final PayloadFailureService payloadFailureService;
 
     public WorkflowOrchestrationService(PostureIngestionService ingestionService,
                                         DeviceStateService stateService,
@@ -73,7 +79,8 @@ public class WorkflowOrchestrationService {
                                         Scheduler jdbcScheduler,
                                         ObjectMapper objectMapper,
                                         PostureEvaluationPublisher posturePublisher,
-                                        AuditEventService auditEventService) {
+                                        AuditEventService auditEventService,
+                                        PayloadFailureService payloadFailureService) {
         this.ingestionService = ingestionService;
         this.stateService = stateService;
         this.evaluationService = evaluationService;
@@ -90,6 +97,7 @@ public class WorkflowOrchestrationService {
         this.objectMapper = objectMapper;
         this.posturePublisher = posturePublisher;
         this.auditEventService = auditEventService;
+        this.payloadFailureService = payloadFailureService;
     }
 
     /**
@@ -110,6 +118,12 @@ public class WorkflowOrchestrationService {
     public Mono<PosturePayloadIngestResponse> evaluateExistingPayloadAsync(String tenantId, Long payloadId) {
         log.debug("Starting re-evaluation for tenant: {} payloadId={}", tenantId, payloadId);
         return Mono.fromCallable(() -> evaluateExistingPayload(tenantId, payloadId))
+                .subscribeOn(jdbcScheduler);
+    }
+
+    public Mono<PosturePayloadIngestResponse> queueExistingPayloadAsync(String tenantId, Long payloadId) {
+        log.debug("Starting re-queue for tenant: {} payloadId={}", tenantId, payloadId);
+        return Mono.fromCallable(() -> queueExistingPayload(tenantId, payloadId))
                 .subscribeOn(jdbcScheduler);
     }
 
@@ -137,64 +151,16 @@ public class WorkflowOrchestrationService {
         if (payload == null || payload.getId() == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Payload missing after ingest");
         }
+        return queuePayload(payload);
+    }
 
-        String status = normalizeStatus(payload.getProcessStatus());
-        if ("EVALUATED".equals(status) || "VALIDATED".equals(status) || "QUEUED".equals(status)) {
-            return queueResponse(payload);
+    public PosturePayloadIngestResponse queueExistingPayload(String tenantId, Long payloadId) {
+        if (payloadId == null || payloadId <= 0L) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payloadId must be positive");
         }
-
-        int claimed = payloadRepository.claimPayloadForQueue(payload.getId());
-        if (claimed <= 0) {
-            DevicePosturePayload latest = payloadRepository.findById(payload.getId()).orElse(payload);
-            return queueResponse(latest);
-        }
-
-        try {
-            posturePublisher.publish(queueMessage(payload));
-            payload.setProcessStatus("QUEUED");
-            payload.setProcessError(null);
-            payload.setProcessedAt(null);
-            auditEventService.recordBestEffort(
-                    "POSTURE",
-                    "POSTURE_EVALUATION_QUEUED",
-                    "QUEUE",
-                    payload.getTenantId(),
-                    "rule-engine",
-                    "DEVICE_POSTURE_PAYLOAD",
-                    payload.getId() == null ? null : String.valueOf(payload.getId()),
-                    "SUCCESS",
-                    Map.of(
-                            "deviceExternalId", payload.getDeviceExternalId(),
-                            "idempotencyKey", payload.getIdempotencyKey(),
-                            "payloadHash", payload.getPayloadHash()
-                    )
-            );
-            return queueResponse(payload);
-        } catch (Exception ex) {
-            log.error("Failed to enqueue posture evaluation payloadId={} tenantId={}",
-                    payload.getId(), payload.getTenantId(), ex);
-            java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
-            metadata.put("payloadId", payload.getId());
-            metadata.put("deviceExternalId", payload.getDeviceExternalId());
-            metadata.put("reason", ex.getMessage());
-            auditEventService.recordBestEffort(
-                    "POSTURE",
-                    "POSTURE_EVALUATION_QUEUED",
-                    "QUEUE",
-                    payload.getTenantId(),
-                    "rule-engine",
-                    "DEVICE_POSTURE_PAYLOAD",
-                    payload.getId() == null ? null : String.valueOf(payload.getId()),
-                    "FAILURE",
-                    metadata
-            );
-            payloadRepository.markPayloadFailed(
-                    payload.getId(),
-                    truncate("Queue publish failed: " + ex.getMessage(), MAX_PROCESS_ERROR_LENGTH),
-                    OffsetDateTime.now(ZoneOffset.UTC)
-            );
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Failed to queue posture evaluation");
-        }
+        DevicePosturePayload payload = payloadRepository.findByIdAndTenant(payloadId, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payload not found"));
+        return queuePayload(payload);
     }
 
     @Transactional
@@ -227,7 +193,13 @@ public class WorkflowOrchestrationService {
             // Step 2: Check for existing run and parse posture
             PostureEvaluationRun existingRun = runRepository.findOneByPayloadId(payloadId).orElse(null);
             JsonNode root = parsePayloadJson(payload.getPayloadJson());
-            ParsedPosture parsed = stateService.parsePosture(root, deviceExternalId, agentId, tenantId, now);
+            ParsedPosture parsed = stateService.parsePosture(
+                    root,
+                    deviceExternalId,
+                    agentId,
+                    tenantId,
+                    payload.getCaptureTime() != null ? payload.getCaptureTime() : now
+            );
 
             // Step 3: Upsert device trust profile
             DeviceTrustProfile profile = stateService.upsertTrustProfile(tenantId, parsed, now);
@@ -268,6 +240,13 @@ public class WorkflowOrchestrationService {
 
             // Step 11: Save remediation
             List<SavedRemediation> savedRemediation = remediationService.saveRemediation(savedRun, savedMatches, parsed, now);
+            List<RemediationStatusTransition> remediationTransitions = remediationService.reconcilePriorOpenRemediations(
+                    savedRun,
+                    savedMatches,
+                    savedRemediation,
+                    now
+            );
+            auditRemediationRescanTransitions(payload, savedRun, remediationTransitions, now);
 
             // Step 12: Build and save decision response
             String responsePayload = remediationService.buildDecisionPayload(savedRun, savedRemediation);
@@ -304,7 +283,9 @@ public class WorkflowOrchestrationService {
                     )
             );
 
-            return remediationService.buildResponse(payload, savedRun, savedDecision, savedRemediation);
+            PosturePayloadIngestResponse response = remediationService.buildResponse(payload, savedRun, savedDecision, savedRemediation);
+            applyPayloadContractMetadata(response, payload);
+            return response;
 
         } catch (ResponseStatusException ex) {
             java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
@@ -378,6 +359,7 @@ public class WorkflowOrchestrationService {
         if ("FAILED".equals(status)) {
             response.setDecisionReason(payload.getProcessError());
         }
+        applyPayloadContractMetadata(response, payload);
 
         if ("EVALUATED".equals(status)) {
             PostureEvaluationRun run = runRepository.findOneByPayloadId(payload.getId()).orElse(null);
@@ -391,12 +373,102 @@ public class WorkflowOrchestrationService {
                 DeviceDecisionResponse decision = decisionRepository.findByRunIdAndTenant(run.getId(), payload.getTenantId())
                         .orElse(null);
                 if (decision != null) {
+                    decision = markDecisionDeliveredIfPending(decision);
                     response.setDecisionResponseId(decision.getId());
                 }
             }
         }
 
         return response;
+    }
+
+    private PosturePayloadIngestResponse queuePayload(DevicePosturePayload payload) {
+        String status = normalizeStatus(payload.getProcessStatus());
+        if ("EVALUATED".equals(status) || "VALIDATED".equals(status) || "QUEUED".equals(status)) {
+            return queueResponse(payload);
+        }
+
+        int claimed = payloadRepository.claimPayloadForQueue(payload.getId());
+        if (claimed <= 0) {
+            DevicePosturePayload latest = payloadRepository.findById(payload.getId()).orElse(payload);
+            return queueResponse(latest);
+        }
+
+        try {
+            posturePublisher.publish(queueMessage(payload));
+            payload.setProcessStatus("QUEUED");
+            payload.setProcessError(null);
+            payload.setProcessedAt(null);
+            auditEventService.recordBestEffort(
+                    "POSTURE",
+                    "POSTURE_EVALUATION_QUEUED",
+                    "QUEUE",
+                    payload.getTenantId(),
+                    "rule-engine",
+                    "DEVICE_POSTURE_PAYLOAD",
+                    payload.getId() == null ? null : String.valueOf(payload.getId()),
+                    "SUCCESS",
+                    Map.of(
+                            "deviceExternalId", payload.getDeviceExternalId(),
+                            "idempotencyKey", payload.getIdempotencyKey(),
+                            "payloadHash", payload.getPayloadHash()
+                    )
+            );
+            return queueResponse(payload);
+        } catch (Exception ex) {
+            log.error("Failed to enqueue posture evaluation payloadId={} tenantId={}",
+                    payload.getId(), payload.getTenantId(), ex);
+            java.util.Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+            metadata.put("payloadId", payload.getId());
+            metadata.put("deviceExternalId", payload.getDeviceExternalId());
+            metadata.put("reason", ex.getMessage());
+            auditEventService.recordBestEffort(
+                    "POSTURE",
+                    "POSTURE_EVALUATION_QUEUED",
+                    "QUEUE",
+                    payload.getTenantId(),
+                    "rule-engine",
+                    "DEVICE_POSTURE_PAYLOAD",
+                    payload.getId() == null ? null : String.valueOf(payload.getId()),
+                    "FAILURE",
+                    metadata
+            );
+            payloadRepository.markPayloadFailed(
+                    payload.getId(),
+                    truncate("Queue publish failed: " + ex.getMessage(), MAX_PROCESS_ERROR_LENGTH),
+                    OffsetDateTime.now(ZoneOffset.UTC)
+            );
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Failed to queue posture evaluation");
+        }
+    }
+
+    private void applyPayloadContractMetadata(PosturePayloadIngestResponse response, DevicePosturePayload payload) {
+        if (response == null || payload == null) {
+            return;
+        }
+        response.setSchemaCompatibilityStatus(payload.getSchemaCompatibilityStatus());
+        response.setValidationWarnings(readValidationWarnings(payload.getValidationWarnings()));
+    }
+
+    private List<String> readValidationWarnings(String warningsJson) {
+        if (warningsJson == null || warningsJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            JsonNode warnings = objectMapper.readTree(warningsJson);
+            if (warnings == null || !warnings.isArray()) {
+                return List.of();
+            }
+            List<String> values = new ArrayList<>();
+            warnings.forEach(node -> {
+                if (node != null && node.isTextual()) {
+                    values.add(node.asText());
+                }
+            });
+            return values;
+        } catch (Exception _) {
+            return List.of();
+        }
     }
 
     private JsonNode parsePayloadJson(String payloadJson) {
@@ -666,11 +738,42 @@ public class WorkflowOrchestrationService {
         decisionResponse.setTrustScore(run.getTrustScoreAfter());
         decisionResponse.setRemediationRequired(run.isRemediationRequired());
         decisionResponse.setResponsePayload(responsePayload);
-        decisionResponse.setDeliveryStatus("SENT");
-        decisionResponse.setSentAt(now);
+        decisionResponse.setDeliveryStatus("PENDING");
+        decisionResponse.setSentAt(null);
         decisionResponse.setCreatedAt(now);
         decisionResponse.setCreatedBy("policy-service");
         return decisionResponse;
+    }
+
+    private DeviceDecisionResponse markDecisionDeliveredIfPending(DeviceDecisionResponse decision) {
+        if (decision == null) {
+            return null;
+        }
+        String currentStatus = canonicalDeliveryStatus(decision.getDeliveryStatus());
+        if (currentStatus == null) {
+            currentStatus = "PENDING";
+        }
+
+        boolean changed = !Objects.equals(currentStatus, decision.getDeliveryStatus());
+        if (changed) {
+            decision.setDeliveryStatus(currentStatus);
+        }
+
+        if ("PENDING".equals(currentStatus)) {
+            decision.setDeliveryStatus("DELIVERED");
+            if (decision.getSentAt() == null) {
+                decision.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));
+            }
+            remediationService.markDelivered(decision.getPostureEvaluationRunId());
+            changed = true;
+        } else if (isAcknowledgedDeliveryStatus(currentStatus)
+                && decision.getAcknowledgedAt() != null
+                && decision.getSentAt() == null) {
+            decision.setSentAt(decision.getAcknowledgedAt());
+            changed = true;
+        }
+
+        return changed ? decisionRepository.save(decision) : decision;
     }
 
     private void updateProfileScores(DeviceTrustProfile profile, PostureEvaluationRun run, OffsetDateTime now) {
@@ -684,12 +787,41 @@ public class WorkflowOrchestrationService {
         profileRepository.save(profile);
     }
 
+    private void auditRemediationRescanTransitions(DevicePosturePayload payload,
+                                                   PostureEvaluationRun currentRun,
+                                                   List<RemediationStatusTransition> transitions,
+                                                   OffsetDateTime verifiedAt) {
+        if (payload == null || currentRun == null || transitions == null || transitions.isEmpty()) {
+            return;
+        }
+
+        for (RemediationStatusTransition transition : transitions) {
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("currentRunId", currentRun.getId());
+            metadata.put("priorRunId", transition.postureEvaluationRunId());
+            metadata.put("remediationRuleId", transition.remediationRuleId());
+            metadata.put("sourceType", transition.sourceType());
+            metadata.put("matchSource", transition.matchSource());
+            metadata.put("fromStatus", transition.fromStatus());
+            metadata.put("toStatus", transition.toStatus());
+            metadata.put("verifiedAt", verifiedAt);
+
+            auditEventService.recordBestEffort(
+                    "REMEDIATION",
+                    "REMEDIATION_STATUS_CHANGED",
+                    "RESCAN_VERIFY",
+                    payload.getTenantId(),
+                    "rule-engine",
+                    "POSTURE_EVALUATION_REMEDIATION",
+                    transition.remediationId() == null ? null : String.valueOf(transition.remediationId()),
+                    "SUCCESS",
+                    metadata
+            );
+        }
+    }
+
     private void markPayloadFailed(DevicePosturePayload payload, String errorMessage) {
-        payloadRepository.markPayloadFailed(
-                payload.getId(),
-                truncate(errorMessage, MAX_PROCESS_ERROR_LENGTH),
-                OffsetDateTime.now(ZoneOffset.UTC)
-        );
+        payloadFailureService.markPayloadFailed(payload, errorMessage, MAX_PROCESS_ERROR_LENGTH);
     }
 
     private void clearPayloadArtifacts(Long payloadId) {

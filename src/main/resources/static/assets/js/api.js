@@ -81,6 +81,52 @@ export async function apiFetch(url, options = {}) {
   return body;
 }
 
+function normalizePagedRows(payload) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  if (Array.isArray(payload?.content)) {
+    return payload.content;
+  }
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+  if (Array.isArray(payload?.items)) {
+    return payload.items;
+  }
+  return [];
+}
+
+function withPageParams(url, page, size) {
+  const target = new URL(String(url || ''), window.location.origin);
+  target.searchParams.set('page', String(page));
+  target.searchParams.set('size', String(size));
+  return `${target.pathname}${target.search}`;
+}
+
+export async function apiFetchAllPages(url, options = {}) {
+  const {
+    pageSize = 100,
+    maxPages = 100,
+    normalizeRows = normalizePagedRows,
+    ...fetchOptions
+  } = options;
+
+  const rows = [];
+  for (let page = 0; page < maxPages; page += 1) {
+    const payload = await apiFetch(withPageParams(url, page, pageSize), fetchOptions);
+    const pageRows = normalizeRows(payload);
+    if (!Array.isArray(pageRows) || pageRows.length === 0) {
+      break;
+    }
+    rows.push(...pageRows);
+    if (pageRows.length < pageSize) {
+      break;
+    }
+  }
+  return rows;
+}
+
 export function safeJson(text) {
   try {
     return JSON.parse(text);

@@ -54,6 +54,8 @@ class TenantAdminServiceTest {
 
     @Mock
     private AuditEventService auditEventService;
+    @Mock
+    private TenantSubscriptionService tenantSubscriptionService;
 
     private TenantAdminService service;
 
@@ -65,7 +67,8 @@ class TenantAdminServiceTest {
                 passwordEncoder,
                 new BlockingDb(Schedulers.immediate()),
                 transactionTemplate,
-                auditEventService
+                auditEventService,
+                tenantSubscriptionService
         );
 
         lenient().when(tenantRepository.save(any(Tenant.class))).thenAnswer(invocation -> {
@@ -113,6 +116,7 @@ class TenantAdminServiceTest {
         assertEquals("acme_1", response.tenantId());
         assertEquals("Acme Corporation", response.name());
         assertEquals("ACTIVE", response.status());
+        verify(tenantSubscriptionService, times(1)).ensureSubscriptionForTenant(any(Tenant.class), org.mockito.ArgumentMatchers.eq("root-admin"));
     }
 
     @Test

@@ -48,6 +48,31 @@ function fmtDate(value) {
   return date.toLocaleString();
 }
 
+function buildDeviceDetailHref(deviceId, tenantId) {
+  const normalizedDeviceId = String(deviceId || '').trim();
+  if (!normalizedDeviceId) {
+    return '/ui/devices';
+  }
+  const params = new URLSearchParams();
+  params.set('device_external_id', normalizedDeviceId);
+  const normalizedTenantId = String(tenantId || '').trim();
+  if (normalizedTenantId) {
+    params.set('tenant_id', normalizedTenantId);
+  }
+  return `/ui/devices?${params.toString()}`;
+}
+
+function fmtDateOnly(value) {
+  if (!value) return '--';
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const date = new Date(`${value}T00:00:00Z`);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return textOrDash(value);
+  return date.toLocaleDateString();
+}
+
 function fmtAge(value) {
   if (!value) return '--';
   const date = new Date(value);
@@ -63,9 +88,36 @@ function fmtAge(value) {
   return `${days}d ago`;
 }
 
+function fmtDurationMinutes(value) {
+  const minutes = numberOrZero(value);
+  if (!minutes) return '--';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remMinutes = minutes % 60;
+  if (!remMinutes) return `${hours}h`;
+  return `${hours}h ${remMinutes}m`;
+}
+
 function pct(value, total) {
   if (!total) return '0%';
   return `${((value / total) * 100).toFixed(1)}%`;
+}
+
+function formatDecimal(value, digits = 1) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toFixed(digits) : (0).toFixed(digits);
+}
+
+function queryReport(path, params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    const text = String(value).trim();
+    if (!text) return;
+    query.set(key, text);
+  });
+  const suffix = query.size ? `?${query.toString()}` : '';
+  return apiFetch(`${path}${suffix}`);
 }
 
 function renderKeyValues(container, pairs) {
@@ -305,6 +357,210 @@ function renderTopTenants(sampleRows) {
   `).join('');
 }
 
+function setFleetTelemetryStatus(message, isError = false) {
+  const node = qs('overviewFleetTelemetryStatus');
+  if (!node) return;
+  const text = String(message || '').trim();
+  node.textContent = text;
+  node.hidden = text.length === 0;
+  node.classList.toggle('error', Boolean(isError));
+}
+
+function setQueueHealthStatus(message, isError = false) {
+  const node = qs('overviewQueueHealthStatus');
+  if (!node) return;
+  const text = String(message || '').trim();
+  node.textContent = text;
+  node.hidden = text.length === 0;
+  node.classList.toggle('error', Boolean(isError));
+}
+
+function setOperationsStatus(message, isError = false) {
+  const node = qs('overviewOperationsStatus');
+  if (!node) return;
+  const text = String(message || '').trim();
+  node.textContent = text;
+  node.hidden = text.length === 0;
+  node.classList.toggle('error', Boolean(isError));
+}
+
+function queueBadgeClass(status) {
+  const normalized = String(status || '').trim().toUpperCase();
+  switch (normalized) {
+    case 'HEALTHY':
+      return 'badge badge--ok';
+    case 'BACKLOG':
+      return 'badge badge--warn';
+    case 'DLQ_BACKLOG':
+    case 'CONSUMER_GAP':
+    case 'UNAVAILABLE':
+      return 'badge badge--danger';
+    default:
+      return 'badge';
+  }
+}
+
+function renderFleetTelemetry(summary, trendRows, agentVersions, capabilityRows) {
+  const panel = qs('overviewFleetTelemetry');
+  if (!panel) return;
+
+  const latestTrend = Array.isArray(trendRows) && trendRows.length ? trendRows[trendRows.length - 1] : null;
+  const topVersion = Array.isArray(agentVersions) && agentVersions.length ? agentVersions[0] : null;
+  const topCapability = Array.isArray(capabilityRows) && capabilityRows.length ? capabilityRows[0] : null;
+  const latestCapture = pick(topVersion, 'latestCaptureTime', 'latest_capture_time')
+    || pick(topCapability, 'latestCaptureTime', 'latest_capture_time');
+
+  qs('overviewStaleDevices').textContent = String(numberOrZero(pick(summary, 'staleDevices', 'stale_devices')));
+  qs('overviewCriticalDevices').textContent = String(numberOrZero(pick(summary, 'criticalDevices', 'critical_devices')));
+  qs('overviewAvgScore').textContent = formatDecimal(pick(latestTrend, 'averageTrustScore', 'average_trust_score'));
+  qs('overviewTrendEvaluations').textContent = String(numberOrZero(pick(latestTrend, 'evaluationCount', 'evaluation_count')));
+  qs('overviewStaleThreshold').textContent = `${numberOrZero(pick(summary, 'staleAfterHours', 'stale_after_hours'))} hours`;
+  qs('overviewTrendWindow').textContent = '7 days';
+  qs('overviewTopAgentVersion').textContent = textOrDash(pick(topVersion, 'agentVersion', 'agent_version'));
+  qs('overviewTopAgentCompatibility').textContent = textOrDash(pick(topVersion, 'schemaCompatibilityStatus', 'schema_compatibility_status'));
+  qs('overviewTopCapability').textContent = textOrDash(pick(topCapability, 'capabilityKey', 'capability_key'));
+  qs('overviewTelemetryLatestCapture').textContent = fmtDate(latestCapture);
+
+  panel.hidden = false;
+  setFleetTelemetryStatus('');
+}
+
+function renderQueueHealth(summary) {
+  const rowsNode = qs('overviewQueueHealthRows');
+  const overallNode = qs('overviewQueueHealthOverall');
+  const checkedAtNode = qs('overviewQueueHealthCheckedAt');
+  if (!rowsNode || !overallNode || !checkedAtNode) return;
+
+  const queues = Array.isArray(pick(summary, 'queues')) ? pick(summary, 'queues') : [];
+  const overallStatus = textOrDash(pick(summary, 'overallStatus', 'overall_status'));
+  overallNode.innerHTML = `<span class="${queueBadgeClass(overallStatus)}">${esc(overallStatus)}</span>`;
+  checkedAtNode.textContent = fmtDate(pick(summary, 'checkedAt', 'checked_at'));
+
+  if (!queues.length) {
+    rowsNode.innerHTML = `
+      <div class="overview-metric">
+        <div class="overview-metric__label">No queue data</div>
+        <div class="overview-metric__value">--</div>
+      </div>
+    `;
+    return;
+  }
+
+  rowsNode.innerHTML = queues.map((queue) => `
+    <div class="overview-metric">
+      <div class="overview-metric__label">${esc(textOrDash(pick(queue, 'pipelineKey', 'pipeline_key')))}</div>
+      <div class="overview-metric__value">${esc(numberOrZero(pick(queue, 'readyMessages', 'ready_messages')))} ready / ${esc(numberOrZero(pick(queue, 'deadLetterMessages', 'dead_letter_messages')))} dlq</div>
+      <div class="overview-metric__meta">
+        ${esc(textOrDash(pick(queue, 'status')))}
+        · ${esc(numberOrZero(pick(queue, 'activeConsumers', 'active_consumers')))} active
+        · ${esc(numberOrZero(pick(queue, 'configuredConsumers', 'configured_consumers')))} configured
+      </div>
+    </div>
+  `).join('');
+  setQueueHealthStatus('');
+}
+
+let failedPayloadsTable = null;
+
+function renderOperationsSummary(summary) {
+  const panel = qs('overviewOperationsPanel');
+  if (!panel) return;
+
+  qs('overviewInFlightPayloads').textContent = String(numberOrZero(pick(summary, 'inFlightPayloads', 'in_flight_payloads')));
+  qs('overviewFailedLast24Hours').textContent = String(numberOrZero(pick(summary, 'failedLast24Hours', 'failed_last_24_hours')));
+  qs('overviewQueueFailures7d').textContent = String(numberOrZero(pick(summary, 'queueFailuresLast7Days', 'queue_failures_last_7_days')));
+  qs('overviewEvaluationFailures7d').textContent = String(numberOrZero(pick(summary, 'evaluationFailuresLast7Days', 'evaluation_failures_last_7_days')));
+  qs('overviewReceivedPayloads').textContent = String(numberOrZero(pick(summary, 'receivedPayloads', 'received_payloads')));
+  qs('overviewQueuedPayloads').textContent = String(numberOrZero(pick(summary, 'queuedPayloads', 'queued_payloads')));
+  qs('overviewValidatedPayloads').textContent = String(numberOrZero(pick(summary, 'validatedPayloads', 'validated_payloads')));
+  qs('overviewFailedPayloads').textContent = String(numberOrZero(pick(summary, 'failedPayloads', 'failed_payloads')));
+  qs('overviewOldestInFlightAt').textContent = fmtDate(pick(summary, 'oldestInFlightReceivedAt', 'oldest_in_flight_received_at'));
+  qs('overviewOldestInFlightAge').textContent = fmtDurationMinutes(pick(summary, 'oldestInFlightAgeMinutes', 'oldest_in_flight_age_minutes'));
+
+  panel.hidden = false;
+  setOperationsStatus('');
+}
+
+function renderPipelineTrend(rows) {
+  const body = qs('overviewPipelineTrendBody');
+  if (!body) return;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    body.innerHTML = '<tr><td colspan="7" class="muted">No recent pipeline activity.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = rows.map((row) => `
+    <tr>
+      <td>${esc(fmtDateOnly(pick(row, 'bucketDate', 'bucket_date')))}</td>
+      <td>${esc(numberOrZero(pick(row, 'ingestSuccessCount', 'ingest_success_count')))}</td>
+      <td>${esc(numberOrZero(pick(row, 'queueSuccessCount', 'queue_success_count')))}</td>
+      <td>${esc(numberOrZero(pick(row, 'queueFailureCount', 'queue_failure_count')))}</td>
+      <td>${esc(numberOrZero(pick(row, 'evaluationSuccessCount', 'evaluation_success_count')))}</td>
+      <td>${esc(numberOrZero(pick(row, 'evaluationFailureCount', 'evaluation_failure_count')))}</td>
+      <td>${esc(numberOrZero(pick(row, 'failedPayloadCount', 'failed_payload_count')))}</td>
+    </tr>
+  `).join('');
+}
+
+function renderFailureCategories(rows) {
+  const body = qs('overviewFailureCategoriesBody');
+  if (!body) return;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    body.innerHTML = '<tr><td colspan="4" class="muted">No recent failed payload categories.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = rows.map((row) => `
+    <tr>
+      <td>${esc(textOrDash(pick(row, 'categoryKey', 'category_key')))}</td>
+      <td>${esc(numberOrZero(pick(row, 'failureCount', 'failure_count')))}</td>
+      <td>${esc(fmtDate(pick(row, 'latestFailureAt', 'latest_failure_at')))}</td>
+      <td>${esc(textOrDash(pick(row, 'sampleProcessError', 'sample_process_error')))}</td>
+    </tr>
+  `).join('');
+}
+
+function initFailedPayloadsTable() {
+  if (failedPayloadsTable || !qs('overviewFailedPayloadsTable')) {
+    return failedPayloadsTable;
+  }
+
+  failedPayloadsTable = window.mdmInitDataTable('#overviewFailedPayloadsTable', {
+    ajax: { url: '/v1/operations/pipeline/failed-payloads/table' },
+    pageLength: 10,
+    defaultSortBy: 'processed_at',
+    defaultSortDir: 'desc',
+    extraParams: () => ({ days: 7 }),
+    columns: [
+      { data: 'id' },
+      { data: 'tenant_id' },
+      { data: 'device_external_id' },
+      {
+        data: 'failure_category',
+        render: (value, type, row, helpers) => helpers.escapeHtml(textOrDash(value))
+      },
+      {
+        data: 'process_error',
+        render: (value, type, row, helpers) => helpers.escapeHtml(textOrDash(value))
+      },
+      {
+        data: 'schema_compatibility_status',
+        render: (value, type, row, helpers) => helpers.escapeHtml(textOrDash(value))
+      },
+      {
+        data: 'received_at',
+        render: (value, type, row, helpers) => helpers.escapeHtml(fmtDate(value))
+      },
+      {
+        data: 'processed_at',
+        render: (value, type, row, helpers) => helpers.escapeHtml(fmtDate(value))
+      }
+    ]
+  });
+
+  return failedPayloadsTable;
+}
+
 async function loadOverviewDetails() {
   const healthPromise = apiFetch('/v1/health').catch((error) => ({ __error: error?.message || 'Health check failed' }));
   const payloadSamplePromise = queryDataTable('/v1/ui/datatables/posture-payloads', {
@@ -312,8 +568,39 @@ async function loadOverviewDetails() {
     sort_by: 'received_at',
     sort_dir: 'desc'
   }).catch(() => ({ recordsTotal: 0, data: [] }));
+  const fleetTelemetryPromise = Promise.all([
+    queryReport('/v1/reports/fleet/summary', { stale_after_hours: 72 }),
+    queryReport('/v1/reports/fleet/score-trend', { days: 7 }),
+    queryReport('/v1/reports/fleet/agent-versions', { limit: 1 }),
+    queryReport('/v1/reports/fleet/agent-capabilities', { limit: 1 })
+  ]).then(([summary, trendRows, agentVersions, capabilityRows]) => ({
+    summary,
+    trendRows,
+    agentVersions,
+    capabilityRows
+  })).catch((error) => ({ __error: error?.message || 'Fleet telemetry unavailable' }));
+  const queueHealthPromise = qs('overviewQueueHealthRows')
+    ? apiFetch('/v1/operations/queues/summary').catch((error) => ({ __error: error?.message || 'Queue health unavailable' }))
+    : Promise.resolve(null);
+  const operationsPromise = qs('overviewOperationsPanel')
+    ? Promise.all([
+      apiFetch('/v1/operations/pipeline/summary'),
+      apiFetch('/v1/operations/pipeline/trend?days=7'),
+      apiFetch('/v1/operations/pipeline/failure-categories?days=7&limit=6')
+    ]).then(([summary, trendRows, failureCategories]) => ({
+      summary,
+      trendRows,
+      failureCategories
+    })).catch((error) => ({ __error: error?.message || 'Pipeline operability unavailable' }))
+    : Promise.resolve(null);
 
-  const [healthResult, payloadSample] = await Promise.all([healthPromise, payloadSamplePromise]);
+  const [healthResult, payloadSample, fleetTelemetryResult, queueHealthResult, operationsResult] = await Promise.all([
+    healthPromise,
+    payloadSamplePromise,
+    fleetTelemetryPromise,
+    queueHealthPromise,
+    operationsPromise
+  ]);
 
   if (healthResult && healthResult.__error) {
     updateHealthView(null, healthResult.__error);
@@ -343,6 +630,35 @@ async function loadOverviewDetails() {
     count: await queryCount('/v1/ui/datatables/device-trust-profiles', { score_band: band }).catch(() => 0)
   })));
   renderBandDistribution(totalDevices, bandRows);
+
+  if (fleetTelemetryResult?.__error) {
+    setFleetTelemetryStatus(`Fleet telemetry unavailable: ${fleetTelemetryResult.__error}`, true);
+  } else if (fleetTelemetryResult) {
+    renderFleetTelemetry(
+      fleetTelemetryResult.summary,
+      fleetTelemetryResult.trendRows,
+      fleetTelemetryResult.agentVersions,
+      fleetTelemetryResult.capabilityRows
+    );
+  }
+
+  if (queueHealthResult?.__error) {
+    setQueueHealthStatus(`Queue health unavailable: ${queueHealthResult.__error}`, true);
+  } else if (queueHealthResult) {
+    renderQueueHealth(queueHealthResult);
+  }
+
+  if (operationsResult?.__error) {
+    setOperationsStatus(`Pipeline operability unavailable: ${operationsResult.__error}`, true);
+  } else if (operationsResult) {
+    renderOperationsSummary(operationsResult.summary);
+    renderPipelineTrend(operationsResult.trendRows);
+    renderFailureCategories(operationsResult.failureCategories);
+    const table = initFailedPayloadsTable();
+    if (table) {
+      await table.ajax.reload();
+    }
+  }
 }
 
 async function inspectDevice(e) {
@@ -357,11 +673,16 @@ async function inspectDevice(e) {
   const profileEl = qs('device-lookup-profile');
   const snapshotEl = qs('device-lookup-snapshot');
   const decisionEl = qs('device-lookup-decision');
+  const openLink = qs('device-lookup-open-link');
 
   if (resultWrap) resultWrap.hidden = false;
   if (errorEl) {
     errorEl.hidden = true;
     errorEl.textContent = '';
+  }
+  if (openLink) {
+    openLink.hidden = true;
+    openLink.removeAttribute('href');
   }
   if (summaryEl) {
     summaryEl.innerHTML = '<div class="muted">Loading...</div>';
@@ -381,9 +702,15 @@ async function inspectDevice(e) {
     const latestDecision = Array.isArray(decisions) ? (decisions[0] || null) : null;
     const latestPayload = Array.isArray(payloads) ? (payloads[0] || null) : null;
     const latestRun = Array.isArray(runs) ? (runs[0] || null) : null;
+    const effectiveTenantId = pick(profile, 'tenant_id', 'tenantId') || (qs('tenantId')?.value || '').trim();
 
     if (!profile && !snapshot && !latestDecision && !latestPayload && !latestRun) {
       throw new Error('No data found for this device');
+    }
+
+    if (openLink) {
+      openLink.href = buildDeviceDetailHref(deviceId, effectiveTenantId);
+      openLink.hidden = false;
     }
 
     if (summaryEl) {
@@ -489,6 +816,10 @@ async function inspectDevice(e) {
       errorEl.hidden = false;
       errorEl.textContent = `Error loading device data: ${err.message}`;
     }
+    if (openLink) {
+      openLink.hidden = true;
+      openLink.removeAttribute('href');
+    }
   }
 }
 
@@ -523,6 +854,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadOverviewDetails().catch((error) => window.mdmToast?.(`Overview refresh failed: ${error.message}`));
   });
   initRecentPayloadTable();
+  initFailedPayloadsTable();
 
   try {
     await loadOverviewDetails();

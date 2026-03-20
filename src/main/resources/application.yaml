@@ -219,20 +219,3 @@ mdm:
       request-timeout-seconds: ${MDM_REFERENCE_SYNC_APP_REQUEST_TIMEOUT_SECONDS:20}
       retries: ${MDM_REFERENCE_SYNC_APP_RETRIES:2}
       enrich-ios-from-itunes: ${MDM_REFERENCE_SYNC_APP_ENRICH_IOS_FROM_ITUNES:true}
-
-reports:
-  superset:
-    enabled: ${REPORTS_SUPERSET_ENABLED:true}
-    base-url: ${REPORTS_SUPERSET_BASE_URL:http://localhost:8088}
-    dashboard-path: ${REPORTS_SUPERSET_DASHBOARD_PATH:/superset/dashboard/1/?standalone=1}
-    guest-token-enabled: ${REPORTS_SUPERSET_GUEST_TOKEN_ENABLED:true}
-    embedded-dashboard-id: ${REPORTS_SUPERSET_EMBEDDED_DASHBOARD_ID:}
-    embedded-allowed-domains: ${REPORTS_SUPERSET_EMBEDDED_ALLOWED_DOMAINS:http://localhost:8080,http://127.0.0.1:8080}
-    resource-type: ${REPORTS_SUPERSET_RESOURCE_TYPE:dashboard}
-    resource-id: ${REPORTS_SUPERSET_RESOURCE_ID:1}
-    username: ${REPORTS_SUPERSET_USERNAME:admin}
-    password: ${REPORTS_SUPERSET_PASSWORD:admin}
-    auth-provider: ${REPORTS_SUPERSET_AUTH_PROVIDER:db}
-    # Optional placeholders: {{tenantId}} for tenant code, {{tenantPk}} for numeric tenant master id
-    tenant-rls-clause-template: ${REPORTS_SUPERSET_TENANT_RLS_CLAUSE_TEMPLATE:}
-    iframe-sandbox: "${REPORTS_SUPERSET_IFRAME_SANDBOX:allow-same-origin allow-scripts allow-forms allow-popups}"

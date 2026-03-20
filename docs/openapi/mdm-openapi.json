@@ -2969,7 +2969,9 @@
           "delivery_status": {
             "type": "string",
             "enum": [
-              "ACKED",
+              "PENDING",
+              "DELIVERED",
+              "ACKNOWLEDGED",
               "FAILED",
               "TIMEOUT"
             ]

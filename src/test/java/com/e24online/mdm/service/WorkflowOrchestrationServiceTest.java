@@ -14,6 +14,7 @@ import com.e24online.mdm.records.posture.evaluation.EvaluationComputation;
 import com.e24online.mdm.records.posture.evaluation.LifecycleResolution;
 import com.e24online.mdm.records.posture.evaluation.MatchDraft;
 import com.e24online.mdm.records.posture.evaluation.ParsedPosture;
+import com.e24online.mdm.records.posture.evaluation.RemediationStatusTransition;
 import com.e24online.mdm.records.posture.evaluation.SavedRemediation;
 import com.e24online.mdm.records.posture.evaluation.ScoreSignal;
 import com.e24online.mdm.repository.DeviceDecisionResponseRepository;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.web.server.ResponseStatusException;
@@ -50,6 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -98,6 +101,8 @@ class WorkflowOrchestrationServiceTest {
     private PostureEvaluationPublisher posturePublisher;
     @Mock
     private AuditEventService auditEventService;
+    @Mock
+    private PayloadFailureService payloadFailureService;
 
     private ObjectMapper objectMapper;
     private WorkflowOrchestrationService service;
@@ -121,7 +126,8 @@ class WorkflowOrchestrationServiceTest {
                 reactor.core.scheduler.Schedulers.immediate(),
                 objectMapper,
                 posturePublisher,
-                auditEventService
+                auditEventService,
+                payloadFailureService
         );
     }
 
@@ -176,6 +182,9 @@ class WorkflowOrchestrationServiceTest {
         when(remediationService.saveRemediation(any(), any(), any(), any())).thenReturn(List.of(
                 new SavedRemediation(remediationRow(700L), remediationRule(710L), "AUTO")
         ));
+        when(remediationService.reconcilePriorOpenRemediations(any(), any(), any(), any())).thenReturn(List.of(
+                new RemediationStatusTransition(701L, 95L, 710L, "MATCH", "SYSTEM_RULE", "USER_ACKNOWLEDGED", "STILL_OPEN", null)
+        ));
         when(remediationService.buildDecisionPayload(any(), any())).thenReturn("{\"decision\":\"NOTIFY\"}");
 
         when(decisionRepository.save(any(DeviceDecisionResponse.class))).thenAnswer(invocation -> {
@@ -193,7 +202,7 @@ class WorkflowOrchestrationServiceTest {
                 (short) 70,
                 "risk observed",
                 true,
-                List.of(new RemediationSummary(700L, 710L, "R-710", "Title", "Desc", "SCRIPT", "AUTO", "{\"cmd\":\"echo\"}", "PENDING"))
+                List.of(new RemediationSummary(700L, 710L, "R-710", "Title", "Desc", "SCRIPT", "AUTO", "{\"cmd\":\"echo\"}", "PROPOSED"))
         );
         when(remediationService.buildResponse(any(), any(), any(), any())).thenReturn(expectedResponse);
 
@@ -204,6 +213,18 @@ class WorkflowOrchestrationServiceTest {
         assertEquals(100L, response.getEvaluationRunId());
         assertEquals(900L, response.getDecisionResponseId());
         verify(jdbc, atLeastOnce()).update(anyString(), any(org.springframework.jdbc.core.namedparam.MapSqlParameterSource.class));
+        verify(remediationService).reconcilePriorOpenRemediations(any(), any(), any(), any());
+        verify(auditEventService).recordBestEffort(
+                eq("REMEDIATION"),
+                eq("REMEDIATION_STATUS_CHANGED"),
+                eq("RESCAN_VERIFY"),
+                eq("tenant-a"),
+                eq("rule-engine"),
+                eq("POSTURE_EVALUATION_REMEDIATION"),
+                eq("701"),
+                eq("SUCCESS"),
+                any()
+        );
     }
 
     @Test
@@ -227,26 +248,29 @@ class WorkflowOrchestrationServiceTest {
         DevicePosturePayload payload = payload(88L, "{invalid");
         when(payloadRepository.findByIdAndTenant(88L, "tenant-a")).thenReturn(Optional.of(payload));
         when(runRepository.findOneByPayloadId(88L)).thenReturn(Optional.empty());
-        when(payloadRepository.markPayloadFailed(anyLong(), anyString(), any(OffsetDateTime.class))).thenReturn(1);
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
                 service.evaluateExistingPayload("tenant-a", 88L));
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(payloadFailureService).markPayloadFailed(payload, "Invalid payload_json", 900);
+    }
 
-        ArgumentCaptor<Long> idCaptor = ArgumentCaptor.forClass(Long.class);
-        ArgumentCaptor<String> errorCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<OffsetDateTime> timeCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
+    @Test
+    void evaluateExistingPayload_dataIntegrityFailure_marksPayloadFailedViaNewTransactionService() {
+        DevicePosturePayload payload = payload(89L, "{\"os_type\":\"WINDOWS\",\"os_name\":\"WINDOWS 11\"}");
+        when(payloadRepository.findByIdAndTenant(89L, "tenant-a")).thenReturn(Optional.of(payload));
+        when(runRepository.findOneByPayloadId(89L)).thenReturn(Optional.empty());
+        when(stateService.parsePosture(any(), anyString(), anyString(), anyString(), any(OffsetDateTime.class)))
+                .thenReturn(parsedPosture());
+        when(stateService.upsertTrustProfile(anyString(), any(ParsedPosture.class), any(OffsetDateTime.class)))
+                .thenThrow(new DataIntegrityViolationException("constraint failure"));
 
-        verify(payloadRepository).markPayloadFailed(
-                idCaptor.capture(),
-                errorCaptor.capture(),
-                timeCaptor.capture()
-        );
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                service.evaluateExistingPayload("tenant-a", 89L));
 
-        assertEquals(88L, idCaptor.getValue());
-        assertEquals("Invalid payload_json", errorCaptor.getValue());
-        assertNotNull(timeCaptor.getValue());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(payloadFailureService).markPayloadFailed(payload, "constraint failure", 900);
     }
 
     @Test
@@ -335,6 +359,57 @@ class WorkflowOrchestrationServiceTest {
         assertEquals("invalid payload_json", response.getDecisionReason());
     }
 
+    @Test
+    void getPayloadResult_forEvaluatedPayload_marksDecisionDelivered() {
+        DevicePosturePayload evaluated = payload(141L, "{\"os_type\":\"WINDOWS\"}");
+        evaluated.setProcessStatus("EVALUATED");
+
+        PostureEvaluationRun run = new PostureEvaluationRun();
+        run.setId(501L);
+        run.setDecisionAction("ALLOW");
+        run.setTrustScoreAfter((short) 90);
+        run.setDecisionReason("ok");
+        run.setRemediationRequired(true);
+
+        DeviceDecisionResponse decision = new DeviceDecisionResponse();
+        decision.setId(601L);
+        decision.setPostureEvaluationRunId(501L);
+        decision.setDeliveryStatus("PENDING");
+
+        when(payloadRepository.findByIdAndTenant(141L, "tenant-a")).thenReturn(Optional.of(evaluated));
+        when(runRepository.findOneByPayloadId(141L)).thenReturn(Optional.of(run));
+        when(decisionRepository.findByRunIdAndTenant(501L, "tenant-a")).thenReturn(Optional.of(decision));
+        when(decisionRepository.save(any(DeviceDecisionResponse.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PosturePayloadIngestResponse response = service.getPayloadResult("tenant-a", 141L);
+
+        assertNotNull(response);
+        assertEquals("EVALUATED", response.getStatus());
+        assertEquals(501L, response.getEvaluationRunId());
+        assertEquals(601L, response.getDecisionResponseId());
+        assertEquals("ALLOW", response.getDecisionAction());
+        assertEquals("DELIVERED", decision.getDeliveryStatus());
+        verify(remediationService).markDelivered(501L);
+    }
+
+    @Test
+    void queueExistingPayload_failedPayloadClaimsAndPublishesMessage() {
+        DevicePosturePayload payload = payload(142L, "{\"os_type\":\"WINDOWS\"}");
+        payload.setPayloadHash("hash-2");
+        payload.setIdempotencyKey("idempo-2");
+        payload.setProcessStatus("FAILED");
+
+        when(payloadRepository.findByIdAndTenant(142L, "tenant-a")).thenReturn(Optional.of(payload));
+        when(payloadRepository.claimPayloadForQueue(142L)).thenReturn(1);
+
+        PosturePayloadIngestResponse response = service.queueExistingPayload("tenant-a", 142L);
+
+        assertNotNull(response);
+        assertEquals(142L, response.getPayloadId());
+        assertEquals("QUEUED", response.getStatus());
+        verify(posturePublisher).publish(any());
+    }
+
     private DevicePosturePayload payload(Long id, String json) {
         DevicePosturePayload payload = new DevicePosturePayload();
         payload.setId(id);
@@ -377,7 +452,7 @@ class WorkflowOrchestrationServiceTest {
     private PostureEvaluationRemediation remediationRow(Long id) {
         PostureEvaluationRemediation row = new PostureEvaluationRemediation();
         row.setId(id);
-        row.setRemediationStatus("PENDING");
+        row.setRemediationStatus("PROPOSED");
         row.setInstructionOverride("{\"cmd\":\"echo\"}");
         return row;
     }

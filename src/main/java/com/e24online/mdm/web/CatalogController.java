@@ -30,11 +30,13 @@ public class CatalogController {
     @GetMapping("/applications")
     public Flux<ApplicationCatalogEntry> listApplications(
             @RequestParam(name = "os_type", required = false) String osType,
+            @RequestParam(name = "osType", required = false) String legacyOsType,
             @RequestParam(name = "search", required = false) String search,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "50") int size
     ) {
-        return catalogService.listApplications(osType, search, page, size);
+        String requestedOsType = firstPresent(osType, legacyOsType);
+        return catalogService.listApplications(requestedOsType, search, page, size);
     }
 
     @GetMapping("/applications/{application_catalog_id}")
@@ -67,5 +69,15 @@ public class CatalogController {
             @PathVariable("application_catalog_id") Long id
     ) {
         return catalogService.deleteApplication(id);
+    }
+
+    private String firstPresent(String preferred, String fallback) {
+        if (preferred != null && !preferred.isBlank()) {
+            return preferred;
+        }
+        if (fallback != null && !fallback.isBlank()) {
+            return fallback;
+        }
+        return null;
     }
 }

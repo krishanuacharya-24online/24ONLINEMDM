@@ -199,7 +199,7 @@ class EvaluationsControllerTest {
                 .block();
 
         assertNotNull(response);
-        assertEquals("ACKED", response.getRemediationStatus());
+        assertEquals("USER_ACKNOWLEDGED", response.getRemediationStatus());
         assertNotNull(response.getCompletedAt());
     }
 
@@ -273,6 +273,26 @@ class EvaluationsControllerTest {
         verify(workflowService).evaluateExistingPayloadAsync(eq("tenant-a"), eq(200L));
     }
 
+    @Test
+    void reprocessFailedPayloads_requeuesFailedPayloads() {
+        DevicePosturePayload failed = new DevicePosturePayload();
+        failed.setId(71L);
+        failed.setTenantId("tenant-a");
+        failed.setDeviceExternalId("dev-1");
+        failed.setProcessStatus("FAILED");
+
+        when(payloadRepository.findPaged("tenant-a", "dev-1", "FAILED", 100, 0))
+                .thenReturn(List.of(failed));
+        when(workflowService.queueExistingPayload("tenant-a", 71L))
+                .thenReturn(new PosturePayloadIngestResponse());
+
+        ResponseEntity<?> response = controller.reprocessFailedPayloads("dev-1", "tenant-a");
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(workflowService).queueExistingPayload("tenant-a", 71L);
+    }
+
     private PostureEvaluationRun runWithId(Long id, String status, Long payloadId) {
         PostureEvaluationRun run = new PostureEvaluationRun();
         run.setId(id);
@@ -281,4 +301,3 @@ class EvaluationsControllerTest {
         return run;
     }
 }
-

@@ -164,9 +164,6 @@ public class PoliciesCrudService {
             clone.setDeviceType(source.getDeviceType());
             clone.setOsType(source.getOsType());
             clone.setOsName(source.getOsName());
-            clone.setOsVersion(source.getOsVersion());
-            clone.setTimeZone(source.getTimeZone());
-            clone.setKernelVersion(source.getKernelVersion());
             clone.setEffectiveFrom(source.getEffectiveFrom() == null ? now : source.getEffectiveFrom());
             clone.setEffectiveTo(source.getEffectiveTo());
             clone.setDeleted(false);
@@ -327,6 +324,9 @@ public class PoliciesCrudService {
             if (body.getConditionGroup() == null) {
                 body.setConditionGroup((short) 1);
             }
+            if (body.getWeight() == null) {
+                body.setWeight((short) 1);
+            }
             if (body.getStatus() == null || body.getStatus().isBlank()) {
                 body.setStatus("ACTIVE");
             }
@@ -373,6 +373,9 @@ public class PoliciesCrudService {
             body.setDeleted(existing.isDeleted());
             if (body.getConditionGroup() == null) {
                 body.setConditionGroup(existing.getConditionGroup());
+            }
+            if (body.getWeight() == null) {
+                body.setWeight(existing.getWeight() == null ? (short) 1 : existing.getWeight());
             }
             if (body.getStatus() == null || body.getStatus().isBlank()) {
                 body.setStatus(existing.getStatus());

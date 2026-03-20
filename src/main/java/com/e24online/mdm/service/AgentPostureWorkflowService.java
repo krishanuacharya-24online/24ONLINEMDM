@@ -83,6 +83,7 @@ public class AgentPostureWorkflowService {
     private final ObjectMapper objectMapper;
     private final BlockingDb blockingDb;
     private final NamedParameterJdbcTemplate jdbc;
+    private final PayloadFailureService payloadFailureService;
 
     public AgentPostureWorkflowService(PostureIngestionService ingestService,
                                        DevicePosturePayloadRepository payloadRepository,
@@ -105,7 +106,8 @@ public class AgentPostureWorkflowService {
                                        AuditEventService auditEventService,
                                        ObjectMapper objectMapper,
                                        BlockingDb blockingDb,
-                                       NamedParameterJdbcTemplate jdbc) {
+                                       NamedParameterJdbcTemplate jdbc,
+                                       PayloadFailureService payloadFailureService) {
         this.ingestService = ingestService;
         this.payloadRepository = payloadRepository;
         this.profileRepository = profileRepository;
@@ -128,6 +130,7 @@ public class AgentPostureWorkflowService {
         this.objectMapper = objectMapper;
         this.blockingDb = blockingDb;
         this.jdbc = jdbc;
+        this.payloadFailureService = payloadFailureService;
     }
 
     public Mono<PosturePayloadIngestResponse> ingestAndEvaluateAsync(String tenantId, PosturePayloadIngestRequest request) {
@@ -194,8 +197,8 @@ public class AgentPostureWorkflowService {
             decisionResponse.setTrustScore(savedRun.getTrustScoreAfter());
             decisionResponse.setRemediationRequired(savedRun.isRemediationRequired());
             decisionResponse.setResponsePayload(responsePayload);
-            decisionResponse.setDeliveryStatus("SENT");
-            decisionResponse.setSentAt(now);
+            decisionResponse.setDeliveryStatus("PENDING");
+            decisionResponse.setSentAt(null);
             decisionResponse.setCreatedAt(now);
             decisionResponse.setCreatedBy("policy-service");
             DeviceDecisionResponse savedDecision = decisionRepository.save(decisionResponse);
@@ -268,10 +271,7 @@ public class AgentPostureWorkflowService {
     }
 
     private void markPayloadFailed(DevicePosturePayload payload, String errorMessage) {
-        payload.setProcessStatus("FAILED");
-        payload.setProcessedAt(OffsetDateTime.now(ZoneOffset.UTC));
-        payload.setProcessError(truncate(errorMessage, MAX_PROCESS_ERROR_LENGTH));
-        payloadRepository.save(payload);
+        payloadFailureService.markPayloadFailed(payload, errorMessage, MAX_PROCESS_ERROR_LENGTH);
     }
 
     private JsonNode parsePayloadJson(String payloadJson) {
@@ -811,7 +811,7 @@ public class AgentPostureWorkflowService {
             row.setRemediationRuleId(remediationRuleId);
             row.setPostureEvaluationMatchId(candidate.matchId());
             row.setSourceType(candidate.sourceType());
-            row.setRemediationStatus("PENDING");
+            row.setRemediationStatus("PROPOSED");
             row.setInstructionOverride(rule.getInstructionJson());
             row.setCreatedAt(now);
             row.setCreatedBy("rule-engine");

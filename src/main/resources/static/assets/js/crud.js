@@ -12,6 +12,18 @@ function el(tag, attrs = {}, children = []) {
   return node;
 }
 
+function displayText(value) {
+  return String(value ?? '')
+    .replaceAll('\uFFFD', '')
+    .replaceAll('ï¿½', '')
+    .replaceAll('â€¦', '...')
+    .replaceAll('â€“', '-')
+    .replaceAll('â€”', '-')
+    .replaceAll('â€œ', '"')
+    .replaceAll('â€�', '"')
+    .trim();
+}
+
 function inputFor(field) {
   const common = { name: field.name, id: field.name };
   if (field.type === 'boolean') {
@@ -107,7 +119,7 @@ export function mountCrud(root, config) {
     } else {
       for (const row of state.items) {
         const tr = el('tr', {}, [
-          ...cols.map((c) => el('td', { text: (row[c.name] ?? '') + '' })),
+          ...cols.map((c) => el('td', { text: displayText(row[c.name]) })),
           el('td', {}, [
             el('button', { class: 'secondary', type: 'button', text: 'Edit', onclick: () => startEdit(row[config.idField]) }),
             el('span', { text: ' ' }),

@@ -1,0 +1,119 @@
+{
+  "name": "24online-mdm-agent",
+  "version": "0.4.0",
+  "private": true,
+  "description": "24onlineMDMAgent is a cross-platform managed device client for enterprise enrollment, posture sync, and compliance visibility",
+  "homepage": "https://github.com/krishanuacharya-24online/24ONLINEMDM",
+  "author": {
+    "name": "e24online",
+    "email": "support@24online.tech"
+  },
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node ./scripts/run-electron.cjs .",
+    "smoke:ui": "node ./scripts/run-electron.cjs . --smoke-test",
+    "build:assets": "node ./scripts/generate-assets.cjs",
+    "dist:win": "node ./scripts/build-release.cjs --win nsis --x64 --ia32 --arm64",
+    "dist:linux": "node ./scripts/build-release.cjs --linux AppImage deb rpm --x64 --arm64",
+    "dist:mac": "node ./scripts/build-release.cjs --mac dmg zip --x64 --arm64",
+    "dist:all": "node ./scripts/build-release.cjs --win nsis --linux AppImage deb rpm --mac dmg zip --x64 --arm64"
+  },
+  "devDependencies": {
+    "electron": "31.7.7",
+    "electron-builder": "24.13.3",
+    "icon-gen": "5.0.0"
+  },
+  "build": {
+    "appId": "com.e24online.mdmagent",
+    "productName": "24onlineMDMAgent",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "compression": "maximum",
+    "executableName": "24onlineMDMAgent",
+    "files": [
+      "electron/**/*",
+      "build/agent-build-config.json",
+      "build/icons/**/*",
+      "package.json",
+      "agent-config.template.json"
+    ],
+    "directories": {
+      "buildResources": "build/icons",
+      "output": "dist"
+    },
+    "asar": true,
+    "npmRebuild": false,
+    "removePackageScripts": true,
+    "win": {
+      "signAndEditExecutable": false,
+      "icon": "icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "shortcutName": "24onlineMDMAgent",
+      "deleteAppDataOnUninstall": false
+    },
+    "linux": {
+      "icon": "icon-512.png",
+      "category": "Security",
+      "maintainer": "e24online <support@24online.tech>",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "rpm",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "mac": {
+      "icon": "icon.icns",
+      "category": "public.app-category.business",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    }
+  }
+}

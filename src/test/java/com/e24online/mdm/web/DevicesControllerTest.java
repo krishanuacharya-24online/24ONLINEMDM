@@ -218,4 +218,37 @@ class DevicesControllerTest {
         assertEquals(1, controller.getDevicePosturePayloads(null, authentication, "dev-1", 0, 25).collectList().block().size());
         assertEquals(1, controller.getDeviceEvaluationRuns(null, authentication, "dev-1", 0, 25).collectList().block().size());
     }
+
+    @Test
+    void deviceCollectionEndpoints_sanitizeCorruptedAppNamesAndPayloadJson() {
+        when(requestContext.requireUserPrincipal(authentication))
+                .thenReturn(new UserPrincipal(10L, "admin", "TENANT_ADMIN", 1L));
+        when(requestContext.resolveTenantId(authentication, null))
+                .thenReturn(Mono.just("tenant-a"));
+
+        DeviceInstalledApplication app = new DeviceInstalledApplication();
+        app.setAppName("\uFFFDTorrent");
+        app.setPackageId("uTorrent");
+        when(installedApplicationRepository.findLatestAppsByDevice("tenant-a", "dev-1", 25, 0))
+                .thenReturn(List.of(app));
+
+        DevicePosturePayload payload = new DevicePosturePayload();
+        payload.setPayloadJson("{\"installed_apps\":[{\"app_name\":\"\uFFFDTorrent\",\"package_id\":\"uTorrent\"}]}");
+        when(payloadRepository.findByDevice("tenant-a", "dev-1", 25, 0))
+                .thenReturn(List.of(payload));
+
+        List<DeviceInstalledApplication> apps = controller
+                .getLatestInstalledApps(null, authentication, "dev-1", 0, 25)
+                .collectList()
+                .block();
+        List<DevicePosturePayload> payloads = controller
+                .getDevicePosturePayloads(null, authentication, "dev-1", 0, 25)
+                .collectList()
+                .block();
+
+        assertNotNull(apps);
+        assertNotNull(payloads);
+        assertEquals("uTorrent", apps.getFirst().getAppName());
+        assertEquals("{\"installed_apps\":[{\"app_name\":\"uTorrent\",\"package_id\":\"uTorrent\"}]}", payloads.getFirst().getPayloadJson());
+    }
 }

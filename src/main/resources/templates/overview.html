@@ -74,6 +74,71 @@
         </section>
     </div>
 
+    <div class="split mt-125">
+        <section class="card">
+            <h2>Fleet heartbeat</h2>
+            <p class="muted">
+                Stale-device pressure, latest score trend, and current agent telemetry for the active scope.
+            </p>
+            <div id="overviewFleetTelemetryStatus" class="muted" hidden aria-live="polite"></div>
+            <div id="overviewFleetTelemetry" hidden>
+                <div class="stat-row mt-08">
+                    <div class="stat">
+                        <div class="stat-label">Stale devices</div>
+                        <div id="overviewStaleDevices" class="stat-value">--</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Critical devices</div>
+                        <div id="overviewCriticalDevices" class="stat-value">--</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Latest avg score</div>
+                        <div id="overviewAvgScore" class="stat-value">--</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Trend evaluations</div>
+                        <div id="overviewTrendEvaluations" class="stat-value">--</div>
+                    </div>
+                </div>
+
+                <div class="kvs mt-08">
+                    <div class="k">Stale threshold</div>
+                    <div id="overviewStaleThreshold" class="v">--</div>
+                    <div class="k">Trend window</div>
+                    <div id="overviewTrendWindow" class="v">--</div>
+                    <div class="k">Top agent version</div>
+                    <div id="overviewTopAgentVersion" class="v">--</div>
+                    <div class="k">Compatibility</div>
+                    <div id="overviewTopAgentCompatibility" class="v">--</div>
+                    <div class="k">Top capability</div>
+                    <div id="overviewTopCapability" class="v">--</div>
+                    <div class="k">Latest capture</div>
+                    <div id="overviewTelemetryLatestCapture" class="v">--</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card" th:if="${nav.management}">
+            <h2>Queue health</h2>
+            <p class="muted">
+                Main queue and DLQ backlog for the asynchronous processing pipelines.
+            </p>
+            <div id="overviewQueueHealthStatus" class="muted" hidden aria-live="polite"></div>
+            <div class="kvs mt-08">
+                <div class="k">Overall</div>
+                <div id="overviewQueueHealthOverall" class="v">--</div>
+                <div class="k">Checked at</div>
+                <div id="overviewQueueHealthCheckedAt" class="v">--</div>
+            </div>
+            <div id="overviewQueueHealthRows" class="overview-metric-list mt-08">
+                <div class="overview-metric">
+                    <div class="overview-metric__label">Loading...</div>
+                    <div class="overview-metric__value">--</div>
+                </div>
+            </div>
+        </section>
+    </div>
+
     <section class="card mt-125">
         <h2>Trust band distribution</h2>
         <p class="muted">
@@ -128,6 +193,9 @@
 
             <div id="device-lookup-result" class="overview-inspector mt-08" hidden>
                 <div id="device-lookup-error" class="login-error" hidden></div>
+                <div class="table-inline-controls mt-08">
+                    <a id="device-lookup-open-link" class="table-action-link" href="#" hidden>Open full device view</a>
+                </div>
                 <div id="device-lookup-summary" class="stat-row"></div>
 
                 <div class="overview-inspector-grid mt-08">
@@ -177,6 +245,102 @@
         </table>
     </section>
 
-    <script type="module" th:src="@{/assets/js/pages/overview.js}"></script>
+    <section class="card mt-125" th:if="${nav.management}">
+        <h2>Pipeline operability</h2>
+        <p class="muted">
+            Current in-flight backlog, 7-day pipeline trend, and recent failed payload drill-down.
+        </p>
+        <div id="overviewOperationsStatus" class="muted" hidden aria-live="polite"></div>
+        <div id="overviewOperationsPanel" hidden>
+            <div class="stat-row mt-08">
+                <div class="stat">
+                    <div class="stat-label">In-flight payloads</div>
+                    <div id="overviewInFlightPayloads" class="stat-value">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Failed last 24h</div>
+                    <div id="overviewFailedLast24Hours" class="stat-value">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Queue failures 7d</div>
+                    <div id="overviewQueueFailures7d" class="stat-value">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Eval failures 7d</div>
+                    <div id="overviewEvaluationFailures7d" class="stat-value">--</div>
+                </div>
+            </div>
+
+            <div class="kvs mt-08">
+                <div class="k">Received</div>
+                <div id="overviewReceivedPayloads" class="v">--</div>
+                <div class="k">Queued</div>
+                <div id="overviewQueuedPayloads" class="v">--</div>
+                <div class="k">Validated</div>
+                <div id="overviewValidatedPayloads" class="v">--</div>
+                <div class="k">Failed</div>
+                <div id="overviewFailedPayloads" class="v">--</div>
+                <div class="k">Oldest in-flight</div>
+                <div id="overviewOldestInFlightAt" class="v">--</div>
+                <div class="k">In-flight age</div>
+                <div id="overviewOldestInFlightAge" class="v">--</div>
+            </div>
+
+            <h3 class="overview-subhead">Daily pipeline trend</h3>
+            <table class="w-100 mt-08">
+                <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Ingest ok</th>
+                    <th>Queue ok</th>
+                    <th>Queue fail</th>
+                    <th>Eval ok</th>
+                    <th>Eval fail</th>
+                    <th>Failed payloads</th>
+                </tr>
+                </thead>
+                <tbody id="overviewPipelineTrendBody">
+                <tr>
+                    <td colspan="7" class="muted">Loading...</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <h3 class="overview-subhead">Failure categories</h3>
+            <table class="w-100 mt-08">
+                <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Count</th>
+                    <th>Latest</th>
+                    <th>Sample</th>
+                </tr>
+                </thead>
+                <tbody id="overviewFailureCategoriesBody">
+                <tr>
+                    <td colspan="4" class="muted">Loading...</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <h3 class="overview-subhead">Recent failed payloads</h3>
+            <table id="overviewFailedPayloadsTable" class="display responsive nowrap w-100 mt-08">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tenant</th>
+                    <th>Device</th>
+                    <th>Category</th>
+                    <th>Error</th>
+                    <th>Contract</th>
+                    <th>Received</th>
+                    <th>Processed</th>
+                </tr>
+                </thead>
+            </table>
+        </div>
+    </section>
+
+    <script type="module" th:src="@{/assets/js/pages/overview.js(v=2026032003)}"></script>
 </section>
 </html>

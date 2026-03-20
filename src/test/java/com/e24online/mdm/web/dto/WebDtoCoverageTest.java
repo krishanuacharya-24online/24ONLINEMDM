@@ -44,12 +44,12 @@ class WebDtoCoverageTest {
     void decisionAckResponse_constructorsAndProperties() {
         DecisionAckResponse noArgs = new DecisionAckResponse();
         noArgs.setResponseId(99L);
-        noArgs.setDeliveryStatus("ACKED");
+        noArgs.setDeliveryStatus("ACKNOWLEDGED");
         OffsetDateTime at = OffsetDateTime.now();
         noArgs.setAcknowledgedAt(at);
 
         assertEquals(99L, noArgs.getResponseId());
-        assertEquals("ACKED", noArgs.getDeliveryStatus());
+        assertEquals("ACKNOWLEDGED", noArgs.getDeliveryStatus());
         assertEquals(at, noArgs.getAcknowledgedAt());
 
         DecisionAckResponse allArgs = new DecisionAckResponse(100L, "FAILED", at);
@@ -117,7 +117,7 @@ class WebDtoCoverageTest {
         assertEquals("/v1/agent/posture-payloads/10/result", noArgs.getResultStatusUrl());
 
         List<RemediationSummary> remediationList = List.of(
-                new RemediationSummary(1L, 2L, "R1", "Title", "Desc", "TYPE", "ENFORCE", "{\"x\":1}", "OPEN")
+                new RemediationSummary(1L, 2L, "R1", "Title", "Desc", "TYPE", "ENFORCE", "{\"x\":1}", "PROPOSED")
         );
         noArgs.setRemediation(remediationList);
         assertSame(remediationList, noArgs.getRemediation());
@@ -152,7 +152,7 @@ class WebDtoCoverageTest {
         noArgs.setRemediationType("TYPE");
         noArgs.setEnforceMode("ENFORCE");
         noArgs.setInstructionJson("{\"a\":1}");
-        noArgs.setRemediationStatus("OPEN");
+        noArgs.setRemediationStatus("PROPOSED");
 
         assertEquals(1L, noArgs.getEvaluationRemediationId());
         assertEquals(2L, noArgs.getRemediationRuleId());
@@ -162,10 +162,10 @@ class WebDtoCoverageTest {
         assertEquals("TYPE", noArgs.getRemediationType());
         assertEquals("ENFORCE", noArgs.getEnforceMode());
         assertEquals("{\"a\":1}", noArgs.getInstructionJson());
-        assertEquals("OPEN", noArgs.getRemediationStatus());
+        assertEquals("PROPOSED", noArgs.getRemediationStatus());
 
         RemediationSummary allArgs = new RemediationSummary(
-                3L, 4L, "CODE2", "Title2", "Desc2", "TYPE2", "AUDIT", "{\"b\":2}", "DONE"
+                3L, 4L, "CODE2", "Title2", "Desc2", "TYPE2", "AUDIT", "{\"b\":2}", "CLOSED"
         );
         assertEquals(3L, allArgs.getEvaluationRemediationId());
         assertEquals(4L, allArgs.getRemediationRuleId());
@@ -175,6 +175,6 @@ class WebDtoCoverageTest {
         assertEquals("TYPE2", allArgs.getRemediationType());
         assertEquals("AUDIT", allArgs.getEnforceMode());
         assertEquals("{\"b\":2}", allArgs.getInstructionJson());
-        assertEquals("DONE", allArgs.getRemediationStatus());
+        assertEquals("CLOSED", allArgs.getRemediationStatus());
     }
 }

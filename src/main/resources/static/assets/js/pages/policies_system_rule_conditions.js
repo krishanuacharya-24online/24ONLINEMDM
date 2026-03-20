@@ -6,6 +6,24 @@ import { canWritePolicyRow, renderPolicyActionButtons } from '../policy-row-acti
 const OPERATOR_OPTIONS = ['EQ', 'NEQ', 'GT', 'GTE', 'LT', 'LTE', 'IN', 'NOT_IN', 'REGEX', 'EXISTS', 'NOT_EXISTS'];
 const STATUS_OPTIONS = ['ACTIVE', 'INACTIVE'];
 
+function normalizeOptionalText(value) {
+  const normalized = String(value ?? '').trim();
+  return normalized || null;
+}
+
+function normalizeOptionalBoolean(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  return null;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const table = document.getElementById('ruleConditionsTable');
   if (!table) return;
@@ -48,8 +66,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       condition_group: 1,
       operator: 'EQ',
       status: 'ACTIVE',
-      value_boolean: false
+      value_boolean: ''
     }),
+    beforeSave: (payload) => {
+      const operator = String(payload?.operator || '').trim().toUpperCase() || null;
+      const normalized = {
+        ...payload,
+        condition_group: Number.isFinite(payload?.condition_group) ? payload.condition_group : 1,
+        field_name: normalizeOptionalText(payload?.field_name),
+        operator,
+        value_text: normalizeOptionalText(payload?.value_text),
+        value_numeric: Number.isFinite(payload?.value_numeric) ? payload.value_numeric : null,
+        value_boolean: normalizeOptionalBoolean(payload?.value_boolean),
+        status: String(payload?.status || '').trim().toUpperCase() || 'ACTIVE'
+      };
+
+      if (operator === 'EXISTS' || operator === 'NOT_EXISTS') {
+        normalized.value_text = null;
+        normalized.value_numeric = null;
+        normalized.value_boolean = null;
+      }
+
+      return normalized;
+    },
     tableOptions: {
       defaultSortBy: 'id',
       defaultSortDir: 'desc',

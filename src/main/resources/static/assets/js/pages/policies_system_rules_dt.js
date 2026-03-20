@@ -13,6 +13,14 @@ const STATUS_OPTIONS = ['ACTIVE', 'INACTIVE'];
 const MATCH_MODE_OPTIONS = ['ALL', 'ANY'];
 const COMPLIANCE_ACTION_OPTIONS = ['ALLOW', 'QUARANTINE', 'BLOCK', 'NOTIFY'];
 const SCORE_PREVIEW_BASELINES = [90, 70, 40];
+const INTEGER_FIELD_CONSTRAINTS = {
+  severity: { label: 'Severity', min: 1, max: 5 },
+  priority: { label: 'Priority', min: 1, max: 100000 },
+  version: { label: 'Version', min: 1, max: 100000 },
+  risk_score_delta: { label: 'Risk delta', min: -1000, max: 1000 }
+};
+const CUSTOM_VALIDATED_FIELDS = ['rule_code', 'rule_tag', 'severity', 'priority', 'version', 'risk_score_delta'];
+const PRESERVED_RULE_FIELD_IDS = ['effective_from', 'effective_to'];
 
 const SEVERITY_LABELS = {
   1: '1 - Low risk impact',
@@ -67,21 +75,171 @@ async function cloneSystemRuleToTenant(id, requestHeaders) {
   };
 }
 
+function getField(id) {
+  return document.getElementById(id);
+}
+
+function trimmedValue(input) {
+  return String(input?.value ?? '').trim();
+}
+
+function readOptionalValue(id) {
+  const value = trimmedValue(getField(id));
+  return value || null;
+}
+
+function readIntegerValue(id) {
+  const value = trimmedValue(getField(id));
+  return value === '' ? null : Number.parseInt(value, 10);
+}
+
+function setFieldValidity(input, message = '') {
+  if (!(input instanceof HTMLElement) || typeof input.setCustomValidity !== 'function') {
+    return;
+  }
+  input.setCustomValidity(message);
+  if (message) {
+    input.setAttribute('aria-invalid', 'true');
+  } else {
+    input.removeAttribute('aria-invalid');
+  }
+}
+
+function clearFormError() {
+  const errorNode = getField('systemRuleFormError');
+  if (!errorNode) {
+    return;
+  }
+  errorNode.hidden = true;
+  errorNode.textContent = '';
+}
+
+function setFormError(message) {
+  const errorNode = getField('systemRuleFormError');
+  if (!errorNode) {
+    return;
+  }
+  errorNode.textContent = message;
+  errorNode.hidden = !message;
+}
+
+function validateRequiredTextField(id, label) {
+  const input = getField(id);
+  if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) {
+    return;
+  }
+  const value = trimmedValue(input);
+  setFieldValidity(input, value ? '' : `${label} is required.`);
+}
+
+function validateIntegerField(id) {
+  const input = getField(id);
+  const constraints = INTEGER_FIELD_CONSTRAINTS[id];
+  if (!(input instanceof HTMLInputElement || input instanceof HTMLSelectElement) || !constraints) {
+    return;
+  }
+
+  const raw = trimmedValue(input);
+  let message = '';
+  if (!raw) {
+    message = `${constraints.label} is required.`;
+  } else if (!/^-?\d+$/.test(raw)) {
+    message = `${constraints.label} must be a whole number.`;
+  } else {
+    const value = Number.parseInt(raw, 10);
+    if (value < constraints.min || value > constraints.max) {
+      message = `${constraints.label} must be between ${constraints.min} and ${constraints.max}.`;
+    }
+  }
+  setFieldValidity(input, message);
+}
+
+function validateSystemRuleField(id) {
+  switch (id) {
+    case 'rule_code':
+      validateRequiredTextField(id, 'Rule code');
+      break;
+    case 'rule_tag':
+      validateRequiredTextField(id, 'Rule tag');
+      break;
+    case 'severity':
+    case 'priority':
+    case 'version':
+    case 'risk_score_delta':
+      validateIntegerField(id);
+      break;
+    default:
+      break;
+  }
+}
+
+function resetSystemRuleValidation() {
+  clearFormError();
+  CUSTOM_VALIDATED_FIELDS.forEach((id) => setFieldValidity(getField(id), ''));
+}
+
+function validateSystemRuleForm(form) {
+  validateRequiredTextField('rule_code', 'Rule code');
+  validateRequiredTextField('rule_tag', 'Rule tag');
+  validateIntegerField('severity');
+  validateIntegerField('priority');
+  validateIntegerField('version');
+  validateIntegerField('risk_score_delta');
+
+  const firstInvalid = form.querySelector(':invalid');
+  if (!firstInvalid) {
+    clearFormError();
+    return null;
+  }
+
+  setFormError(firstInvalid.validationMessage || 'Review the highlighted fields and try again.');
+  return firstInvalid;
+}
+
+function writePreservedFieldValues(row) {
+  PRESERVED_RULE_FIELD_IDS.forEach((id) => {
+    const input = getField(id);
+    if (!input) {
+      return;
+    }
+    const value = row?.[id];
+    input.value = value == null ? '' : String(value);
+  });
+}
+
+function syncOsNameVisibility() {
+  const showOsName = getField('os_type')?.value === 'LINUX';
+  document.querySelectorAll('[data-os-name-field]').forEach((node) => {
+    node.hidden = !showOsName;
+  });
+
+  const osNameInput = getField('os_name');
+  if (!(osNameInput instanceof HTMLInputElement)) {
+    return;
+  }
+  if (!showOsName) {
+    osNameInput.value = '';
+  }
+}
+
 function formJson() {
+  const osType = getField('os_type')?.value || null;
   return {
-    rule_code: document.getElementById('rule_code').value.trim(),
-    rule_tag: document.getElementById('rule_tag').value.trim(),
-    os_type: document.getElementById('os_type').value,
-    device_type: document.getElementById('device_type').value || null,
-    status: document.getElementById('status').value,
-    severity: Number(document.getElementById('severity').value),
-    priority: Number(document.getElementById('priority').value),
-    version: Number(document.getElementById('version').value),
-    match_mode: document.getElementById('match_mode').value,
-    compliance_action: document.getElementById('compliance_action').value,
-    risk_score_delta: Number(document.getElementById('risk_score_delta').value),
-    description: document.getElementById('description').value || null,
-    effective_from: new Date().toISOString()
+    rule_code: trimmedValue(getField('rule_code')),
+    rule_tag: trimmedValue(getField('rule_tag')),
+    os_type: osType,
+    device_type: getField('device_type')?.value || null,
+    status: getField('status')?.value || null,
+    severity: readIntegerValue('severity'),
+    priority: readIntegerValue('priority'),
+    version: readIntegerValue('version'),
+    match_mode: getField('match_mode')?.value || null,
+    compliance_action: getField('compliance_action')?.value || null,
+    risk_score_delta: readIntegerValue('risk_score_delta'),
+    description: readOptionalValue('description'),
+    os_name: osType === 'LINUX' ? readOptionalValue('os_name') : null,
+    effective_from: readOptionalValue('effective_from'),
+    effective_to: readOptionalValue('effective_to')
   };
 }
 
@@ -153,14 +311,14 @@ function riskDeltaHint(riskDelta) {
 }
 
 function setHint(id, text) {
-  const el = document.getElementById(id);
+  const el = getField(id);
   if (el) el.textContent = text;
 }
 
 function updateScorePreview() {
-  const severity = toInt(document.getElementById('severity')?.value, 3);
-  const priority = toInt(document.getElementById('priority')?.value, 100);
-  const riskDelta = toInt(document.getElementById('risk_score_delta')?.value, 0);
+  const severity = toInt(getField('severity')?.value, 3);
+  const priority = toInt(getField('priority')?.value, 100);
+  const riskDelta = toInt(getField('risk_score_delta')?.value, 0);
 
   setHint('severity_hint', severityHint(severity));
   setHint('priority_hint', priorityHint(priority));
@@ -200,8 +358,9 @@ function generateRuleCode() {
 }
 
 function fillForm(row) {
-  document.getElementById('edit_id').value = row?.id ?? '';
-  const ruleCodeInput = document.getElementById('rule_code');
+  getField('edit_id').value = row?.id ?? '';
+  writePreservedFieldValues(row);
+  const ruleCodeInput = getField('rule_code');
   if (ruleCodeInput) {
     ruleCodeInput.readOnly = true;
     if (row?.id) {
@@ -210,17 +369,20 @@ function fillForm(row) {
       ruleCodeInput.value = generateRuleCode();
     }
   }
-  document.getElementById('rule_tag').value = row?.rule_tag ?? '';
-  document.getElementById('os_type').value = row?.os_type ?? 'ANDROID';
-  document.getElementById('device_type').value = row?.device_type ?? '';
-  document.getElementById('status').value = row?.status ?? 'ACTIVE';
-  document.getElementById('severity').value = row?.severity ?? 3;
-  document.getElementById('priority').value = row?.priority ?? 100;
-  document.getElementById('version').value = row?.version ?? 1;
-  document.getElementById('match_mode').value = row?.match_mode ?? 'ALL';
-  document.getElementById('compliance_action').value = row?.compliance_action ?? 'ALLOW';
-  document.getElementById('risk_score_delta').value = row?.risk_score_delta ?? 0;
-  document.getElementById('description').value = row?.description ?? '';
+  getField('rule_tag').value = row?.rule_tag ?? '';
+  getField('os_type').value = row?.os_type ?? 'ANDROID';
+  getField('os_name').value = row?.os_name ?? '';
+  getField('device_type').value = row?.device_type ?? '';
+  getField('status').value = row?.status ?? 'ACTIVE';
+  getField('severity').value = row?.severity ?? 3;
+  getField('priority').value = row?.priority ?? 100;
+  getField('version').value = row?.version ?? 1;
+  getField('match_mode').value = row?.match_mode ?? 'ALL';
+  getField('compliance_action').value = row?.compliance_action ?? 'ALLOW';
+  getField('risk_score_delta').value = row?.risk_score_delta ?? 0;
+  getField('description').value = row?.description ?? '';
+  syncOsNameVisibility();
+  resetSystemRuleValidation();
   updateScorePreview();
 }
 
@@ -400,7 +562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('open-conditions-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const picker = document.getElementById('ruleCodePicker');
+    const picker = getField('ruleCodePicker');
     const id = picker instanceof HTMLSelectElement ? picker.value : '';
     if (!id) {
       window.mdmToast?.('Select a system rule code first.');
@@ -418,7 +580,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     columns: [
       { data: 'id' },
       { data: 'rule_code' },
-      { data: 'os_type' },
+      {
+        data: null,
+        render: (_value, _type, row) => {
+          const osType = String(row?.os_type ?? '').trim();
+          const osName = String(row?.os_name ?? '').trim();
+          return osName ? `${osType} / ${osName}` : osType;
+        }
+      },
       { data: 'device_type' },
       { data: 'status' },
       { data: 'priority' },
@@ -445,7 +614,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!id) return;
     const act = btn.getAttribute('data-act');
     if (act === 'conditions') {
-      const picker = document.getElementById('ruleCodePicker');
+      const picker = getField('ruleCodePicker');
       if (picker instanceof HTMLSelectElement) {
         picker.value = String(id);
       }
@@ -492,9 +661,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  document.getElementById('systemRuleForm').addEventListener('submit', async (e) => {
+  const form = getField('systemRuleForm');
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const id = document.getElementById('edit_id').value;
+    const ruleTagInput = getField('rule_tag');
+    if (ruleTagInput instanceof HTMLInputElement) {
+      ruleTagInput.value = trimmedValue(ruleTagInput);
+    }
+    const descriptionInput = getField('description');
+    if (descriptionInput instanceof HTMLTextAreaElement) {
+      descriptionInput.value = trimmedValue(descriptionInput);
+    }
+
+    const firstInvalid = validateSystemRuleForm(form);
+    if (firstInvalid instanceof HTMLElement) {
+      if (typeof firstInvalid.reportValidity === 'function') {
+        firstInvalid.reportValidity();
+      }
+      if (typeof firstInvalid.focus === 'function') {
+        firstInvalid.focus();
+      }
+      return;
+    }
+
+    const id = getField('edit_id').value;
     const payload = formJson();
     let selectedRuleId = null;
     if (!id) {
@@ -519,12 +709,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     fillForm(null);
   });
 
-  document.getElementById('resetBtn').addEventListener('click', () => fillForm(null));
-  ['severity', 'priority', 'risk_score_delta'].forEach((fieldId) => {
-    const field = document.getElementById(fieldId);
-    field?.addEventListener('input', updateScorePreview);
-    field?.addEventListener('change', updateScorePreview);
+  getField('resetBtn').addEventListener('click', () => fillForm(null));
+  CUSTOM_VALIDATED_FIELDS.forEach((fieldId) => {
+    const input = getField(fieldId);
+    input?.addEventListener('input', () => {
+      validateSystemRuleField(fieldId);
+      clearFormError();
+    });
+    input?.addEventListener('change', () => {
+      validateSystemRuleField(fieldId);
+      clearFormError();
+    });
   });
+  ['severity', 'priority', 'risk_score_delta'].forEach((fieldId) => {
+    const input = getField(fieldId);
+    input?.addEventListener('input', updateScorePreview);
+    input?.addEventListener('change', updateScorePreview);
+  });
+  getField('os_type')?.addEventListener('change', syncOsNameVisibility);
   fillForm(null);
 
   scope.onChange(async () => {

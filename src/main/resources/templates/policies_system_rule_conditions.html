@@ -44,7 +44,7 @@
             <div>
                 <div class="kvs">
                     <div class="k"><label for="condition_group">Condition group</label></div>
-                    <div class="v"><input id="condition_group" type="number" required value="1"/></div>
+                    <div class="v"><input id="condition_group" type="number" required value="1" min="1" step="1"/></div>
                     <div class="k"><label for="field_name">Field name</label></div>
                     <div class="v"><input id="field_name" type="text" required/></div>
                     <div class="k"><label for="operator">Operator</label></div>
@@ -62,7 +62,13 @@
                     <div class="k"><label for="value_numeric">Value numeric</label></div>
                     <div class="v"><input id="value_numeric" type="number"/></div>
                     <div class="k"><label for="value_boolean">Value boolean</label></div>
-                    <div class="v"><input id="value_boolean" type="checkbox"/></div>
+                    <div class="v">
+                        <select id="value_boolean">
+                            <option value="">Not set</option>
+                            <option value="true">True</option>
+                            <option value="false">False</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="form-row mt-075">
                     <input id="edit_id" type="hidden"/>

@@ -3,6 +3,7 @@ package com.e24online.mdm.service;
 import com.e24online.mdm.domain.DevicePosturePayload;
 import com.e24online.mdm.records.IngestionResult;
 import com.e24online.mdm.repository.DevicePosturePayloadRepository;
+import com.e24online.mdm.utils.TextSanitizer;
 import com.e24online.mdm.web.dto.PosturePayloadIngestRequest;
 import io.github.resilience4j.retry.annotation.Retry;
 import org.jspecify.annotations.NonNull;
@@ -22,11 +23,15 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Service for ingesting device posture payloads.
@@ -38,24 +43,29 @@ public class PostureIngestionService {
     private static final Logger log = LoggerFactory.getLogger(PostureIngestionService.class);
     private static final int MAX_DEVICE_EXTERNAL_ID_LENGTH = 255;
     private static final int MAX_AGENT_ID_LENGTH = 255;
+    private static final int MAX_AGENT_VERSION_LENGTH = 128;
     private static final int MAX_PAYLOAD_VERSION_LENGTH = 64;
     private static final int MAX_PAYLOAD_HASH_LENGTH = 512;
     private static final int IDEMPOTENCY_KEY_MAX_LENGTH = 64;
     private static final int MAX_PAYLOAD_JSON_BYTES = 1_000_000;
+    private static final Set<String> VERIFIED_PAYLOAD_VERSIONS = Set.of("v1", "1.0");
 
     private final DevicePosturePayloadRepository repository;
     private final AuditEventService auditEventService;
     private final ObjectMapper objectMapper;
     private final Scheduler jdbcScheduler;
+    private final TenantEntitlementService tenantEntitlementService;
 
     public PostureIngestionService(DevicePosturePayloadRepository repository,
                                    AuditEventService auditEventService,
                                    ObjectMapper objectMapper,
-                                   Scheduler jdbcScheduler) {
+                                   Scheduler jdbcScheduler,
+                                   TenantEntitlementService tenantEntitlementService) {
         this.repository = repository;
         this.auditEventService = auditEventService;
         this.objectMapper = objectMapper;
         this.jdbcScheduler = jdbcScheduler;
+        this.tenantEntitlementService = tenantEntitlementService;
     }
 
     @Retry(name = "ingest")
@@ -84,6 +94,7 @@ public class PostureIngestionService {
             deviceExternalId = normalizeRequired(request.getDeviceExternalId(), "device_external_id", MAX_DEVICE_EXTERNAL_ID_LENGTH);
             String agentId = normalizeRequired(request.getAgentId(), "agent_id", MAX_AGENT_ID_LENGTH);
             String payloadVersion = normalizeRequired(request.getPayloadVersion(), "payload_version", MAX_PAYLOAD_VERSION_LENGTH);
+            String agentVersion = normalizeOptional(request.getAgentVersion(), MAX_AGENT_VERSION_LENGTH);
             String payloadHashInput = normalizeOptional(request.getPayloadHash(), MAX_PAYLOAD_HASH_LENGTH);
 
             JsonNode payloadNode = request.getPayloadJson();
@@ -93,10 +104,12 @@ public class PostureIngestionService {
             if (!payloadNode.isObject()) {
                 throw new IllegalArgumentException("payload_json must be a JSON object");
             }
+            payloadNode = TextSanitizer.sanitizeJsonNode(payloadNode);
 
             OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
             String serialized;
             serialized = getSerialized(payloadNode);
+            ContractMetadata metadata = resolveContractMetadata(request, payloadNode, payloadVersion, agentVersion, now);
 
             String payloadHash = payloadHashInput != null ? payloadHashInput : sha256Hex(serialized);
             String idempotencyKey = buildIdempotencyKey(normalizedTenantId, deviceExternalId, payloadHash);
@@ -113,15 +126,21 @@ public class PostureIngestionService {
                 return new IngestionResult(duplicate, false);
             }
 
+            tenantEntitlementService.assertCanIngestPayload(normalizedTenantId);
             DevicePosturePayload payload = new DevicePosturePayload();
 
             payload.setTenantId(normalizedTenantId);
             payload.setDeviceExternalId(deviceExternalId);
             payload.setAgentId(agentId);
             payload.setPayloadVersion(payloadVersion);
+            payload.setCaptureTime(metadata.captureTime());
+            payload.setAgentVersion(agentVersion);
+            payload.setAgentCapabilities(metadata.agentCapabilitiesJson());
             payload.setPayloadHash(payloadHash);
             payload.setIdempotencyKey(idempotencyKey);
             payload.setPayloadJson(serialized);
+            payload.setSchemaCompatibilityStatus(metadata.schemaCompatibilityStatus());
+            payload.setValidationWarnings(toJson(metadata.validationWarnings()));
             payload.setProcessStatus("RECEIVED");
             payload.setProcessError(null);
             payload.setProcessedAt(null);
@@ -153,6 +172,7 @@ public class PostureIngestionService {
         try {
             log.debug("Payload mode: INSERT_NEW for device: {} tenant: {}", deviceExternalId, normalizedTenantId);
             DevicePosturePayload saved = repository.save(payload);
+            tenantEntitlementService.recordPayloadAccepted(normalizedTenantId, saved.getReceivedAt());
             auditIngestionEvent("SUCCESS", normalizedTenantId, deviceExternalId, saved.getId(), "INSERT_NEW", null);
             return new IngestionResult(saved, true);
         } catch (DataIntegrityViolationException ex) {
@@ -169,6 +189,59 @@ public class PostureIngestionService {
             }
             throw ex;
         }
+    }
+
+    private ContractMetadata resolveContractMetadata(PosturePayloadIngestRequest request,
+                                                     JsonNode payloadNode,
+                                                     String payloadVersion,
+                                                     String agentVersion,
+                                                     OffsetDateTime now) {
+        List<String> validationWarnings = new ArrayList<>();
+        OffsetDateTime captureTime = resolveCaptureTime(request.getCaptureTime(), payloadNode, now, validationWarnings);
+        JsonNode capabilitiesNode = request.getAgentCapabilities();
+        String capabilitiesJson = capabilitiesNode == null || capabilitiesNode.isNull()
+                ? "[]"
+                : toJson(capabilitiesNode);
+
+        if (agentVersion == null) {
+            validationWarnings.add("agent_version was not supplied");
+        }
+        if (capabilitiesNode == null || capabilitiesNode.isNull()
+                || (capabilitiesNode.isArray() && capabilitiesNode.isEmpty())
+                || (capabilitiesNode.isObject() && capabilitiesNode.isEmpty())) {
+            validationWarnings.add("agent_capabilities was not supplied");
+        }
+
+        String normalizedVersion = payloadVersion.trim().toLowerCase(Locale.ROOT);
+        if (!VERIFIED_PAYLOAD_VERSIONS.contains(normalizedVersion)) {
+            validationWarnings.add("payload_version is outside the verified compatibility set");
+            return new ContractMetadata(captureTime, capabilitiesJson, "UNVERIFIED", validationWarnings);
+        }
+        return new ContractMetadata(
+                captureTime,
+                capabilitiesJson,
+                validationWarnings.isEmpty() ? "SUPPORTED" : "SUPPORTED_WITH_WARNINGS",
+                validationWarnings
+        );
+    }
+
+    private OffsetDateTime resolveCaptureTime(OffsetDateTime requestCaptureTime,
+                                              JsonNode payloadNode,
+                                              OffsetDateTime fallback,
+                                              List<String> validationWarnings) {
+        if (requestCaptureTime != null) {
+            return requestCaptureTime;
+        }
+        JsonNode payloadCaptureTime = payloadNode.get("capture_time");
+        if (payloadCaptureTime != null && payloadCaptureTime.isTextual()) {
+            try {
+                return OffsetDateTime.parse(payloadCaptureTime.asText().trim());
+            } catch (DateTimeParseException _) {
+                validationWarnings.add("payload_json.capture_time could not be parsed");
+            }
+        }
+        validationWarnings.add("capture_time was not supplied; received_at was used");
+        return fallback;
     }
 
     private void auditIngestionEvent(String status,
@@ -248,6 +321,22 @@ public class PostureIngestionService {
             return value;
         }
         return value.substring(0, maxLength);
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JacksonException ex) {
+            throw new IllegalArgumentException("Invalid JSON value", ex);
+        }
+    }
+
+    private record ContractMetadata(
+            OffsetDateTime captureTime,
+            String agentCapabilitiesJson,
+            String schemaCompatibilityStatus,
+            List<String> validationWarnings
+    ) {
     }
 
 }

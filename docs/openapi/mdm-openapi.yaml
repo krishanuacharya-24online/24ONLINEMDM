@@ -696,7 +696,7 @@ components:
     DecisionAckRequest:
       type: object
       properties:
-        delivery_status: { type: string, enum: [ACKED, FAILED, TIMEOUT] }
+        delivery_status: { type: string, enum: [PENDING, DELIVERED, ACKNOWLEDGED, FAILED, TIMEOUT] }
         acknowledged_at: { type: string, format: date-time }
         error_message: { type: string }
       required: [delivery_status]

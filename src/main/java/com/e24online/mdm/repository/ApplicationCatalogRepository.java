@@ -21,10 +21,10 @@ public interface ApplicationCatalogRepository extends CrudRepository<Application
     @Query("""
             SELECT * FROM application_catalog
             WHERE is_deleted = false
-              AND (os_type = :osType OR :osType IS NULL)
-              AND (:search IS NULL
-                   OR lower(app_name) LIKE CONCAT('%', lower(:search), '%')
-                   OR lower(COALESCE(package_id, '')) LIKE CONCAT('%', lower(:search), '%'))
+              AND (CAST(:osType AS VARCHAR) IS NULL OR os_type = CAST(:osType AS VARCHAR))
+              AND (COALESCE(CAST(:search AS VARCHAR), '') = ''
+                   OR lower(app_name) LIKE ('%' || lower(CAST(:search AS VARCHAR)) || '%')
+                   OR lower(COALESCE(package_id, '')) LIKE ('%' || lower(CAST(:search AS VARCHAR)) || '%'))
             ORDER BY app_name
             LIMIT :limit OFFSET :offset
             """)
@@ -38,10 +38,10 @@ public interface ApplicationCatalogRepository extends CrudRepository<Application
     @Query("""
             SELECT COUNT(*) FROM application_catalog
             WHERE is_deleted = false
-              AND (os_type = :osType OR :osType IS NULL)
-              AND (:search IS NULL
-                   OR lower(app_name) LIKE CONCAT('%', lower(:search), '%')
-                   OR lower(COALESCE(package_id, '')) LIKE CONCAT('%', lower(:search), '%'))
+              AND (CAST(:osType AS VARCHAR) IS NULL OR os_type = CAST(:osType AS VARCHAR))
+              AND (COALESCE(CAST(:search AS VARCHAR), '') = ''
+                   OR lower(app_name) LIKE ('%' || lower(CAST(:search AS VARCHAR)) || '%')
+                   OR lower(COALESCE(package_id, '')) LIKE ('%' || lower(CAST(:search AS VARCHAR)) || '%'))
             """)
     long countFiltered(
             @Param("osType") String osType,

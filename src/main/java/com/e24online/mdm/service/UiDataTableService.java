@@ -1,6 +1,7 @@
 package com.e24online.mdm.service;
 
 import com.e24online.mdm.records.ui.DataTablePage;
+import com.e24online.mdm.utils.TextSanitizer;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -28,10 +29,10 @@ public class UiDataTableService {
         boolean tenantScoped = hasColumn("system_information_rule", "tenant_id");
         String selectSql = tenantScoped
                 ? """
-                        SELECT sir.id, sir.rule_code, sir.os_type, sir.device_type, sir.status, sir.priority, sir.tenant_id
+                        SELECT sir.id, sir.rule_code, sir.os_type, sir.os_name, sir.device_type, sir.status, sir.priority, sir.tenant_id
                         """
                 : """
-                        SELECT sir.id, sir.rule_code, sir.os_type, sir.device_type, sir.status, sir.priority, CAST(NULL AS TEXT) AS tenant_id
+                        SELECT sir.id, sir.rule_code, sir.os_type, sir.os_name, sir.device_type, sir.status, sir.priority, CAST(NULL AS TEXT) AS tenant_id
                         """;
         return query(
                 draw,
@@ -62,7 +63,7 @@ public class UiDataTableService {
                 tenantScoped
                         ? params("tenantId", emptyToNull(tenantId), "status", emptyToNull(status))
                         : params("status", emptyToNull(status)),
-                List.of("sir.rule_code", "sir.os_type", "sir.device_type", "sir.status", "sir.description"),
+                List.of("sir.rule_code", "sir.os_type", "sir.os_name", "sir.device_type", "sir.status", "sir.description"),
                 sortable(
                         "id", "sir.id",
                         "rule_code", "sir.rule_code",
@@ -117,7 +118,7 @@ public class UiDataTableService {
                 tenantScoped
                         ? params("tenantId", emptyToNull(tenantId), "osType", emptyToNull(osType), "status", emptyToNull(status))
                         : params("osType", emptyToNull(osType), "status", emptyToNull(status)),
-                List.of("ral.policy_tag", "ral.threat_type", "ral.app_os_type", "ral.app_name", "ral.package_id", "ral.status", "ral.app_category"),
+                List.of("ral.policy_tag", "ral.app_os_type", "ral.app_name", "ral.package_id", "ral.publisher", "ral.status"),
                 sortable(
                         "id", "ral.id",
                         "app_os_type", "ral.app_os_type",
@@ -819,7 +820,9 @@ public class UiDataTableService {
                 + " ORDER BY " + orderColumn + " " + orderDirection
                 + " LIMIT :limit OFFSET :offset";
 
-        List<Map<String, Object>> data = jdbc.queryForList(dataSql, params);
+        List<Map<String, Object>> data = jdbc.queryForList(dataSql, params).stream()
+                .map(TextSanitizer::sanitizeRow)
+                .toList();
         return new DataTablePage(draw, recordsTotal, recordsFiltered, data);
     }
 

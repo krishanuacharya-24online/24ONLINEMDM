@@ -35,6 +35,7 @@ public class TenantAdminService {
     private final BlockingDb blockingDb;
     private final TransactionTemplate transactionTemplate;
     private final AuditEventService auditEventService;
+    private final TenantSubscriptionService tenantSubscriptionService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public TenantAdminService(TenantRepository tenantRepository,
@@ -42,13 +43,15 @@ public class TenantAdminService {
                               PasswordEncoder passwordEncoder,
                               BlockingDb blockingDb,
                               TransactionTemplate transactionTemplate,
-                              AuditEventService auditEventService) {
+                              AuditEventService auditEventService,
+                              TenantSubscriptionService tenantSubscriptionService) {
         this.tenantRepository = tenantRepository;
         this.tenantApiKeyRepository = tenantApiKeyRepository;
         this.passwordEncoder = passwordEncoder;
         this.blockingDb = blockingDb;
         this.transactionTemplate = transactionTemplate;
         this.auditEventService = auditEventService;
+        this.tenantSubscriptionService = tenantSubscriptionService;
     }
 
     public Flux<TenantResponse> listTenants(int page, int size) {
@@ -105,6 +108,7 @@ public class TenantAdminService {
                         saved.getId(),
                         metadata
                 );
+                tenantSubscriptionService.ensureSubscriptionForTenant(saved, effectiveActor);
                 return toTenantResponse(saved);
             }
 
@@ -130,6 +134,7 @@ public class TenantAdminService {
                     saved.getId(),
                     metadata
             );
+            tenantSubscriptionService.ensureSubscriptionForTenant(saved, effectiveActor);
             return toTenantResponse(saved);
         });
     }

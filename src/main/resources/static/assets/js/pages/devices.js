@@ -4,6 +4,7 @@ import { initTimelineViewer } from './device-timeline.js';
 
 const OS_TYPE_OPTIONS = ['ANDROID', 'IOS', 'WINDOWS', 'MACOS', 'LINUX', 'CHROMEOS', 'FREEBSD', 'OPENBSD'];
 const SCORE_BAND_OPTIONS = ['TRUSTED', 'LOW_RISK', 'MEDIUM_RISK', 'HIGH_RISK', 'CRITICAL'];
+const HISTORY_PAGE_SIZE = 50;
 
 function bandClass(band) {
   const normalized = String(band || '').trim().toUpperCase();
@@ -16,12 +17,26 @@ function bandClass(band) {
 }
 
 function esc(value) {
-  return String(value ?? '')
+  return sanitizeDisplayText(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function sanitizeDisplayText(value) {
+  return String(value ?? '')
+    .replaceAll('\uFFFD', '')
+    .replaceAll('\u00EF\u00BF\u00BD', '')
+    .replaceAll('\u00C3\u00AF\u00C2\u00BF\u00C2\u00BD', '')
+    .replaceAll('\u00E2\u20AC\u00A6', '...')
+    .replaceAll('\u00C3\u00A2\u00E2\u201A\u00AC\u00C2\u00A6', '...')
+    .replaceAll('\u00E2\u20AC\u201C', '-')
+    .replaceAll('\u00C3\u00A2\u00E2\u201A\u00AC\u00E2\u20AC\u015C', '-')
+    .replaceAll('\u00E2\u20AC\u201D', '-')
+    .replaceAll('\u00C3\u00A2\u00E2\u201A\u00AC\u00E2\u20AC\u009D', '-')
+    .trim();
 }
 
 function pick(obj, ...keys) {
@@ -36,7 +51,7 @@ function pick(obj, ...keys) {
 
 function textOrDash(value) {
   if (value === null || value === undefined) return '---';
-  const text = String(value).trim();
+  const text = sanitizeDisplayText(value);
   return text ? text : '---';
 }
 
@@ -61,7 +76,7 @@ function shortHash(hash) {
 }
 
 function clip(value, maxLen) {
-  const text = String(value || '');
+  const text = sanitizeDisplayText(value);
   if (!text) return '---';
   if (text.length <= maxLen) return text;
   return `${text.slice(0, maxLen - 3)}...`;
@@ -79,7 +94,7 @@ function prettyJson(value) {
     return 'No data.';
   }
   if (typeof value === 'string') {
-    const text = value.trim();
+    const text = sanitizeDisplayText(value);
     if (!text) return 'No data.';
     try {
       return JSON.stringify(JSON.parse(text), null, 2);
@@ -89,12 +104,12 @@ function prettyJson(value) {
   }
   if (typeof value === 'object') {
     try {
-      return JSON.stringify(value, null, 2);
+      return JSON.stringify(JSON.parse(sanitizeDisplayText(JSON.stringify(value))), null, 2);
     } catch {
-      return String(value);
+      return sanitizeDisplayText(String(value));
     }
   }
-  return String(value);
+  return sanitizeDisplayText(String(value));
 }
 
 function settledArray(result) {
@@ -185,6 +200,220 @@ document.addEventListener('DOMContentLoaded', async () => {
     selectedRowData: null
   };
 
+  const historyState = {
+    apps: { page: 0, hasMore: false },
+    decisions: { page: 0, hasMore: false },
+    payloads: { page: 0, hasMore: false },
+    events: { page: 0, hasMore: false },
+    runs: { page: 0, hasMore: false }
+  };
+
+  const historyConfig = {
+    apps: {
+      tbody: detailElements.appsBody,
+      colSpan: 8,
+      statusId: 'device-apps-history-status',
+      fetch: (deviceId, headers, page) =>
+        apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/installed-apps?page=${page}&size=${HISTORY_PAGE_SIZE}`, { headers }),
+      render: (rows) => renderTableBody(
+        detailElements.appsBody,
+        rows,
+        [
+          (row) => pick(row, 'app_name', 'appName'),
+          (row) => pick(row, 'package_id', 'packageId'),
+          (row) => pick(row, 'app_version', 'appVersion'),
+          (row) => pick(row, 'latest_available_version', 'latestAvailableVersion'),
+          (row) => pick(row, 'status'),
+          (row) => pick(row, 'install_source', 'installSource'),
+          (row) => boolText(pick(row, 'is_system_app', 'systemApp')),
+          (row) => fmtDate(pick(row, 'capture_time', 'captureTime'))
+        ],
+        8
+      )
+    },
+    decisions: {
+      tbody: detailElements.decisionsBody,
+      colSpan: 8,
+      statusId: 'device-decisions-history-status',
+      fetch: (deviceId, headers, page) =>
+        apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/decisions?page=${page}&size=${HISTORY_PAGE_SIZE}`, { headers }),
+      render: (rows) => renderTableBody(
+        detailElements.decisionsBody,
+        rows,
+        [
+          (row) => pick(row, 'decision_action', 'decisionAction'),
+          (row) => pick(row, 'trust_score', 'trustScore'),
+          (row) => boolText(pick(row, 'remediation_required', 'remediationRequired')),
+          (row) => pick(row, 'delivery_status', 'deliveryStatus'),
+          (row) => fmtDate(pick(row, 'sent_at', 'sentAt')),
+          (row) => fmtDate(pick(row, 'acknowledged_at', 'acknowledgedAt')),
+          (row) => clip(pick(row, 'error_message', 'errorMessage'), 48),
+          (row) => fmtDate(pick(row, 'created_at', 'createdAt'))
+        ],
+        8
+      )
+    },
+    payloads: {
+      tbody: detailElements.payloadBody,
+      colSpan: 8,
+      statusId: 'device-payloads-history-status',
+      fetch: (deviceId, headers, page) =>
+        apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/posture-payloads?page=${page}&size=${HISTORY_PAGE_SIZE}`, { headers }),
+      render: (rows) => renderTableBody(
+        detailElements.payloadBody,
+        rows,
+        [
+          (row) => pick(row, 'id'),
+          (row) => pick(row, 'agent_id', 'agentId'),
+          (row) => pick(row, 'process_status', 'processStatus'),
+          (row) => pick(row, 'payload_version', 'payloadVersion'),
+          (row) => shortHash(pick(row, 'payload_hash', 'payloadHash')),
+          (row) => fmtDate(pick(row, 'received_at', 'receivedAt')),
+          (row) => fmtDate(pick(row, 'processed_at', 'processedAt')),
+          (row) => clip(pick(row, 'process_error', 'processError'), 48)
+        ],
+        8
+      )
+    },
+    events: {
+      tbody: detailElements.eventsBody,
+      colSpan: 8,
+      statusId: 'device-events-history-status',
+      fetch: (deviceId, headers, page) =>
+        apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/trust-score-events?page=${page}&size=${HISTORY_PAGE_SIZE}`, { headers }),
+      render: (rows) => renderTableBody(
+        detailElements.eventsBody,
+        rows,
+        [
+          (row) => pick(row, 'event_source', 'eventSource'),
+          (row) => pick(row, 'score_before', 'scoreBefore'),
+          (row) => pick(row, 'score_delta', 'scoreDelta'),
+          (row) => pick(row, 'score_after', 'scoreAfter'),
+          (row) => pick(row, 'os_lifecycle_state', 'osLifecycleState'),
+          (row) => pick(row, 'source_record_id', 'sourceRecordId'),
+          (row) => clip(pick(row, 'notes'), 72),
+          (row) => fmtDate(pick(row, 'event_time', 'eventTime'))
+        ],
+        8
+      )
+    },
+    runs: {
+      tbody: detailElements.runsBody,
+      colSpan: 9,
+      statusId: 'device-runs-history-status',
+      fetch: (deviceId, headers, page) =>
+        apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/evaluation-runs?page=${page}&size=${HISTORY_PAGE_SIZE}`, { headers }),
+      render: (rows) => renderTableBody(
+        detailElements.runsBody,
+        rows,
+        [
+          (row) => pick(row, 'id'),
+          (row) => pick(row, 'device_posture_payload_id', 'devicePosturePayloadId'),
+          (row) => pick(row, 'evaluation_status', 'evaluationStatus'),
+          (row) => pick(row, 'decision_action', 'decisionAction'),
+          (row) => pick(row, 'trust_score_before', 'trustScoreBefore'),
+          (row) => pick(row, 'trust_score_after', 'trustScoreAfter'),
+          (row) => pick(row, 'matched_rule_count', 'matchedRuleCount'),
+          (row) => pick(row, 'matched_app_count', 'matchedAppCount'),
+          (row) => fmtDate(pick(row, 'evaluated_at', 'evaluatedAt'))
+        ],
+        9
+      )
+    }
+  };
+
+  function resolveDetailAccess(deviceRow = state.selectedRowData) {
+    const tenantFromRow = String(pick(deviceRow, 'tenant_id', 'tenantId') || '').trim();
+    const tenantFromInput = (detailElements.tenantOverride?.value || '').trim().toLowerCase();
+    const effectiveTenant = tenantFromInput || tenantFromRow;
+    return {
+      effectiveTenant,
+      headers: effectiveTenant ? { 'X-Tenant-Id': effectiveTenant } : {}
+    };
+  }
+
+  function setSelectedDeviceUrl(deviceId, tenantId) {
+    const url = new URL(window.location.href);
+    if (deviceId) {
+      url.searchParams.set('device_external_id', deviceId);
+    } else {
+      url.searchParams.delete('device_external_id');
+    }
+    if (tenantId) {
+      url.searchParams.set('tenant_id', tenantId);
+    } else {
+      url.searchParams.delete('tenant_id');
+    }
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }
+
+  function historyButtons(key) {
+    return {
+      prev: document.querySelector(`[data-history-nav="${key}"][data-direction="prev"]`),
+      next: document.querySelector(`[data-history-nav="${key}"][data-direction="next"]`)
+    };
+  }
+
+  function updateHistoryControls(key, rowCount, statusText = '') {
+    const config = historyConfig[key];
+    const sectionState = historyState[key];
+    if (!config || !sectionState) {
+      return;
+    }
+    const statusEl = document.getElementById(config.statusId);
+    if (statusEl) {
+      statusEl.textContent = statusText || `Page ${sectionState.page + 1} | ${rowCount} row${rowCount === 1 ? '' : 's'}`;
+    }
+    const { prev, next } = historyButtons(key);
+    if (prev) {
+      prev.disabled = sectionState.page <= 0;
+    }
+    if (next) {
+      next.disabled = !sectionState.hasMore;
+    }
+  }
+
+  function applyHistoryRows(key, rows, page) {
+    const config = historyConfig[key];
+    const sectionState = historyState[key];
+    if (!config || !sectionState) {
+      return;
+    }
+    sectionState.page = page;
+    sectionState.hasMore = Array.isArray(rows) && rows.length === HISTORY_PAGE_SIZE;
+    config.render(Array.isArray(rows) ? rows : []);
+    updateHistoryControls(key, Array.isArray(rows) ? rows.length : 0);
+  }
+
+  function setHistoryError(key, message) {
+    const config = historyConfig[key];
+    const sectionState = historyState[key];
+    if (!config || !sectionState || !config.tbody) {
+      return;
+    }
+    sectionState.hasMore = false;
+    config.tbody.innerHTML = `<tr><td colspan="${config.colSpan}" class="muted">Failed to load rows: ${esc(message || 'Unknown error')}</td></tr>`;
+    updateHistoryControls(key, 0, 'Unavailable');
+  }
+
+  function resetHistorySections() {
+    Object.keys(historyConfig).forEach((key) => {
+      historyState[key].page = 0;
+      historyState[key].hasMore = false;
+      historyConfig[key].render([]);
+      updateHistoryControls(key, 0);
+    });
+  }
+
+  async function loadHistoryPage(key, page) {
+    if (!state.selectedDeviceId || !historyConfig[key]) {
+      return;
+    }
+    const { headers } = resolveDetailAccess();
+    const rows = await historyConfig[key].fetch(state.selectedDeviceId, headers, page);
+    applyHistoryRows(key, Array.isArray(rows) ? rows : [], page);
+  }
+
   const dt = window.mdmInitDataTable('#device-table', {
     ajax: { url: '/ui/datatables/device-trust-profiles', dataSrc: 'data' },
     defaultSortBy: 'id',
@@ -220,15 +449,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadDeviceDetail(deviceRow) {
     const deviceId = String(pick(deviceRow, 'device_external_id', 'deviceExternalId') || '').trim();
     if (!deviceId) return;
-
-    const tenantFromRow = String(pick(deviceRow, 'tenant_id', 'tenantId') || '').trim();
-    const tenantFromInput = (detailElements.tenantOverride?.value || '').trim().toLowerCase();
-    const effectiveTenant = tenantFromInput || tenantFromRow;
-    const headers = effectiveTenant ? { 'X-Tenant-Id': effectiveTenant } : {};
+    const { effectiveTenant, headers } = resolveDetailAccess(deviceRow);
 
     state.selectedDeviceId = deviceId;
-    state.selectedTenantId = tenantFromRow || null;
+    state.selectedTenantId = effectiveTenant || null;
     state.selectedRowData = deviceRow;
+    setSelectedDeviceUrl(deviceId, effectiveTenant);
     if (detailElements.refreshButton) {
       detailElements.refreshButton.disabled = false;
     }
@@ -244,14 +470,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       timelineSection.hidden = true;
     }
 
+    Object.keys(historyState).forEach((key) => {
+      historyState[key].page = 0;
+      historyState[key].hasMore = false;
+    });
+
     const primaryResults = await Promise.allSettled([
       apiFetch(`/v1/devices/trust-profiles?device_external_id=${encodeURIComponent(deviceId)}&size=1`, { headers }),
       apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/snapshots/latest`, { headers }),
-      apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/decisions?size=20`, { headers }),
-      apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/posture-payloads?size=20`, { headers }),
-      apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/trust-score-events?size=20`, { headers }),
-      apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/installed-apps?size=20`, { headers }),
-      apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/evaluation-runs?size=20`, { headers })
+      apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/decisions?page=0&size=${HISTORY_PAGE_SIZE}`, { headers }),
+      apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/posture-payloads?page=0&size=${HISTORY_PAGE_SIZE}`, { headers }),
+      apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/trust-score-events?page=0&size=${HISTORY_PAGE_SIZE}`, { headers }),
+      apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/installed-apps?page=0&size=${HISTORY_PAGE_SIZE}`, { headers }),
+      apiFetch(`/v1/devices/${encodeURIComponent(deviceId)}/evaluation-runs?page=0&size=${HISTORY_PAGE_SIZE}`, { headers })
     ]);
 
     // Check for errors in critical requests
@@ -362,7 +593,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     renderKeyValues(detailElements.profileMeta, [
       { label: 'Profile ID', value: pick(profile, 'id') },
-      { label: 'Tenant', value: pick(profile, 'tenant_id', 'tenantId') || tenantFromRow || effectiveTenant },
+      { label: 'Tenant', value: pick(profile, 'tenant_id', 'tenantId') || effectiveTenant },
       { label: 'Device ID', value: pick(profile, 'device_external_id', 'deviceExternalId') || deviceId },
       { label: 'Device type', value: pick(profile, 'device_type', 'deviceType') },
       { label: 'OS type', value: pick(profile, 'os_type', 'osType') || pick(deviceRow, 'os_type', 'osType') },
@@ -427,86 +658,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       { label: 'Created by', value: pick(latestDecision, 'created_by', 'createdBy') }
     ]);
 
-    renderTableBody(
-      detailElements.appsBody,
-      installedApps,
-      [
-        (row) => pick(row, 'app_name', 'appName'),
-        (row) => pick(row, 'package_id', 'packageId'),
-        (row) => pick(row, 'app_version', 'appVersion'),
-        (row) => pick(row, 'latest_available_version', 'latestAvailableVersion'),
-        (row) => pick(row, 'status'),
-        (row) => pick(row, 'install_source', 'installSource'),
-        (row) => boolText(pick(row, 'is_system_app', 'systemApp')),
-        (row) => fmtDate(pick(row, 'capture_time', 'captureTime'))
-      ],
-      8
-    );
-
-    renderTableBody(
-      detailElements.decisionsBody,
-      decisions,
-      [
-        (row) => pick(row, 'decision_action', 'decisionAction'),
-        (row) => pick(row, 'trust_score', 'trustScore'),
-        (row) => boolText(pick(row, 'remediation_required', 'remediationRequired')),
-        (row) => pick(row, 'delivery_status', 'deliveryStatus'),
-        (row) => fmtDate(pick(row, 'sent_at', 'sentAt')),
-        (row) => fmtDate(pick(row, 'acknowledged_at', 'acknowledgedAt')),
-        (row) => clip(pick(row, 'error_message', 'errorMessage'), 80),
-        (row) => fmtDate(pick(row, 'created_at', 'createdAt'))
-      ],
-      8
-    );
-
-    renderTableBody(
-      detailElements.payloadBody,
-      payloads,
-      [
-        (row) => pick(row, 'id'),
-        (row) => pick(row, 'agent_id', 'agentId'),
-        (row) => pick(row, 'process_status', 'processStatus'),
-        (row) => pick(row, 'payload_version', 'payloadVersion'),
-        (row) => shortHash(pick(row, 'payload_hash', 'payloadHash')),
-        (row) => fmtDate(pick(row, 'received_at', 'receivedAt')),
-        (row) => fmtDate(pick(row, 'processed_at', 'processedAt')),
-        (row) => clip(pick(row, 'process_error', 'processError'), 80)
-      ],
-      8
-    );
-
-    renderTableBody(
-      detailElements.eventsBody,
-      events,
-      [
-        (row) => pick(row, 'event_source', 'eventSource'),
-        (row) => pick(row, 'score_before', 'scoreBefore'),
-        (row) => pick(row, 'score_delta', 'scoreDelta'),
-        (row) => pick(row, 'score_after', 'scoreAfter'),
-        (row) => pick(row, 'os_lifecycle_state', 'osLifecycleState'),
-        (row) => pick(row, 'source_record_id', 'sourceRecordId'),
-        (row) => clip(pick(row, 'notes'), 80),
-        (row) => fmtDate(pick(row, 'event_time', 'eventTime'))
-      ],
-      8
-    );
-
-    renderTableBody(
-      detailElements.runsBody,
-      evaluationRuns,
-      [
-        (row) => pick(row, 'id'),
-        (row) => pick(row, 'device_posture_payload_id', 'devicePosturePayloadId'),
-        (row) => pick(row, 'evaluation_status', 'evaluationStatus'),
-        (row) => pick(row, 'decision_action', 'decisionAction'),
-        (row) => pick(row, 'trust_score_before', 'trustScoreBefore'),
-        (row) => pick(row, 'trust_score_after', 'trustScoreAfter'),
-        (row) => pick(row, 'matched_rule_count', 'matchedRuleCount'),
-        (row) => pick(row, 'matched_app_count', 'matchedAppCount'),
-        (row) => fmtDate(pick(row, 'evaluated_at', 'evaluatedAt'))
-      ],
-      9
-    );
+    applyHistoryRows('apps', installedApps, 0);
+    applyHistoryRows('decisions', decisions, 0);
+    applyHistoryRows('payloads', payloads, 0);
+    applyHistoryRows('events', events, 0);
+    applyHistoryRows('runs', evaluationRuns, 0);
 
     renderTableBody(
       detailElements.runMatchesBody,
@@ -556,10 +712,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const deviceId = String(pick(deviceRow, 'device_external_id', 'deviceExternalId') || '').trim();
     if (!deviceId) return;
 
-    const tenantFromRow = String(pick(deviceRow, 'tenant_id', 'tenantId') || '').trim();
-    const tenantFromInput = (detailElements.tenantOverride?.value || '').trim().toLowerCase();
-    const effectiveTenant = tenantFromInput || tenantFromRow;
-    const headers = effectiveTenant ? { 'X-Tenant-Id': effectiveTenant } : {};
+    const { headers } = resolveDetailAccess(deviceRow);
 
     const timelineSection = document.getElementById('device-timeline-section');
     const timelineContainer = document.getElementById('device-timeline-container');
@@ -594,7 +747,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (timelineContainer) {
         timelineContainer.innerHTML = `
           <div class="timeline-error">
-            <div class="error-icon">❌</div>
+            <div class="error-icon">Error</div>
             <p>Failed to load timeline</p>
             <p class="muted">${error.message}</p>
           </div>
@@ -609,6 +762,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   function safeSetTextContent(element, text) {
     if (element) {
       element.textContent = text;
+    }
+  }
+
+  async function maybeLoadDeviceFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const deviceId = String(params.get('device_external_id') || '').trim();
+    if (!deviceId) {
+      return;
+    }
+    const tenantId = String(params.get('tenant_id') || '').trim();
+    if (detailElements.tenantOverride && tenantId) {
+      detailElements.tenantOverride.value = tenantId;
+    }
+    try {
+      const headers = tenantId ? { 'X-Tenant-Id': tenantId } : {};
+      const profiles = await apiFetch(`/v1/devices/trust-profiles?device_external_id=${encodeURIComponent(deviceId)}&size=1`, { headers });
+      const row = Array.isArray(profiles) ? (profiles[0] || null) : profiles;
+      if (!row) {
+        throw new Error(`Device "${deviceId}" not found`);
+      }
+      await loadDeviceDetail(row);
+    } catch (error) {
+      detailElements.loading.hidden = true;
+      detailElements.content.hidden = true;
+      safeSetTextContent(detailElements.error, `Failed to open device detail: ${error.message}`);
+      detailElements.error.hidden = false;
     }
   }
 
@@ -650,6 +829,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.selectedDeviceId = null;
     state.selectedTenantId = null;
     state.selectedRowData = null;
+    setSelectedDeviceUrl(null, null);
+    resetHistorySections();
     safeSetTextContent(detailElements.caption, 'Click View detail on a device row to view latest posture status and historical posture information.');
     detailElements.error.hidden = true;
     detailElements.loading.hidden = true;
@@ -659,6 +840,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     safeSetTextContent(detailElements.rawRunResponse, 'No data.');
     if (detailElements.refreshButton) {
       detailElements.refreshButton.disabled = true;
+    }
+  });
+
+  document.getElementById('device-detail-content')?.addEventListener('click', async (event) => {
+    const navButton = event.target.closest('button[data-history-nav][data-direction]');
+    if (!navButton || !state.selectedDeviceId) {
+      return;
+    }
+    const key = navButton.getAttribute('data-history-nav');
+    const direction = navButton.getAttribute('data-direction');
+    if (!key || !historyState[key]) {
+      return;
+    }
+    const nextPage = direction === 'next'
+      ? historyState[key].page + 1
+      : Math.max(historyState[key].page - 1, 0);
+    if (nextPage === historyState[key].page) {
+      return;
+    }
+    try {
+      await loadHistoryPage(key, nextPage);
+    } catch (error) {
+      console.error(`Failed to load ${key} history:`, error);
+      setHistoryError(key, error.message);
     }
   });
 
@@ -680,15 +885,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Refresh timeline button
   document.getElementById('refresh-timeline')?.addEventListener('click', async () => {
-    if (state.selectedRowData && window.deviceTimelineViewer) {
+    if (state.selectedRowData) {
       try {
-        const { renderTimeline } = await import('./device-timeline.js');
-        const profileId = state.selectedRowData.id || state.selectedRowData.device_trust_profile_id;
-        const response = await apiFetch(`/v1/devices/${profileId}/timeline?limit=50`);
-        renderTimeline(document.getElementById('device-timeline-container'), response);
+        await loadDeviceTimeline(state.selectedRowData);
       } catch (error) {
         console.error('Failed to refresh timeline:', error);
       }
     }
   });
+
+  resetHistorySections();
+  await maybeLoadDeviceFromQuery();
 });

@@ -72,4 +72,12 @@ public interface DeviceEnrollmentRepository extends CrudRepository<DeviceEnrollm
             @Param("tenantId") String tenantId,
             @Param("enrollmentNo") String enrollmentNo
     );
+
+    @Query("""
+            SELECT COUNT(*)
+            FROM device_enrollment
+            WHERE COALESCE(tenant_id, '') = COALESCE(:tenantId, '')
+              AND status = 'ACTIVE'
+            """)
+    long countActiveByTenant(@Param("tenantId") String tenantId);
 }

@@ -113,6 +113,16 @@ select:focus {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
+input[aria-invalid="true"],
+input[aria-invalid="true"]:focus,
+textarea[aria-invalid="true"],
+textarea[aria-invalid="true"]:focus,
+select[aria-invalid="true"],
+select[aria-invalid="true"]:focus {
+  border-color: rgba(220, 38, 38, 0.78);
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.14);
+}
+
 /* Form layout */
 .form-row {
   display: flex;
@@ -124,6 +134,15 @@ select:focus {
 label {
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+.form-message {
+  margin-top: 0.55rem;
+  font-size: 0.78rem;
+}
+
+.form-message--error {
+  color: var(--danger);
 }
 
 /* Field help tooltip */

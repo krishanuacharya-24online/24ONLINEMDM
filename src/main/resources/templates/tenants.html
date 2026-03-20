@@ -54,6 +54,54 @@
     <section class="card mt-1">
         <div class="page-head">
             <div>
+                <h2>Subscription &amp; Usage</h2>
+                <div class="muted">Assign subscription plans, inspect quota state, and review current tenant usage.</div>
+            </div>
+        </div>
+
+        <form id="tenantSubscriptionForm" class="kvs mt-09">
+            <div class="k"><label for="tenantSubscriptionTenant">Tenant</label></div>
+            <div class="v">
+                <select id="tenantSubscriptionTenant" required></select>
+                <button id="reloadTenantSubscriptionTenants" type="button" class="secondary ml-045">Reload tenants</button>
+            </div>
+
+            <div class="k"><label for="subscriptionPlanCode">Plan</label></div>
+            <div class="v"><select id="subscriptionPlanCode" required></select></div>
+
+            <div class="k"><label for="subscriptionState">Subscription state</label></div>
+            <div class="v"><select id="subscriptionState" required></select></div>
+
+            <div class="k"><label for="subscriptionPeriodEnd">Current period end</label></div>
+            <div class="v"><input id="subscriptionPeriodEnd" type="datetime-local"/></div>
+
+            <div class="k"><label for="subscriptionGraceEnd">Grace ends</label></div>
+            <div class="v"><input id="subscriptionGraceEnd" type="datetime-local"/></div>
+
+            <div class="k"><label for="subscriptionNotes">Notes</label></div>
+            <div class="v"><textarea id="subscriptionNotes" rows="3" placeholder="Optional notes"></textarea></div>
+
+            <div class="k"><label>Effective features</label></div>
+            <div class="v">
+                <div id="tenantSubscriptionFeatures" class="muted">No tenant selected.</div>
+            </div>
+
+            <div class="k"><label>Current usage</label></div>
+            <div class="v">
+                <div id="tenantUsageSummary" class="muted">No tenant selected.</div>
+            </div>
+
+            <div class="k"></div>
+            <div class="v">
+                <button id="saveTenantSubscriptionBtn" type="submit">Save subscription</button>
+                <button id="refreshTenantSubscriptionBtn" type="button" class="secondary">Refresh</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="card mt-1">
+        <div class="page-head">
+            <div>
                 <h2>Tenant Access Key</h2>
                 <div class="muted">Generate or rotate a key for tenant-agent ingestion. The raw key is shown only once.</div>
             </div>

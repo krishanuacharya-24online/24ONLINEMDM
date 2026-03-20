@@ -46,34 +46,34 @@ class PoliciesControllerTest {
 
     @Test
     void readEndpoints_delegateToServiceWithScopeContext() {
-        when(requestContext.resolveOptionalTenantId(authentication, null)).thenReturn(Mono.just(""));
-        when(policiesCrudService.listSystemRules("PRODUCT_ADMIN", "", "ACTIVE", 1, 25))
+        when(requestContext.resolveOptionalTenantId(authentication, null)).thenReturn(Mono.empty());
+        when(policiesCrudService.listSystemRules("PRODUCT_ADMIN", null, "ACTIVE", 1, 25))
                 .thenReturn(Flux.just(new SystemInformationRule()));
-        when(policiesCrudService.getSystemRule("PRODUCT_ADMIN", "", 10L))
+        when(policiesCrudService.getSystemRule("PRODUCT_ADMIN", null, 10L))
                 .thenReturn(Mono.just(new SystemInformationRule()));
-        when(policiesCrudService.listSystemRuleConditions("PRODUCT_ADMIN", "", 10L))
+        when(policiesCrudService.listSystemRuleConditions("PRODUCT_ADMIN", null, 10L))
                 .thenReturn(Flux.just(new SystemInformationRuleCondition()));
-        when(policiesCrudService.listRejectApps("PRODUCT_ADMIN", "", "WINDOWS", "ACTIVE", 0, 50))
+        when(policiesCrudService.listRejectApps("PRODUCT_ADMIN", null, "WINDOWS", "ACTIVE", 0, 50))
                 .thenReturn(Flux.just(new RejectApplication()));
-        when(policiesCrudService.getRejectApp("PRODUCT_ADMIN", "", 12L))
+        when(policiesCrudService.getRejectApp("PRODUCT_ADMIN", null, 12L))
                 .thenReturn(Mono.just(new RejectApplication()));
-        when(policiesCrudService.listTrustScorePolicies("PRODUCT_ADMIN", "", "ACTIVE", 0, 50))
+        when(policiesCrudService.listTrustScorePolicies("PRODUCT_ADMIN", null, "ACTIVE", 0, 50))
                 .thenReturn(Flux.just(new TrustScorePolicy()));
-        when(policiesCrudService.getTrustScorePolicy("PRODUCT_ADMIN", "", 13L))
+        when(policiesCrudService.getTrustScorePolicy("PRODUCT_ADMIN", null, 13L))
                 .thenReturn(Mono.just(new TrustScorePolicy()));
-        when(policiesCrudService.listTrustDecisionPolicies("PRODUCT_ADMIN", "", "ACTIVE", 0, 50))
+        when(policiesCrudService.listTrustDecisionPolicies("PRODUCT_ADMIN", null, "ACTIVE", 0, 50))
                 .thenReturn(Flux.just(new TrustScoreDecisionPolicy()));
-        when(policiesCrudService.getTrustDecisionPolicy("PRODUCT_ADMIN", "", 14L))
+        when(policiesCrudService.getTrustDecisionPolicy("PRODUCT_ADMIN", null, 14L))
                 .thenReturn(Mono.just(new TrustScoreDecisionPolicy()));
-        when(policiesCrudService.listRemediationRules("PRODUCT_ADMIN", "", "ACTIVE", 0, 50))
+        when(policiesCrudService.listRemediationRules("PRODUCT_ADMIN", null, "ACTIVE", 0, 50))
                 .thenReturn(Flux.just(new RemediationRule()));
-        when(policiesCrudService.getRemediationRule("PRODUCT_ADMIN", "", 15L))
+        when(policiesCrudService.getRemediationRule("PRODUCT_ADMIN", null, 15L))
                 .thenReturn(Mono.just(new RemediationRule()));
-        when(policiesCrudService.listRuleRemediationMappings("PRODUCT_ADMIN", "", "SYSTEM", 0, 50))
+        when(policiesCrudService.listRuleRemediationMappings("PRODUCT_ADMIN", null, "SYSTEM", 0, 50))
                 .thenReturn(Flux.just(new RuleRemediationMapping()));
-        when(policiesCrudService.getRuleRemediationMapping("PRODUCT_ADMIN", "", 16L))
+        when(policiesCrudService.getRuleRemediationMapping("PRODUCT_ADMIN", null, 16L))
                 .thenReturn(Mono.just(new RuleRemediationMapping()));
-        when(policiesCrudService.cloneSystemRule("system", "PRODUCT_ADMIN", "", 10L))
+        when(policiesCrudService.cloneSystemRule("system", "PRODUCT_ADMIN", null, 10L))
                 .thenReturn(Mono.just(new SystemRuleCloneResult(new SystemInformationRule(), 2)));
 
         assertNotNull(controller.listSystemRules(authentication, null, "ACTIVE", 1, 25).collectList().block());
@@ -91,20 +91,39 @@ class PoliciesControllerTest {
         assertNotNull(controller.listRuleRemediationMappings(authentication, null, "SYSTEM", 0, 50).collectList().block());
         assertNotNull(controller.getRuleRemediationMapping(authentication, null, 16L).block());
 
-        verify(policiesCrudService).listSystemRules("PRODUCT_ADMIN", "", "ACTIVE", 1, 25);
-        verify(policiesCrudService).getSystemRule("PRODUCT_ADMIN", "", 10L);
-        verify(policiesCrudService).listSystemRuleConditions("PRODUCT_ADMIN", "", 10L);
-        verify(policiesCrudService).cloneSystemRule("system", "PRODUCT_ADMIN", "", 10L);
-        verify(policiesCrudService).listRejectApps("PRODUCT_ADMIN", "", "WINDOWS", "ACTIVE", 0, 50);
-        verify(policiesCrudService).getRejectApp("PRODUCT_ADMIN", "", 12L);
-        verify(policiesCrudService).listTrustScorePolicies("PRODUCT_ADMIN", "", "ACTIVE", 0, 50);
-        verify(policiesCrudService).getTrustScorePolicy("PRODUCT_ADMIN", "", 13L);
-        verify(policiesCrudService).listTrustDecisionPolicies("PRODUCT_ADMIN", "", "ACTIVE", 0, 50);
-        verify(policiesCrudService).getTrustDecisionPolicy("PRODUCT_ADMIN", "", 14L);
-        verify(policiesCrudService).listRemediationRules("PRODUCT_ADMIN", "", "ACTIVE", 0, 50);
-        verify(policiesCrudService).getRemediationRule("PRODUCT_ADMIN", "", 15L);
-        verify(policiesCrudService).listRuleRemediationMappings("PRODUCT_ADMIN", "", "SYSTEM", 0, 50);
-        verify(policiesCrudService).getRuleRemediationMapping("PRODUCT_ADMIN", "", 16L);
+        verify(policiesCrudService).listSystemRules("PRODUCT_ADMIN", null, "ACTIVE", 1, 25);
+        verify(policiesCrudService).getSystemRule("PRODUCT_ADMIN", null, 10L);
+        verify(policiesCrudService).listSystemRuleConditions("PRODUCT_ADMIN", null, 10L);
+        verify(policiesCrudService).cloneSystemRule("system", "PRODUCT_ADMIN", null, 10L);
+        verify(policiesCrudService).listRejectApps("PRODUCT_ADMIN", null, "WINDOWS", "ACTIVE", 0, 50);
+        verify(policiesCrudService).getRejectApp("PRODUCT_ADMIN", null, 12L);
+        verify(policiesCrudService).listTrustScorePolicies("PRODUCT_ADMIN", null, "ACTIVE", 0, 50);
+        verify(policiesCrudService).getTrustScorePolicy("PRODUCT_ADMIN", null, 13L);
+        verify(policiesCrudService).listTrustDecisionPolicies("PRODUCT_ADMIN", null, "ACTIVE", 0, 50);
+        verify(policiesCrudService).getTrustDecisionPolicy("PRODUCT_ADMIN", null, 14L);
+        verify(policiesCrudService).listRemediationRules("PRODUCT_ADMIN", null, "ACTIVE", 0, 50);
+        verify(policiesCrudService).getRemediationRule("PRODUCT_ADMIN", null, 15L);
+        verify(policiesCrudService).listRuleRemediationMappings("PRODUCT_ADMIN", null, "SYSTEM", 0, 50);
+        verify(policiesCrudService).getRuleRemediationMapping("PRODUCT_ADMIN", null, 16L);
+    }
+
+    @Test
+    void globalScopeWriteEndpoints_delegateWithNullTenantContextWhenOptionalScopeIsEmpty() {
+        when(requestContext.resolveOptionalTenantId(authentication, null)).thenReturn(Mono.empty());
+
+        SystemInformationRule systemRule = new SystemInformationRule();
+
+        when(policiesCrudService.getSystemRule("PRODUCT_ADMIN", null, 1L)).thenReturn(Mono.just(systemRule));
+        when(policiesCrudService.createSystemRule(eq("system"), eq("PRODUCT_ADMIN"), isNull(), any())).thenReturn(Mono.just(systemRule));
+        when(policiesCrudService.updateSystemRule(eq("system"), eq("PRODUCT_ADMIN"), isNull(), eq(1L), any())).thenReturn(Mono.just(systemRule));
+
+        assertNotNull(controller.getSystemRule(authentication, null, 1L).block());
+        assertNotNull(controller.createSystemRule(authentication, null, Mono.just(systemRule)).block());
+        assertNotNull(controller.updateSystemRule(authentication, null, 1L, Mono.just(systemRule)).block());
+
+        verify(policiesCrudService).getSystemRule("PRODUCT_ADMIN", null, 1L);
+        verify(policiesCrudService).createSystemRule(eq("system"), eq("PRODUCT_ADMIN"), isNull(), any());
+        verify(policiesCrudService).updateSystemRule(eq("system"), eq("PRODUCT_ADMIN"), isNull(), eq(1L), any());
     }
 
     @Test

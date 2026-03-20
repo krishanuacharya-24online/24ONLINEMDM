@@ -2,9 +2,15 @@
 
 This guide explains how a device/agent app should call backend APIs under `/v1/agent/*`, including installed-app ingestion, trust-score computation, decisioning, and remediation response.
 
+For a runnable desktop agent aligned to this contract, use:
+
+- `tools/24onlineMDMAgent` for the cross-platform desktop app
+- `tools/24onlineMDMAgent/README.md` for packaging and usage notes
+
 ## 1) Base URL and Protocol
 
 - Local default base URL: `http://localhost:8080`
+- Production packaging should prefer an embedded `https://...` base URL via the agent build command.
 - All payloads are JSON.
 - Global JSON naming is snake_case (`device_external_id`, `payload_version`, etc.).
 
@@ -16,6 +22,11 @@ Always send these headers:
 
 - `X-Tenant-Id`: tenant identifier (send lowercase).
 - `X-Tenant-Key`: tenant API key (required).
+
+Current backend exception:
+
+- `POST /v1/agent/posture-payloads` also accepts `X-Device-Token` for ingest submission.
+- `GET /v1/agent/posture-payloads/{payload_id}/result`, `GET /v1/agent/devices/{device_external_id}/decision/latest`, and `POST /v1/agent/decision-responses/{response_id}/ack` still require `X-Tenant-Id` and `X-Tenant-Key`.
 
 Important behavior:
 
@@ -134,7 +145,7 @@ Response:
       "remediation_type": "APP_REMOVAL",
       "enforce_mode": "AUTO",
       "instruction_json": "{\"steps\":[\"Uninstall app\",\"Reboot\"]}",
-      "remediation_status": "PENDING"
+      "remediation_status": "PROPOSED"
     }
   ]
 }
@@ -268,7 +279,7 @@ Headers:
 Possible values:
 
 - `decision_action`: `ALLOW`, `QUARANTINE`, `BLOCK`, `NOTIFY`
-- `delivery_status`: `PENDING`, `SENT`, `ACKED`, `FAILED`, `TIMEOUT`
+- `delivery_status`: `PENDING`, `DELIVERED`, `ACKNOWLEDGED`, `FAILED`, `TIMEOUT`
 
 Errors:
 
@@ -295,7 +306,7 @@ Request body:
 
 ```json
 {
-  "delivery_status": "ACKED",
+  "delivery_status": "ACKNOWLEDGED",
   "acknowledged_at": "2026-02-28T10:02:00Z",
   "error_message": null
 }
@@ -303,11 +314,12 @@ Request body:
 
 Field rules:
 
-- `delivery_status` required; one of `PENDING`, `SENT`, `ACKED`, `FAILED`, `TIMEOUT`
+- `delivery_status` required; one of `PENDING`, `DELIVERED`, `ACKNOWLEDGED`, `FAILED`, `TIMEOUT`
 - `acknowledged_at` optional ISO-8601 timestamp
-  - for `ACKED`, if omitted server auto-fills current UTC time
+  - for `ACKNOWLEDGED`, if omitted server auto-fills current UTC time
   - if provided, it must not be earlier than decision `sent_at`
 - `error_message` optional (`max 2000` chars; longer values are truncated)
+- legacy aliases are accepted for compatibility: `SENT -> DELIVERED`, `ACKED -> ACKNOWLEDGED`
 
 Response:
 
@@ -316,7 +328,7 @@ Response:
 ```json
 {
   "response_id": 987,
-  "delivery_status": "ACKED",
+  "delivery_status": "ACKNOWLEDGED",
   "acknowledged_at": "2026-02-28T10:02:00Z"
 }
 ```

@@ -162,27 +162,27 @@ class UiDataTablesControllerTest {
         DataTablePage page = samplePage(10);
         UserPrincipal productAdmin = new UserPrincipal(10L, "padmin", "PRODUCT_ADMIN", null);
         when(requestContext.requireUserPrincipal(authentication)).thenReturn(productAdmin);
-        when(dataTableService.posturePayloads(5, 0, 25, "tenant-a", "PENDING", "q", "created_at", "desc")).thenReturn(page);
+        when(dataTableService.posturePayloads(5, 0, 25, "tenant-a", "FAILED", "q", "created_at", "desc")).thenReturn(page);
 
         DataTableResponse<Map<String, Object>> productResponse = controller
-                .posturePayloads(authentication, 5, 0, 25, "tenant-a", "PENDING", "q", "created_at", "desc")
+                .posturePayloads(authentication, 5, 0, 25, "tenant-a", "FAILED", "q", "created_at", "desc")
                 .block();
         assertResponse(productResponse, 10);
 
         UserPrincipal tenantAdmin = new UserPrincipal(20L, "tadmin", "TENANT_ADMIN", 30L);
         when(requestContext.requireUserPrincipal(authentication)).thenReturn(tenantAdmin);
         when(requestContext.resolveTenantId(authentication, "tenant-ignored")).thenReturn(Mono.just("tenant-b"));
-        when(dataTableService.posturePayloads(6, 0, 25, "tenant-b", "PROCESSED", "q", "created_at", "asc")).thenReturn(page);
+        when(dataTableService.posturePayloads(6, 0, 25, "tenant-b", "QUEUED", "q", "created_at", "asc")).thenReturn(page);
 
         DataTableResponse<Map<String, Object>> tenantResponse = controller
-                .posturePayloads(authentication, 6, 0, 25, "tenant-ignored", "PROCESSED", "q", "created_at", "asc")
+                .posturePayloads(authentication, 6, 0, 25, "tenant-ignored", "QUEUED", "q", "created_at", "asc")
                 .block();
         assertResponse(tenantResponse, 10);
 
         UserPrincipal unsupported = new UserPrincipal(30L, "u", "TENANT_USER", 30L);
         when(requestContext.requireUserPrincipal(authentication)).thenReturn(unsupported);
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> controller
-                .posturePayloads(authentication, 6, 0, 25, "tenant-b", "PROCESSED", "q", "created_at", "asc")
+                .posturePayloads(authentication, 6, 0, 25, "tenant-b", "QUEUED", "q", "created_at", "asc")
                 .block());
         assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
     }

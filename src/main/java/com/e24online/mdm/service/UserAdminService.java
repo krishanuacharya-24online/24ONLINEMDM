@@ -39,6 +39,7 @@ public class UserAdminService {
     private final BlockingDb blockingDb;
     private final AuditEventService auditEventService;
     private final LocalBreachedPasswordService localBreachedPasswordService;
+    private final TenantEntitlementService tenantEntitlementService;
 
     public UserAdminService(AuthUserRepository authUserRepository,
                             AuthRefreshTokenRepository authRefreshTokenRepository,
@@ -46,7 +47,8 @@ public class UserAdminService {
                             PasswordEncoder passwordEncoder,
                             BlockingDb blockingDb,
                             AuditEventService auditEventService,
-                            LocalBreachedPasswordService localBreachedPasswordService) {
+                            LocalBreachedPasswordService localBreachedPasswordService,
+                            TenantEntitlementService tenantEntitlementService) {
         this.authUserRepository = authUserRepository;
         this.authRefreshTokenRepository = authRefreshTokenRepository;
         this.tenantRepository = tenantRepository;
@@ -54,6 +56,7 @@ public class UserAdminService {
         this.blockingDb = blockingDb;
         this.auditEventService = auditEventService;
         this.localBreachedPasswordService = localBreachedPasswordService;
+        this.tenantEntitlementService = tenantEntitlementService;
     }
 
     public Mono<UserResponse> createUser(UserPrincipal actorPrincipal,
@@ -75,6 +78,9 @@ public class UserAdminService {
             }
             enforceRoleAssignment(actorScope, normalizedRole);
             Long tenantId = resolveTenantForRole(normalizedRole, tenantCode, actorScope);
+            if (tenantId != null && "ACTIVE".equals(normalizedStatus)) {
+                tenantEntitlementService.assertCanCreateActiveTenantUser(tenantId);
+            }
             
             // Check if password has been breached using LOCAL database (FREE, OFFLINE)
             // This checks against top 1000+ breached passwords + pattern detection
@@ -105,6 +111,9 @@ public class UserAdminService {
             metadata.put("status", saved.getStatus());
             metadata.put("tenantId", mappedTenantCode);
             recordAudit("USER_CREATED", "CREATE", mappedTenantCode, effectiveActor, saved.getId(), metadata);
+            if (tenantId != null) {
+                tenantEntitlementService.refreshUsageSnapshotForTenantId(tenantId);
+            }
             return new UserResponse(saved.getId(), saved.getUsername(), saved.getRole(), saved.getStatus(), mappedTenantCode);
         });
     }
@@ -200,6 +209,9 @@ public class UserAdminService {
             enforceRoleAssignment(actorScope, normalizedRole);
             String normalizedStatus = normalizeStatus(status);
             Long tenantId = resolveTenantForRole(normalizedRole, tenantCode, actorScope);
+            if (shouldConsumeTenantUserCapacity(existing, normalizedStatus, tenantId)) {
+                tenantEntitlementService.assertCanCreateActiveTenantUser(tenantId);
+            }
 
             String originalRole = existing.getRole();
             String originalStatus = existing.getStatus();
@@ -235,6 +247,7 @@ public class UserAdminService {
             metadata.put("afterTenantId", mappedTenantCode);
             metadata.put("passwordChanged", passwordChanged);
             recordAudit("USER_UPDATED", "UPDATE", mappedTenantCode, actorScope.actor(), saved.getId(), metadata);
+            refreshTenantUsageSnapshots(originalTenantId, tenantId);
             return new UserResponse(saved.getId(), saved.getUsername(), saved.getRole(), saved.getStatus(), mappedTenantCode);
         });
     }
@@ -264,7 +277,33 @@ public class UserAdminService {
             metadata.put("status", existing.getStatus());
             metadata.put("tenantId", mappedTenantCode);
             recordAudit("USER_DELETED", "DELETE", mappedTenantCode, actorScope.actor(), existing.getId(), metadata);
+            if (existing.getTenantId() != null) {
+                tenantEntitlementService.refreshUsageSnapshotForTenantId(existing.getTenantId());
+            }
         });
+    }
+
+    private boolean shouldConsumeTenantUserCapacity(AuthUser existing, String newStatus, Long newTenantId) {
+        if (newTenantId == null || !"ACTIVE".equals(newStatus)) {
+            return false;
+        }
+        if (existing == null || existing.isDeleted()) {
+            return true;
+        }
+        boolean currentlyTenantScopedActive = existing.getTenantId() != null && "ACTIVE".equalsIgnoreCase(existing.getStatus());
+        if (!currentlyTenantScopedActive) {
+            return true;
+        }
+        return !Objects.equals(existing.getTenantId(), newTenantId);
+    }
+
+    private void refreshTenantUsageSnapshots(Long originalTenantId, Long newTenantId) {
+        if (originalTenantId != null) {
+            tenantEntitlementService.refreshUsageSnapshotForTenantId(originalTenantId);
+        }
+        if (newTenantId != null && !Objects.equals(newTenantId, originalTenantId)) {
+            tenantEntitlementService.refreshUsageSnapshotForTenantId(newTenantId);
+        }
     }
 
     private boolean requiresSessionInvalidation(String originalRole,

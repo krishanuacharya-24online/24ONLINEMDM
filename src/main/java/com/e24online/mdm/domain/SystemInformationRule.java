@@ -58,15 +58,6 @@ public class SystemInformationRule {
     @Column("os_name")
     private String osName;
 
-    @Column("os_version")
-    private String osVersion;
-
-    @Column("time_zone")
-    private String timeZone;
-
-    @Column("kernel_version")
-    private String kernelVersion;
-
     @Column("effective_from")
     private OffsetDateTime effectiveFrom;
 

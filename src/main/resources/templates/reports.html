@@ -5,23 +5,274 @@
         <div class="page-head">
             <div>
                 <h2>Reports</h2>
+                <div class="muted">Fleet reporting and remediation progress for the current scope.</div>
             </div>
         </div>
     </section>
 
     <section class="card mt-1">
-        <div id="reportsStatus" class="muted" hidden aria-live="polite"></div>
-        <div id="reportsEmbedMount" class="reports-frame mt-075" hidden></div>
-        <iframe
-                id="reportsFrame"
-                class="reports-frame mt-075"
-                title="Superset dashboard"
-                loading="lazy"
-                hidden>
-        </iframe>
+        <div class="page-head">
+            <div>
+                <h2>Fleet visibility</h2>
+                <div class="muted">Current fleet hotspots from the latest device evaluations, including stale devices, failing posture rules, and risky applications.</div>
+            </div>
+            <button id="refreshFleetReport" class="secondary" type="button">Refresh</button>
+        </div>
+        <div id="fleetReportStatus" class="muted mt-075" hidden aria-live="polite"></div>
+
+        <div id="fleetVisibilityPanel" hidden>
+            <div class="stat-row mt-075">
+                <div class="stat">
+                    <div class="stat-label">Tracked devices</div>
+                    <div id="fleetTrackedDevices" class="stat-value">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Stale devices</div>
+                    <div id="fleetStaleDevices" class="stat-value">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">High-risk devices</div>
+                    <div id="fleetHighRiskDevices" class="stat-value">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Lifecycle risk</div>
+                    <div id="fleetLifecycleRiskDevices" class="stat-value">--</div>
+                </div>
+            </div>
+
+            <div class="kvs mt-08">
+                <div class="k">Stale threshold</div>
+                <div id="fleetStaleThreshold" class="v">--</div>
+                <div class="k">Critical</div>
+                <div id="fleetCriticalDevices" class="v">--</div>
+                <div class="k">Supported</div>
+                <div id="fleetSupportedDevices" class="v">--</div>
+                <div class="k">EOL</div>
+                <div id="fleetEolDevices" class="v">--</div>
+                <div class="k">EEOL</div>
+                <div id="fleetEeolDevices" class="v">--</div>
+                <div class="k">Not tracked</div>
+                <div id="fleetNotTrackedDevices" class="v">--</div>
+            </div>
+
+            <div class="kvs mt-1">
+                <div class="k"><label for="fleetStaleAfterHours">Stale filter</label></div>
+                <div class="v">
+                    <select id="fleetStaleAfterHours">
+                        <option value="24">24 hours</option>
+                        <option value="72" selected>72 hours</option>
+                        <option value="168">7 days</option>
+                        <option value="720">30 days</option>
+                    </select>
+                </div>
+                <div class="k"><label for="fleetTrendDays">Trend window</label></div>
+                <div class="v">
+                    <select id="fleetTrendDays">
+                        <option value="7">7 days</option>
+                        <option value="14" selected>14 days</option>
+                        <option value="30">30 days</option>
+                        <option value="60">60 days</option>
+                    </select>
+                </div>
+            </div>
+
+            <table id="staleDevicesTable" class="display responsive nowrap w-100 mt-1">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tenant</th>
+                    <th>Device</th>
+                    <th>Last seen</th>
+                    <th>Age</th>
+                    <th>Score band</th>
+                    <th>Score</th>
+                    <th>Posture</th>
+                    <th>Lifecycle</th>
+                    <th>OS</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+            </table>
+
+            <h3 class="mt-1 mb-025">Score trend</h3>
+            <div class="muted">Daily evaluation volume, average score, and final-action mix for the selected trend window.</div>
+            <table class="w-100 mt-08">
+                <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Evaluations</th>
+                    <th>Devices</th>
+                    <th>Avg score</th>
+                    <th>Allow</th>
+                    <th>Notify</th>
+                    <th>Quarantine</th>
+                    <th>Block</th>
+                </tr>
+                </thead>
+                <tbody id="fleetScoreTrendBody">
+                <tr>
+                    <td colspan="8" class="muted">Loading...</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <h3 class="mt-1 mb-025">Top failing rules</h3>
+            <div class="muted">Current system-rule failures from each device's latest evaluation.</div>
+            <table class="w-100 mt-08">
+                <thead>
+                <tr>
+                    <th>Rule</th>
+                    <th>Tag</th>
+                    <th>Action</th>
+                    <th>Impacted devices</th>
+                    <th>Blocked</th>
+                    <th>Latest</th>
+                </tr>
+                </thead>
+                <tbody id="topFailingRulesBody">
+                <tr>
+                    <td colspan="6" class="muted">Loading...</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <h3 class="mt-1 mb-025">Top risky applications</h3>
+            <div class="muted">Current reject-application exposures from each device's latest evaluation.</div>
+            <table class="w-100 mt-08">
+                <thead>
+                <tr>
+                    <th>Application</th>
+                    <th>Policy</th>
+                    <th>Impacted devices</th>
+                    <th>Blocked</th>
+                    <th>Latest</th>
+                </tr>
+                </thead>
+                <tbody id="topRiskyApplicationsBody">
+                <tr>
+                    <td colspan="5" class="muted">Loading...</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <h3 class="mt-1 mb-025">Agent versions</h3>
+            <div class="muted">Latest reported agent builds across the current fleet, including compatibility state.</div>
+            <table class="w-100 mt-08">
+                <thead>
+                <tr>
+                    <th>Agent version</th>
+                    <th>Compatibility</th>
+                    <th>Devices</th>
+                    <th>With capabilities</th>
+                    <th>Latest capture</th>
+                </tr>
+                </thead>
+                <tbody id="agentVersionDistributionBody">
+                <tr>
+                    <td colspan="5" class="muted">Loading...</td>
+                </tr>
+                </tbody>
+            </table>
+
+            <h3 class="mt-1 mb-025">Capability coverage</h3>
+            <div class="muted">Latest reported agent capabilities across the current fleet.</div>
+            <table class="w-100 mt-08">
+                <thead>
+                <tr>
+                    <th>Capability</th>
+                    <th>Devices</th>
+                    <th>Latest capture</th>
+                </tr>
+                </thead>
+                <tbody id="agentCapabilityCoverageBody">
+                <tr>
+                    <td colspan="3" class="muted">Loading...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
     </section>
 
-    <script th:src="@{/assets/js/vendor/superset-embedded-sdk.js(v=202603171)}" defer></script>
-    <script type="module" th:src="@{/assets/js/pages/reports.js(v=202603171)}"></script>
+    <section class="card mt-1">
+        <div class="page-head">
+            <div>
+                <h2>Remediation progress</h2>
+                <div class="muted">Latest logical remediation issues across the current scope, with open versus resolved state verified by later scans.</div>
+            </div>
+            <button id="refreshRemediationReport" class="secondary" type="button">Refresh</button>
+        </div>
+        <div id="remediationReportStatus" class="muted mt-075" hidden aria-live="polite"></div>
+
+        <div id="remediationSummaryPanel" hidden>
+            <div class="stat-row mt-075">
+                <div class="stat">
+                    <div class="stat-label">Tracked issues</div>
+                    <div id="remediationTrackedIssues" class="stat-value">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Open issues</div>
+                    <div id="remediationOpenIssues" class="stat-value">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Resolved</div>
+                    <div id="remediationResolvedIssues" class="stat-value">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Devices with open issues</div>
+                    <div id="remediationDevicesOpen" class="stat-value">--</div>
+                </div>
+            </div>
+
+            <div class="kvs mt-08">
+                <div class="k">Scope</div>
+                <div id="remediationScope" class="v">--</div>
+                <div class="k">Awaiting rescan</div>
+                <div id="remediationAwaitingVerification" class="v">--</div>
+                <div class="k">Still open after rescan</div>
+                <div id="remediationStillOpen" class="v">--</div>
+                <div class="k">Resolved on rescan</div>
+                <div id="remediationResolvedOnRescan" class="v">--</div>
+                <div class="k">Latest resolved</div>
+                <div id="remediationLatestResolved" class="v">--</div>
+            </div>
+
+            <div class="kvs mt-1">
+                <div class="k"><label for="remediationStatusView">Status view</label></div>
+                <div class="v">
+                    <select id="remediationStatusView">
+                        <option value="ALL">All latest issues</option>
+                        <option value="OPEN">Open issues</option>
+                        <option value="RESOLVED">Resolved issues</option>
+                        <option value="PROPOSED">Proposed</option>
+                        <option value="DELIVERED">Delivered</option>
+                        <option value="USER_ACKNOWLEDGED">User acknowledged</option>
+                        <option value="STILL_OPEN">Still open</option>
+                        <option value="RESOLVED_ON_RESCAN">Resolved on rescan</option>
+                        <option value="CLOSED">Closed</option>
+                    </select>
+                </div>
+            </div>
+
+            <table id="remediationReportTable" class="display responsive nowrap w-100 mt-1">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tenant</th>
+                    <th>Device</th>
+                    <th>Remediation</th>
+                    <th>Status</th>
+                    <th>Decision</th>
+                    <th>Source</th>
+                    <th>Opened</th>
+                    <th>Verified</th>
+                    <th>Updated</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+            </table>
+        </div>
+    </section>
+
+    <script type="module" th:src="@{/assets/js/pages/reports.js(v=2026032003)}"></script>
 </section>
 </html>

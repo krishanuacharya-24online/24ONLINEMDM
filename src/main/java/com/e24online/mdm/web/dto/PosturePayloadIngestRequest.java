@@ -8,6 +8,8 @@ import lombok.Getter;
 import lombok.Setter;
 import tools.jackson.databind.JsonNode;
 
+import java.time.OffsetDateTime;
+
 @Setter
 @Getter
 public class PosturePayloadIngestRequest {
@@ -27,6 +29,16 @@ public class PosturePayloadIngestRequest {
     @JsonAlias("payload_version")
     private String payloadVersion;
 
+    @JsonAlias("capture_time")
+    private OffsetDateTime captureTime;
+
+    @Size(max = 128)
+    @JsonAlias("agent_version")
+    private String agentVersion;
+
+    @JsonAlias("agent_capabilities")
+    private JsonNode agentCapabilities;
+
     @Size(max = 512)
     @JsonAlias("payload_hash")
     private String payloadHash;
@@ -41,6 +53,9 @@ public class PosturePayloadIngestRequest {
                 "deviceExternalId='" + deviceExternalId + '\'' +
                 ", agentId='" + agentId + '\'' +
                 ", payloadVersion='" + payloadVersion + '\'' +
+                ", captureTime=" + captureTime +
+                ", agentVersion='" + agentVersion + '\'' +
+                ", agentCapabilities=" + agentCapabilities +
                 ", payloadHash='" + payloadHash + '\'' +
                 ", payloadJson=" + payloadJson +
                 '}';

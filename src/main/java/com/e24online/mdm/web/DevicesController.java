@@ -4,6 +4,7 @@ import com.e24online.mdm.domain.*;
 import com.e24online.mdm.records.ui.PageParams;
 import com.e24online.mdm.enums.Role;
 import com.e24online.mdm.records.tenant.TenantContext;
+import com.e24online.mdm.utils.TextSanitizer;
 import com.e24online.mdm.repository.DeviceDecisionResponseRepository;
 import com.e24online.mdm.repository.DeviceEnrollmentRepository;
 import com.e24online.mdm.repository.DeviceInstalledApplicationRepository;
@@ -132,7 +133,8 @@ public class DevicesController {
                         ctx.ownerUserId(),
                         pageParams.limit(),
                         pageParams.offset()
-                )));
+                )))
+                .map(this::sanitizeTrustProfile);
     }
 
     /**
@@ -158,7 +160,7 @@ public class DevicesController {
                         .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND,
                                 "Trust profile with id '%d' not found".formatted(profileId))))
                         .flatMap(profile -> enforceTenantUserDeviceScope(ctx, profile.getDeviceExternalId())
-                                .thenReturn(profile)));
+                                .thenReturn(sanitizeTrustProfile(profile))));
     }
 
     // ============================================================================
@@ -251,7 +253,8 @@ public class DevicesController {
                 .flatMap(ctx -> enforceTenantUserDeviceScope(ctx, normalizedDeviceId)
                         .then(blockingDb.mono(() -> systemSnapshotRepository.findLatestByDevice(
                                 ctx.tenantId(), normalizedDeviceId))
-                        .flatMap(Mono::justOrEmpty))
+                        .flatMap(Mono::justOrEmpty)
+                        .map(this::sanitizeSnapshot))
                         .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND,
                                 "No snapshot found for device '%s'".formatted(normalizedDeviceId)))));
     }
@@ -281,7 +284,8 @@ public class DevicesController {
         return resolveTenantContext(authentication, tenantId)
                 .flatMapMany(ctx -> enforceTenantUserDeviceScope(ctx, normalizedDeviceId)
                         .thenMany(blockingDb.flux(() -> systemSnapshotRepository.findByDevice(
-                                ctx.tenantId(), normalizedDeviceId, pageParams.limit(), pageParams.offset()))));
+                                ctx.tenantId(), normalizedDeviceId, pageParams.limit(), pageParams.offset()))))
+                .map(this::sanitizeSnapshot);
     }
 
     // ============================================================================
@@ -313,7 +317,8 @@ public class DevicesController {
         return resolveTenantContext(authentication, tenantId)
                 .flatMapMany(ctx -> enforceTenantUserDeviceScope(ctx, normalizedDeviceId)
                         .thenMany(blockingDb.flux(() -> installedApplicationRepository.findLatestAppsByDevice(
-                                ctx.tenantId(), normalizedDeviceId, pageParams.limit(), pageParams.offset()))));
+                                ctx.tenantId(), normalizedDeviceId, pageParams.limit(), pageParams.offset()))))
+                .map(this::sanitizeInstalledApplication);
     }
 
     /**
@@ -353,7 +358,8 @@ public class DevicesController {
                             return installedApplicationRepository.findAppsByDevice(
                                     ctx.tenantId(), normalizedDeviceId, normalizedStatus, pageParams.limit(), pageParams.offset()
                             );
-                        })));
+                        })))
+                .map(this::sanitizeInstalledApplication);
     }
 
     // ============================================================================
@@ -385,7 +391,8 @@ public class DevicesController {
         return resolveTenantContext(authentication, tenantId)
                 .flatMapMany(ctx -> enforceTenantUserDeviceScope(ctx, normalizedDeviceId)
                         .thenMany(blockingDb.flux(() -> payloadRepository.findByDevice(
-                                ctx.tenantId(), normalizedDeviceId, pageParams.limit(), pageParams.offset()))));
+                                ctx.tenantId(), normalizedDeviceId, pageParams.limit(), pageParams.offset()))))
+                .map(this::sanitizePayload);
     }
 
     // ============================================================================
@@ -517,5 +524,75 @@ public class DevicesController {
 
     private boolean isTenantUser(UserPrincipal principal) {
         return principal != null && Role.TENANT_USER.name().equalsIgnoreCase(principal.role());
+    }
+
+    private DeviceTrustProfile sanitizeTrustProfile(DeviceTrustProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        profile.setTenantId(TextSanitizer.sanitizeText(profile.getTenantId()));
+        profile.setDeviceExternalId(TextSanitizer.sanitizeText(profile.getDeviceExternalId()));
+        profile.setDeviceType(TextSanitizer.sanitizeText(profile.getDeviceType()));
+        profile.setOsType(TextSanitizer.sanitizeText(profile.getOsType()));
+        profile.setOsName(TextSanitizer.sanitizeText(profile.getOsName()));
+        profile.setOsLifecycleState(TextSanitizer.sanitizeText(profile.getOsLifecycleState()));
+        profile.setPostureStatus(TextSanitizer.sanitizeText(profile.getPostureStatus()));
+        profile.setScoreBand(TextSanitizer.sanitizeText(profile.getScoreBand()));
+        profile.setCreatedBy(TextSanitizer.sanitizeText(profile.getCreatedBy()));
+        profile.setModifiedBy(TextSanitizer.sanitizeText(profile.getModifiedBy()));
+        return profile;
+    }
+
+    private DeviceSystemSnapshot sanitizeSnapshot(DeviceSystemSnapshot snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        snapshot.setDeviceType(TextSanitizer.sanitizeText(snapshot.getDeviceType()));
+        snapshot.setOsType(TextSanitizer.sanitizeText(snapshot.getOsType()));
+        snapshot.setOsName(TextSanitizer.sanitizeText(snapshot.getOsName()));
+        snapshot.setOsCycle(TextSanitizer.sanitizeText(snapshot.getOsCycle()));
+        snapshot.setOsVersion(TextSanitizer.sanitizeText(snapshot.getOsVersion()));
+        snapshot.setTimeZone(TextSanitizer.sanitizeText(snapshot.getTimeZone()));
+        snapshot.setKernelVersion(TextSanitizer.sanitizeText(snapshot.getKernelVersion()));
+        snapshot.setOsBuildNumber(TextSanitizer.sanitizeText(snapshot.getOsBuildNumber()));
+        snapshot.setManufacturer(TextSanitizer.sanitizeText(snapshot.getManufacturer()));
+        return snapshot;
+    }
+
+    private DeviceInstalledApplication sanitizeInstalledApplication(DeviceInstalledApplication app) {
+        if (app == null) {
+            return null;
+        }
+        app.setAppName(TextSanitizer.sanitizeAppDisplayName(app.getAppName(), app.getPackageId()));
+        app.setPublisher(TextSanitizer.sanitizeText(app.getPublisher()));
+        app.setPackageId(TextSanitizer.sanitizeText(app.getPackageId()));
+        app.setAppOsType(TextSanitizer.sanitizeText(app.getAppOsType()));
+        app.setAppVersion(TextSanitizer.sanitizeText(app.getAppVersion()));
+        app.setLatestAvailableVersion(TextSanitizer.sanitizeText(app.getLatestAvailableVersion()));
+        app.setInstallSource(TextSanitizer.sanitizeText(app.getInstallSource()));
+        app.setStatus(TextSanitizer.sanitizeText(app.getStatus()));
+        app.setCreatedBy(TextSanitizer.sanitizeText(app.getCreatedBy()));
+        return app;
+    }
+
+    private DevicePosturePayload sanitizePayload(DevicePosturePayload payload) {
+        if (payload == null) {
+            return null;
+        }
+        payload.setTenantId(TextSanitizer.sanitizeText(payload.getTenantId()));
+        payload.setDeviceExternalId(TextSanitizer.sanitizeText(payload.getDeviceExternalId()));
+        payload.setAgentId(TextSanitizer.sanitizeText(payload.getAgentId()));
+        payload.setPayloadVersion(TextSanitizer.sanitizeText(payload.getPayloadVersion()));
+        payload.setAgentVersion(TextSanitizer.sanitizeText(payload.getAgentVersion()));
+        payload.setAgentCapabilities(TextSanitizer.sanitizeStructuredJson(payload.getAgentCapabilities()));
+        payload.setPayloadHash(TextSanitizer.sanitizeText(payload.getPayloadHash()));
+        payload.setIdempotencyKey(TextSanitizer.sanitizeText(payload.getIdempotencyKey()));
+        payload.setPayloadJson(TextSanitizer.sanitizeStructuredJson(payload.getPayloadJson()));
+        payload.setSchemaCompatibilityStatus(TextSanitizer.sanitizeText(payload.getSchemaCompatibilityStatus()));
+        payload.setValidationWarnings(TextSanitizer.sanitizeStructuredJson(payload.getValidationWarnings()));
+        payload.setProcessStatus(TextSanitizer.sanitizeText(payload.getProcessStatus()));
+        payload.setProcessError(TextSanitizer.sanitizeText(payload.getProcessError()));
+        payload.setCreatedBy(TextSanitizer.sanitizeText(payload.getCreatedBy()));
+        return payload;
     }
 }

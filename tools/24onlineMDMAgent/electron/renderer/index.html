@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'">
+  <title>24onlineMDMAgent</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="masthead card">
+        <div class="brand-block">
+          <div class="brand-seal">24</div>
+          <div class="brand-copy">
+            <div class="eyebrow">24Online Endpoint Assurance</div>
+            <h1>24onlineMDMAgent</h1>
+            <p id="hero_message">Preparing managed device overview...</p>
+          </div>
+        </div>
+      <div class="hero-meta">
+        <div class="hero-stat">
+          <span class="hero-label">Tenant</span>
+          <strong id="hero_tenant">-</strong>
+        </div>
+        <div class="hero-stat">
+          <span class="hero-label">Managed Device</span>
+          <strong id="hero_device">-</strong>
+        </div>
+        <div class="status-pill tone-monitoring" id="hero_badge">Loading</div>
+      </div>
+      <div class="hero-status" id="status_line">Loading agent state...</div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <section class="card section-card">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Organization</div>
+              <h2>Organization Access</h2>
+            </div>
+            <div class="status-pill tone-neutral" id="connection_badge">Draft</div>
+          </div>
+          <p class="section-note" id="endpoint_note">Provide the organization endpoint and tenant credentials once. The agent derives device identity, enrollment state, and posture data locally.</p>
+          <div class="endpoint-lock" id="endpoint_lock" hidden>
+            <span>Embedded Endpoint</span>
+            <code id="embedded_base_url">-</code>
+          </div>
+          <div class="form-grid">
+            <label id="base_url_row">
+              <span>Base URL</span>
+              <input id="base_url" type="text" placeholder="http://localhost:8080">
+            </label>
+            <label>
+              <span>Tenant ID</span>
+              <input id="tenant_id" type="text" placeholder="tenant1">
+            </label>
+            <label>
+              <span>Tenant Key</span>
+              <input id="tenant_key" type="password" placeholder="Active tenant key">
+            </label>
+            <label>
+              <span>Setup Key</span>
+              <input id="setup_key" type="password" placeholder="ABC-DEF-GHI-JKL">
+            </label>
+          </div>
+          <div class="form-foot">
+            <label class="toggle">
+              <input id="show_sensitive_values" type="checkbox">
+              <span>Show sensitive values</span>
+            </label>
+            <button id="save_connection" class="button button-secondary">Save Access Settings</button>
+          </div>
+        </section>
+
+        <section class="card section-card">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Operations</div>
+              <h2>Managed Actions</h2>
+            </div>
+          </div>
+          <div class="action-stack">
+            <button id="activate_protection" class="button button-primary">Activate Protection</button>
+            <button id="provision_device" class="button button-secondary">Provision Device Only</button>
+            <button id="refresh_profile" class="button button-secondary">Refresh Device Profile</button>
+            <button id="refresh_overview" class="button button-secondary">Refresh Overview</button>
+          </div>
+          <p class="section-note">Activate Protection provisions first-time devices automatically and completes a live posture and compliance sync.</p>
+        </section>
+
+        <section class="card section-card">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Runtime</div>
+              <h2>Run Application</h2>
+            </div>
+          </div>
+          <div class="runtime-settings">
+            <label class="setting-toggle">
+              <span class="setting-copy">
+                <strong>Run On Startup</strong>
+                <small>Launch the installed agent automatically when this user signs in.</small>
+              </span>
+              <input id="launch_at_startup" type="checkbox">
+            </label>
+            <label class="setting-toggle">
+              <span class="setting-copy">
+                <strong>Create Shortcut</strong>
+                <small>Create a desktop shortcut for the installed agent application.</small>
+              </span>
+              <input id="desktop_shortcut" type="checkbox">
+            </label>
+          </div>
+          <div class="form-foot compact-foot">
+            <div class="runtime-note" id="run_application_status">Runtime preferences are managed from this installed app.</div>
+            <button id="save_run_preferences" class="button button-secondary">Save Run Application Settings</button>
+          </div>
+        </section>
+
+        <section class="card section-card">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Support</div>
+              <h2>Support Tools</h2>
+            </div>
+          </div>
+          <div class="action-stack compact-actions">
+            <button id="run_preview" class="button button-secondary">Run Collection Preview</button>
+            <button id="open_output" class="button button-secondary">Open Support Files</button>
+            <button id="open_config_dir" class="button button-secondary">Open Config Folder</button>
+          </div>
+          <div class="path-stack">
+            <div class="path-item">
+              <span>Config</span>
+              <code id="path_config">-</code>
+            </div>
+            <div class="path-item">
+              <span>State</span>
+              <code id="path_state">-</code>
+            </div>
+            <div class="path-item">
+              <span>Output</span>
+              <code id="path_output">-</code>
+            </div>
+          </div>
+          <p class="section-note" id="secret_storage_note">Sensitive credentials are protected using OS-backed secure storage when available.</p>
+        </section>
+      </aside>
+
+      <main class="content">
+        <section class="hero-grid">
+          <article class="card compliance-card">
+            <div class="section-head">
+              <div>
+                <div class="section-kicker">Protection</div>
+                <h2>Compliance Posture</h2>
+              </div>
+              <div class="status-pill tone-monitoring" id="sync_status_badge">Pending</div>
+            </div>
+            <div class="compliance-layout">
+              <div class="score-ring tone-monitoring" id="score_ring">
+                <div class="score-ring-inner">
+                  <span class="score-caption">Trust Score</span>
+                  <strong id="score_value">--</strong>
+                  <span id="score_band">UNKNOWN</span>
+                </div>
+              </div>
+              <div class="compliance-copy">
+                <h3 id="compliance_headline">Loading protection posture...</h3>
+                <p id="compliance_detail">The agent is preparing the latest managed-device summary.</p>
+                <div class="metric-list">
+                  <div class="metric-item">
+                    <span>Decision</span>
+                    <strong id="decision_action">-</strong>
+                  </div>
+                  <div class="metric-item">
+                    <span>Remediation</span>
+                    <strong id="remediation_count">-</strong>
+                  </div>
+                  <div class="metric-item">
+                    <span>Schema</span>
+                    <strong id="schema_status">-</strong>
+                  </div>
+                  <div class="metric-item">
+                    <span>Last Sync</span>
+                    <strong id="last_sync">-</strong>
+                  </div>
+                </div>
+                <div class="warning-box" id="warning_box" hidden>
+                  <strong>Validation warnings</strong>
+                  <ul id="validation_warnings"></ul>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card overview-card">
+            <div class="section-head">
+              <div>
+                <div class="section-kicker">Overview</div>
+                <h2>Management State</h2>
+              </div>
+              <div class="status-pill tone-neutral" id="runtime_chip">runtime</div>
+            </div>
+            <div class="overview-grid">
+              <div class="overview-tile">
+                <span>Enrollment</span>
+                <strong id="summary_enrollment">-</strong>
+              </div>
+              <div class="overview-tile">
+                <span>Token Expires</span>
+                <strong id="summary_token_expires">-</strong>
+              </div>
+              <div class="overview-tile">
+                <span>Latest Payload</span>
+                <strong id="summary_payload_id">-</strong>
+              </div>
+              <div class="overview-tile">
+                <span>Decision Response</span>
+                <strong id="summary_decision_response">-</strong>
+              </div>
+            </div>
+            <div class="overview-note" id="decision_reason">No policy decision has been recorded yet.</div>
+          </article>
+        </section>
+
+        <section class="split-grid">
+          <article class="card section-card">
+            <div class="section-head">
+              <div>
+                <div class="section-kicker">Identity</div>
+                <h2>Device Profile</h2>
+              </div>
+              <div class="status-pill tone-neutral" id="device_profile_badge">Collecting</div>
+            </div>
+            <div class="identity-grid">
+              <div class="identity-item"><span>Hostname</span><strong id="device_host_name">-</strong></div>
+              <div class="identity-item"><span>External ID</span><strong id="device_external_id">-</strong></div>
+              <div class="identity-item"><span>Platform</span><strong id="device_platform">-</strong></div>
+              <div class="identity-item"><span>Device Type</span><strong id="device_type">-</strong></div>
+              <div class="identity-item"><span>Operating System</span><strong id="device_os">-</strong></div>
+              <div class="identity-item"><span>Build</span><strong id="device_build">-</strong></div>
+              <div class="identity-item"><span>Manufacturer</span><strong id="device_manufacturer">-</strong></div>
+              <div class="identity-item"><span>Model</span><strong id="device_model">-</strong></div>
+              <div class="identity-item"><span>Timezone</span><strong id="device_time_zone">-</strong></div>
+              <div class="identity-item"><span>Fingerprint</span><strong id="device_fingerprint">-</strong></div>
+              <div class="identity-item"><span>Agent Version</span><strong id="device_agent_version">-</strong></div>
+              <div class="identity-item"><span>Collected At</span><strong id="device_captured_at">-</strong></div>
+            </div>
+            <div class="app-sample">
+              <div class="sample-head">
+                <span>Detected Applications</span>
+                <strong id="installed_app_count">-</strong>
+              </div>
+              <div class="app-list-toolbar">
+                <label class="app-search-field" for="installed_app_search">
+                  <span>Search Applications</span>
+                  <input id="installed_app_search" type="search" placeholder="Search by name, publisher, version, or package">
+                </label>
+                <div class="app-list-meta">
+                  <span id="installed_app_results">No applications loaded</span>
+                </div>
+              </div>
+              <div class="app-list" id="installed_app_list"></div>
+            </div>
+          </article>
+
+          <article class="card section-card">
+            <div class="section-head">
+              <div>
+                <div class="section-kicker">Actions</div>
+                <h2>Recommended Next Steps</h2>
+              </div>
+            </div>
+            <div id="remediation_panel" class="empty-state">
+              No active remediation guidance. Once the device receives policy guidance, recommended actions will appear here.
+            </div>
+          </article>
+        </section>
+
+        <section class="split-grid">
+          <article class="card section-card">
+            <div class="section-head">
+              <div>
+                <div class="section-kicker">Timeline</div>
+                <h2>Recent Activity</h2>
+              </div>
+            </div>
+            <div id="activity_timeline" class="timeline"></div>
+          </article>
+
+          <article class="card section-card">
+            <div class="section-head">
+              <div>
+                <div class="section-kicker">Readiness</div>
+                <h2>Local Platform Signals</h2>
+              </div>
+            </div>
+            <div class="signal-grid">
+              <div class="signal-card">
+                <span>Emulator / VM</span>
+                <strong id="signal_emulator">-</strong>
+              </div>
+              <div class="signal-card">
+                <span>Elevated Privileges</span>
+                <strong id="signal_root">-</strong>
+              </div>
+              <div class="signal-card">
+                <span>App Runtime</span>
+                <strong id="runtime_mode">-</strong>
+              </div>
+              <div class="signal-card">
+                <span>Architecture</span>
+                <strong id="runtime_arch">-</strong>
+              </div>
+              <div class="signal-card">
+                <span>Secret Storage</span>
+                <strong id="secret_storage_status">-</strong>
+              </div>
+              <div class="signal-card">
+                <span>Endpoint Mode</span>
+                <strong id="runtime_asset_root">-</strong>
+              </div>
+            </div>
+            <p class="section-note">The customer-facing app keeps only the organization connection, local device state, and support artifacts on the endpoint profile. Device posture is collected during managed sync operations and stored locally for support visibility.</p>
+          </article>
+        </section>
+
+        <section class="card diagnostics-card">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Diagnostics</div>
+              <h2>Support Snapshot</h2>
+            </div>
+            <button id="clear_log" class="button button-ghost">Clear Log</button>
+          </div>
+          <details class="diagnostic-group">
+            <summary>Operational snapshot</summary>
+            <pre id="support_snapshot"></pre>
+          </details>
+          <pre id="run_log"></pre>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

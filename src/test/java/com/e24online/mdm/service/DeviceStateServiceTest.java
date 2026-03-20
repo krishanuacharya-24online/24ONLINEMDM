@@ -13,6 +13,7 @@ import com.e24online.mdm.repository.OsReleaseLifecycleMasterRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
@@ -36,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -283,6 +285,40 @@ class DeviceStateServiceTest {
         List<DeviceInstalledApplication> saved = service.saveInstalledApps(101L, profile, parsed, OffsetDateTime.now());
         assertEquals(1, saved.size());
         assertEquals(77L, saved.get(0).getId());
+    }
+
+    @Test
+    void saveInstalledApps_repairsCorruptedAppNameWithPackageIdFallback() {
+        when(jdbc.queryForObject(anyString(), any(org.springframework.jdbc.core.namedparam.MapSqlParameterSource.class), eq(Long.class)))
+                .thenReturn(0L);
+        when(jdbc.batchUpdate(anyString(), any(org.springframework.jdbc.core.namedparam.MapSqlParameterSource[].class)))
+                .thenReturn(new int[] {1});
+
+        ArrayNode apps = objectMapper.createArrayNode();
+        apps.addObject()
+                .put("app_name", "\uFFFDTorrent")
+                .put("app_os_type", "WINDOWS")
+                .put("package_id", "uTorrent")
+                .put("publisher", "BitTorrent Limited");
+
+        ParsedPosture parsed = parsedPostureWithApps("WINDOWS", "LAPTOP", apps);
+        DeviceTrustProfile profile = new DeviceTrustProfile();
+        profile.setId(33L);
+
+        DeviceInstalledApplication existing = new DeviceInstalledApplication();
+        existing.setId(99L);
+        existing.setAppName("uTorrent");
+        when(installedApplicationRepository.findByPayloadId(101L)).thenReturn(List.of(existing));
+
+        service.saveInstalledApps(101L, profile, parsed, OffsetDateTime.now());
+
+        ArgumentCaptor<org.springframework.jdbc.core.namedparam.MapSqlParameterSource[]> captor =
+                ArgumentCaptor.forClass(org.springframework.jdbc.core.namedparam.MapSqlParameterSource[].class);
+        verify(jdbc).batchUpdate(anyString(), captor.capture());
+        org.springframework.jdbc.core.namedparam.MapSqlParameterSource[] params = captor.getValue();
+        assertEquals(1, params.length);
+        assertEquals("uTorrent", params[0].getValue("appName"));
+        assertEquals("uTorrent", params[0].getValue("packageId"));
     }
 
     @Test

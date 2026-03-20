@@ -28,6 +28,15 @@ public class DevicePosturePayload {
     @Column("payload_version")
     private String payloadVersion;
 
+    @Column("capture_time")
+    private OffsetDateTime captureTime;
+
+    @Column("agent_version")
+    private String agentVersion;
+
+    @Column("agent_capabilities")
+    private String agentCapabilities;
+
     @Column("payload_hash")
     private String payloadHash;
 
@@ -36,6 +45,12 @@ public class DevicePosturePayload {
 
     @Column("payload_json")
     private String payloadJson;
+
+    @Column("schema_compatibility_status")
+    private String schemaCompatibilityStatus;
+
+    @Column("validation_warnings")
+    private String validationWarnings;
 
     @Column("received_at")
     private OffsetDateTime receivedAt;

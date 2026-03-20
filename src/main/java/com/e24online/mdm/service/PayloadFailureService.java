@@ -18,10 +18,18 @@ public class PayloadFailureService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markPayloadFailed(DevicePosturePayload payload, String errorMessage, int maxProcessErrorLength) {
+        OffsetDateTime processedAt = OffsetDateTime.now(ZoneOffset.UTC);
+        String processError = truncate(errorMessage, maxProcessErrorLength);
         payload.setProcessStatus("FAILED");
-        payload.setProcessedAt(OffsetDateTime.now(ZoneOffset.UTC));
-        payload.setProcessError(truncate(errorMessage, maxProcessErrorLength));
-        payloadRepository.save(payload);
+        payload.setProcessedAt(processedAt);
+        payload.setProcessError(processError);
+
+        if (payload.getId() == null) {
+            payloadRepository.save(payload);
+            return;
+        }
+
+        payloadRepository.markPayloadFailed(payload.getId(), processError, processedAt);
     }
 
     private String truncate(String value, int maxLength) {

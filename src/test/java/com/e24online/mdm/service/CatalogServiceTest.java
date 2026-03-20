@@ -54,6 +54,20 @@ class CatalogServiceTest {
     }
 
     @Test
+    void listApplications_trimsInputsAndTreatsBlankFiltersAsNull() {
+        when(applicationCatalogRepository.findPaged(null, null, 50, 0L)).thenReturn(List.of(entry(3L)));
+        when(applicationCatalogRepository.findPaged("WINDOWS", "microsoft", 50, 0L)).thenReturn(List.of(entry(4L)));
+
+        List<ApplicationCatalogEntry> blankFiltered = service.listApplications("   ", "   ", 0, 50).collectList().block();
+        List<ApplicationCatalogEntry> trimmedFiltered = service.listApplications(" windows ", " microsoft ", 0, 50).collectList().block();
+
+        assertEquals(1, blankFiltered.size());
+        assertEquals(1, trimmedFiltered.size());
+        verify(applicationCatalogRepository).findPaged(null, null, 50, 0L);
+        verify(applicationCatalogRepository).findPaged("WINDOWS", "microsoft", 50, 0L);
+    }
+
+    @Test
     void getApplication_returnsEntryOr404() {
         when(applicationCatalogRepository.findActiveById(10L)).thenReturn(Optional.of(entry(10L)));
         when(applicationCatalogRepository.findActiveById(404L)).thenReturn(Optional.empty());
@@ -136,6 +150,36 @@ class CatalogServiceTest {
         assertEquals("Application not found", ex.getReason());
     }
 
+    @Test
+    void listApplications_repairsCorruptedAppNameFromPackageId() {
+        ApplicationCatalogEntry corrupted = entry(88L);
+        corrupted.setAppName("\uFFFDTorrent");
+        corrupted.setPackageId("uTorrent");
+        when(applicationCatalogRepository.findPaged("WINDOWS", null, 50, 0L)).thenReturn(List.of(corrupted));
+
+        List<ApplicationCatalogEntry> rows = service.listApplications("WINDOWS", null, 0, 50).collectList().block();
+
+        assertNotNull(rows);
+        assertEquals(1, rows.size());
+        assertEquals("uTorrent", rows.getFirst().getAppName());
+    }
+
+    @Test
+    void createApplication_sanitizesCorruptedFieldsBeforeSave() {
+        ApplicationCatalogEntry body = new ApplicationCatalogEntry();
+        body.setOsType(" WINDOWS ");
+        body.setPackageId("uTorrent");
+        body.setAppName("\uFFFDTorrent");
+        body.setPublisher("BitTorrent Limited");
+
+        ApplicationCatalogEntry created = service.createApplication(body).block();
+
+        assertNotNull(created);
+        assertEquals("WINDOWS", created.getOsType());
+        assertEquals("uTorrent", created.getAppName());
+        assertEquals("uTorrent", created.getPackageId());
+    }
+
     private ApplicationCatalogEntry entry(Long id) {
         ApplicationCatalogEntry entry = new ApplicationCatalogEntry();
         entry.setId(id);
@@ -149,4 +193,3 @@ class CatalogServiceTest {
         return entry;
     }
 }
-

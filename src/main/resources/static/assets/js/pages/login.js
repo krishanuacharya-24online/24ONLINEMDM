@@ -134,22 +134,22 @@ form?.addEventListener("submit", async (event) => {
   const password = document.getElementById("password")?.value ?? "";
   try {
     const me = await apiLogin(username, password);
-    
+
     // Show breached password warning if applicable
     if (me.passwordBreached) {
       breachedWarningEl.hidden = false;
       breachedWarningEl.classList.add('visible');
       breachCountEl.textContent = 'Our security check found this password in known data breaches.';
-      
+
       // Add a note that they should change it
       const changePasswordNote = document.createElement('div');
       changePasswordNote.style.marginTop = '0.5rem';
       changePasswordNote.style.fontSize = '0.75rem';
       changePasswordNote.style.color = '#c62828';
-      changePasswordNote.textContent = '⚠ You should change your password immediately after login.';
+      changePasswordNote.textContent = '[!] You should change your password immediately after login.';
       breachedWarningEl.appendChild(changePasswordNote);
     }
-    
+
     const role = String(me?.role || "").trim().toUpperCase();
     window.location.href = role === "TENANT_USER" ? "/ui/enrollments" : "/ui";
   } catch (error) {
@@ -164,4 +164,3 @@ form?.addEventListener("submit", async (event) => {
 // Initialize on page load
 setupPasswordStrengthMeter();
 setupBreachedPasswordCheck();
-

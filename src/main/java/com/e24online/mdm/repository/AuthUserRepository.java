@@ -49,4 +49,13 @@ public interface AuthUserRepository extends CrudRepository<AuthUser, Long> {
             @Param("limit") int limit,
             @Param("offset") long offset
     );
+
+    @Query("""
+            SELECT COUNT(*)
+            FROM auth_user
+            WHERE tenant_id = :tenantId
+              AND is_deleted = false
+              AND status = 'ACTIVE'
+            """)
+    long countActiveByTenantId(@Param("tenantId") Long tenantId);
 }

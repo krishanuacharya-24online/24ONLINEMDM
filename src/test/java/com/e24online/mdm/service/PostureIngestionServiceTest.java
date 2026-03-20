@@ -36,12 +36,20 @@ class PostureIngestionServiceTest {
 
     @Mock
     private AuditEventService auditEventService;
+    @Mock
+    private TenantEntitlementService tenantEntitlementService;
 
     private PostureIngestionService service;
 
     @BeforeEach
     void setUp() {
-        service = new PostureIngestionService(repository, auditEventService, new ObjectMapper(), Schedulers.immediate());
+        service = new PostureIngestionService(
+                repository,
+                auditEventService,
+                new ObjectMapper(),
+                Schedulers.immediate(),
+                tenantEntitlementService
+        );
     }
 
     @Test
@@ -81,6 +89,9 @@ class PostureIngestionServiceTest {
         assertNotNull(persisted.getCreatedAt());
         assertNotNull(persisted.getIdempotencyKey());
         assertEquals(64, persisted.getIdempotencyKey().length());
+        assertEquals("SUPPORTED_WITH_WARNINGS", persisted.getSchemaCompatibilityStatus());
+        verify(tenantEntitlementService, times(1)).assertCanIngestPayload("tenant-a");
+        verify(tenantEntitlementService, times(1)).recordPayloadAccepted(eq("tenant-a"), any());
     }
 
     @Test
@@ -111,6 +122,7 @@ class PostureIngestionServiceTest {
         assertEquals(64, persisted.getPayloadHash().length());
         assertNotNull(persisted.getIdempotencyKey());
         assertEquals(64, persisted.getIdempotencyKey().length());
+        assertEquals("SUPPORTED_WITH_WARNINGS", persisted.getSchemaCompatibilityStatus());
     }
 
     @Test
@@ -145,5 +157,34 @@ class PostureIngestionServiceTest {
 
         assertEquals("payload_json must be a JSON object", ex.getMessage());
         verify(repository, never()).save(any(DevicePosturePayload.class));
+    }
+
+    @Test
+    void ingest_sanitizesCorruptedInstalledAppNameInsidePayloadJson() {
+        when(repository.findByIdempotencyKey(eq("tenant-a"), eq("dev-01"), anyString()))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(DevicePosturePayload.class))).thenAnswer(invocation -> {
+            DevicePosturePayload payload = invocation.getArgument(0);
+            payload.setId(300L);
+            return payload;
+        });
+
+        ObjectMapper mapper = new ObjectMapper();
+        PosturePayloadIngestRequest request = new PosturePayloadIngestRequest();
+        request.setDeviceExternalId("dev-01");
+        request.setAgentId("agent-01");
+        request.setPayloadVersion("1.0");
+        request.setPayloadJson(mapper.createObjectNode()
+                .put("os_type", "WINDOWS")
+                .set("installed_apps", mapper.createArrayNode()
+                        .add(mapper.createObjectNode()
+                                .put("app_name", "\uFFFDTorrent")
+                                .put("package_id", "uTorrent"))));
+
+        service.ingest("tenant-a", request);
+
+        ArgumentCaptor<DevicePosturePayload> captor = ArgumentCaptor.forClass(DevicePosturePayload.class);
+        verify(repository).save(captor.capture());
+        assertEquals("{\"os_type\":\"WINDOWS\",\"installed_apps\":[{\"app_name\":\"uTorrent\",\"package_id\":\"uTorrent\"}]}", captor.getValue().getPayloadJson());
     }
 }

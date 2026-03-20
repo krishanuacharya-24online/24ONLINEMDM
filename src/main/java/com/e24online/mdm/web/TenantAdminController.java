@@ -3,8 +3,16 @@ package com.e24online.mdm.web;
 import com.e24online.mdm.records.tenant.TenantKeyMetadataResponse;
 import com.e24online.mdm.records.tenant.TenantKeyRotateResponse;
 import com.e24online.mdm.records.tenant.TenantResponse;
+import com.e24online.mdm.records.tenant.TenantFeatureOverrideRequest;
+import com.e24online.mdm.records.tenant.TenantFeatureOverrideResponse;
+import com.e24online.mdm.records.tenant.TenantSubscriptionResponse;
+import com.e24online.mdm.records.tenant.TenantSubscriptionUpsertRequest;
 import com.e24online.mdm.records.tenant.TenantUpsertRequest;
+import com.e24online.mdm.records.tenant.TenantUsageResponse;
+import com.e24online.mdm.records.tenant.SubscriptionPlanResponse;
 import com.e24online.mdm.service.TenantAdminService;
+import com.e24online.mdm.service.TenantEntitlementService;
+import com.e24online.mdm.service.TenantSubscriptionService;
 import com.e24online.mdm.web.security.AuthenticatedRequestContext;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,11 +35,17 @@ import reactor.core.publisher.Mono;
 public class TenantAdminController {
 
     private final TenantAdminService tenantAdminService;
+    private final TenantSubscriptionService tenantSubscriptionService;
+    private final TenantEntitlementService tenantEntitlementService;
     private final AuthenticatedRequestContext requestContext;
 
     public TenantAdminController(TenantAdminService tenantAdminService,
+                                 TenantSubscriptionService tenantSubscriptionService,
+                                 TenantEntitlementService tenantEntitlementService,
                                  AuthenticatedRequestContext requestContext) {
         this.tenantAdminService = tenantAdminService;
+        this.tenantSubscriptionService = tenantSubscriptionService;
+        this.tenantEntitlementService = tenantEntitlementService;
         this.requestContext = requestContext;
     }
 
@@ -43,6 +57,11 @@ public class TenantAdminController {
     ) {
         String actor = requestContext.resolveActor(authentication);
         return tenantAdminService.listTenants(page, size, actor);
+    }
+
+    @GetMapping("/subscription-plans")
+    public Flux<SubscriptionPlanResponse> listSubscriptionPlans() {
+        return tenantSubscriptionService.listPlans();
     }
 
     @PostMapping
@@ -100,6 +119,42 @@ public class TenantAdminController {
     ) {
         String actor = requestContext.resolveActor(authentication);
         return tenantAdminService.rotateTenantKey(id, actor);
+    }
+
+    @GetMapping("/{id}/subscription")
+    public Mono<TenantSubscriptionResponse> getSubscription(@PathVariable("id") Long id) {
+        return tenantSubscriptionService.getSubscription(id);
+    }
+
+    @PutMapping("/{id}/subscription")
+    public Mono<TenantSubscriptionResponse> upsertSubscription(
+            Authentication authentication,
+            @PathVariable("id") Long id,
+            @RequestBody Mono<TenantSubscriptionUpsertRequest> request
+    ) {
+        String actor = requestContext.resolveActor(authentication);
+        return request.flatMap(body -> tenantSubscriptionService.upsertSubscription(id, actor, body));
+    }
+
+    @GetMapping("/{id}/usage")
+    public Mono<TenantUsageResponse> getUsage(@PathVariable("id") Long id) {
+        return tenantEntitlementService.getTenantUsage(id);
+    }
+
+    @GetMapping("/{id}/feature-overrides")
+    public Mono<java.util.List<TenantFeatureOverrideResponse>> listFeatureOverrides(@PathVariable("id") Long id) {
+        return tenantSubscriptionService.listFeatureOverrides(id);
+    }
+
+    @PutMapping("/{id}/feature-overrides/{featureKey}")
+    public Mono<TenantFeatureOverrideResponse> upsertFeatureOverride(
+            Authentication authentication,
+            @PathVariable("id") Long id,
+            @PathVariable("featureKey") String featureKey,
+            @RequestBody Mono<TenantFeatureOverrideRequest> request
+    ) {
+        String actor = requestContext.resolveActor(authentication);
+        return request.flatMap(body -> tenantSubscriptionService.upsertFeatureOverride(id, featureKey, actor, body));
     }
 
 

@@ -38,13 +38,11 @@
 
     <section class="card mt-1">
         <h2>Create / edit</h2>
-        <form id="rejectAppsForm" class="split">
+        <form id="rejectAppsForm" class="split" novalidate>
             <div>
                 <div class="kvs">
                     <div class="k"><label for="policy_tag">Policy tag</label></div>
                     <div class="v"><input id="policy_tag" type="text" required/></div>
-                    <div class="k"><label for="threat_type">Threat type</label></div>
-                    <div class="v"><input id="threat_type" type="text" required/></div>
                     <div class="k"><label for="severity">Severity</label></div>
                     <div class="v">
                         <select id="severity" required>
@@ -62,14 +60,21 @@
                         <div id="reject_preview_examples" class="muted"></div>
                         <div id="reject_preview_override_note" class="muted"></div>
                     </div>
-                    <div class="k"><label for="blocked_reason">Blocked reason</label></div>
-                    <div class="v"><input id="blocked_reason" type="text" required/></div>
                     <div class="k"><label for="app_os_type">App OS type</label></div>
                     <div class="v">
                         <select id="app_os_type" required></select>
                     </div>
-                    <div class="k"><label for="app_category">App category</label></div>
-                    <div class="v"><input id="app_category" type="text" required/></div>
+                    <div class="k"><label for="catalog_app_picker">Catalog app</label></div>
+                    <div class="v">
+                        <select id="catalog_app_picker">
+                            <option value="">Select catalog app</option>
+                        </select>
+                        <div class="form-row mt-05">
+                            <button id="catalogAppApplyBtn" type="button" class="secondary">Use catalog app</button>
+                            <button id="catalogAppReloadBtn" type="button" class="secondary">Reload catalog</button>
+                        </div>
+                        <div id="catalog_app_meta" class="muted">Pick a catalog app to prefill OS, app name, publisher, and package ID.</div>
+                    </div>
                     <div class="k"><label for="app_name">App name</label></div>
                     <div class="v"><input id="app_name" type="text" required/></div>
                 </div>
@@ -80,8 +85,6 @@
                     <div class="v"><input id="publisher" type="text" placeholder="Optional"/></div>
                     <div class="k"><label for="package_id">Package ID</label></div>
                     <div class="v"><input id="package_id" type="text" placeholder="Optional"/></div>
-                    <div class="k"><label for="app_latest_version">Latest version</label></div>
-                    <div class="v"><input id="app_latest_version" type="text" required/></div>
                     <div class="k"><label for="min_allowed_version">Min allowed version</label></div>
                     <div class="v"><input id="min_allowed_version" type="text" required/></div>
                     <div class="k"><label for="status">Status</label></div>
@@ -96,6 +99,7 @@
                     <button type="submit">Save</button>
                     <button id="resetBtn" class="secondary" type="button">Reset</button>
                 </div>
+                <div id="rejectAppsFormError" class="form-message form-message--error" hidden aria-live="polite"></div>
             </div>
         </form>
     </section>

@@ -403,7 +403,15 @@ public class PoliciesController {
         String actor = requestContext.resolveActor(authentication);
         String role = requestContext.resolveRole(authentication);
         return requestContext.resolveOptionalTenantId(authentication, requestedTenantId)
-                .map(tenantId -> new PolicyContext(actor, role, tenantId));
+                .map(tenantId -> new PolicyContext(actor, role, normalizeOptionalTenantId(tenantId)))
+                .defaultIfEmpty(new PolicyContext(actor, role, null));
+    }
+
+    private String normalizeOptionalTenantId(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            return null;
+        }
+        return tenantId;
     }
 
 }

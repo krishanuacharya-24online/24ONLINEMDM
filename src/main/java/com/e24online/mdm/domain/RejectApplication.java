@@ -19,14 +19,8 @@ public class RejectApplication {
     @Column("policy_tag")
     private String policyTag;
 
-    @Column("threat_type")
-    private String threatType;
-
     @Column("severity")
     private Short severity;
-
-    @Column("blocked_reason")
-    private String blockedReason;
 
     @Column("app_name")
     private String appName;
@@ -37,14 +31,8 @@ public class RejectApplication {
     @Column("package_id")
     private String packageId;
 
-    @Column("app_category")
-    private String appCategory;
-
     @Column("app_os_type")
     private String appOsType;
-
-    @Column("app_latest_version")
-    private String appLatestVersion;
 
     @Column("min_allowed_version")
     private String minAllowedVersion;

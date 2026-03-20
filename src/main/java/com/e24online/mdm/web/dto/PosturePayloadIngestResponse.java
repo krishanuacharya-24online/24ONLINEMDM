@@ -22,6 +22,8 @@ public class PosturePayloadIngestResponse {
     private String decisionAction;
     private Short trustScore;
     private String decisionReason;
+    private String schemaCompatibilityStatus;
+    private List<String> validationWarnings = new ArrayList<>();
     private Boolean remediationRequired = Boolean.FALSE;
     private List<RemediationSummary> remediation = new ArrayList<>();
 
@@ -34,20 +36,26 @@ public class PosturePayloadIngestResponse {
                                         String decisionReason,
                                         boolean remediationRequired,
                                         List<RemediationSummary> remediation) {
-        this(payloadId,
-                status,
-                null,
-                evaluationRunId,
-                decisionResponseId,
-                decisionAction,
-                trustScore,
-                decisionReason,
-                remediationRequired,
-                remediation);
+        this.payloadId = payloadId;
+        this.status = status;
+        this.resultStatusUrl = null;
+        this.evaluationRunId = evaluationRunId;
+        this.decisionResponseId = decisionResponseId;
+        this.decisionAction = decisionAction;
+        this.trustScore = trustScore;
+        this.decisionReason = decisionReason;
+        this.schemaCompatibilityStatus = null;
+        this.validationWarnings = new ArrayList<>();
+        this.remediationRequired = remediationRequired;
+        this.remediation = remediation != null ? remediation : new ArrayList<>();
     }
 
     public void setRemediation(List<RemediationSummary> remediation) {
         this.remediation = remediation != null ? remediation : new ArrayList<>();
+    }
+
+    public void setValidationWarnings(List<String> validationWarnings) {
+        this.validationWarnings = validationWarnings != null ? validationWarnings : new ArrayList<>();
     }
 
     public Boolean isRemediationRequired() {

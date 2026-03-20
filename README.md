@@ -1,11 +1,24 @@
-# 24Online MDM (Mobile Device Management)
+# 24Online Device Posture Platform
 
 [![Java](https://img.shields.io/badge/Java-25-orange.svg)](https://openjdk.java.net/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.3-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-blue.svg)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
 
-> **Enterprise Mobile Device Management platform with real-time trust scoring, policy enforcement, and device posture evaluation.**
+> **Multi-tenant SaaS device posture, compliance, and trust-evaluation platform with manual remediation guidance.**
+
+Repository note: the repository name remains `24onlinemdm` for continuity, but the frozen product scope is not full MDM.
+
+Canonical planning documents:
+
+- `docs/FROZEN_PRODUCT_REQUIREMENTS.md`
+- `docs/IMPLEMENTATION_ROADMAP_FINAL.md`
+- `docs/AGENT_APP_API_USAGE.md`
+- `tools/24onlineMDMAgent/README.md`
+
+Desktop agent:
+
+- desktop app: `tools/24onlineMDMAgent`
 
 ---
 
@@ -34,7 +47,7 @@
 
 ## 📖 Overview
 
-24Online MDM is a comprehensive **Mobile Device Management** solution designed for enterprise environments. It provides real-time device trust evaluation, policy enforcement, and compliance management through a reactive, event-driven architecture.
+24Online is a multi-tenant device posture and compliance platform designed for enterprise environments. It provides real-time device trust evaluation, policy enforcement, and remediation guidance through a reactive, event-driven architecture.
 
 ### Core Capabilities
 
@@ -80,9 +93,9 @@ graph TB
     end
     
     subgraph "External Services"
-        M[Superset Reporting]
-        N[Zipkin Tracing]
-        O[Prometheus Metrics]
+        M[Zipkin Tracing]
+        N[Prometheus Metrics]
+        O[Grafana]
     end
     
     A --> D
@@ -229,8 +242,7 @@ flowchart LR
 | Docker | Containerization |
 | Prometheus | Metrics collection |
 | Zipkin | Distributed tracing |
-| Apache Superset 4.1.1 | Embedded reporting |
-| Redis 7 | Superset caching |
+| Native reporting UI | Fleet, remediation, and operations reporting |
 | Grafana | Dashboards (optional) |
 
 ### Build Tools
@@ -287,7 +299,7 @@ cd 24ONLINEMDM
 ### 2. Quick Start with Docker (Recommended)
 
 ```bash
-# Start all services (PostgreSQL, RabbitMQ, Zipkin, Superset)
+# Start all services (PostgreSQL, RabbitMQ, Zipkin)
 docker-compose up -d
 
 # Wait for services to be healthy (check with:)
@@ -327,7 +339,6 @@ java -jar target/24onlinemdm.jar
 | API | http://localhost:8080/api/v1 | JWT Token |
 | Actuator | http://localhost:8080/actuator | - |
 | Health | http://localhost:8080/health | - |
-| Superset | http://localhost:8088 | admin / admin |
 | Zipkin | http://localhost:9411 | - |
 | RabbitMQ Mgmt | http://localhost:15672 | guest / guest |
 
@@ -357,7 +368,6 @@ java -jar target/24onlinemdm.jar
 | `TRACING_ENABLED` | true | Enable distributed tracing |
 | `TRACING_SAMPLING_PROBABILITY` | 1.0 | Tracing sample rate |
 | `MANAGEMENT_ALLOWED_CIDRS` | 127.0.0.1/32,::1/128 | Allowed actuator CIDRs |
-| `SUPERSET_PORT` | 8088 | Superset reporting port |
 
 ### API Configuration
 
@@ -566,7 +576,7 @@ curl -X POST http://localhost:8080/api/v1/agent/posture \
 | `/tenants` | GET/POST | Manage tenants |
 | `/users` | GET/POST | Manage users |
 | `/evaluations` | POST | Trigger evaluation run |
-| `/reports` | GET | Access Superset reports |
+| `/reports` | GET | Access native fleet and remediation reports |
 
 ---
 
@@ -584,7 +594,7 @@ curl -X POST http://localhost:8080/api/v1/agent/posture \
 | Policies | `/policies/*` | Policy management screens |
 | Tenants | `/tenants` | Tenant administration |
 | Users | `/users` | User management |
-| Reports | `/reports` | Embedded Superset dashboards |
+| Reports | `/reports` | Native fleet, remediation, and reporting views |
 | Audit Trail | `/audit-trail` | Audit log viewer |
 | OS Lifecycle | `/os-lifecycle` | OS version management |
 | Catalog | `/catalog` | Application catalog |
@@ -676,13 +686,13 @@ Distributed tracing is enabled by default:
 - **Endpoint**: `http://localhost:9411`
 - **Sampling**: 100% (configurable via `TRACING_SAMPLING_PROBABILITY`)
 
-### Superset Reporting
+### Native Reporting
 
-Embedded dashboards accessible at `/reports`:
-- Device compliance overview
-- Trust score distribution
-- Policy evaluation statistics
-- Audit trail analysis
+Native reports accessible at `/reports` include:
+- Fleet visibility
+- Remediation progress
+- Score trends
+- Agent-version and capability coverage
 
 ---
 
@@ -768,7 +778,7 @@ target/site/jacoco/index.html
 
 ```bash
 # Start infrastructure
-docker-compose up -d mdm-db rabbitmq zipkin superset-db superset-redis
+docker-compose up -d mdm-db rabbitmq zipkin
 
 # Build and run application
 ./mvnw clean package
@@ -786,18 +796,12 @@ docker run -p 8080:8080 \
 | `mdm-db` | postgres:18-alpine | 5433 | MDM database |
 | `rabbitmq` | rabbitmq:3.13-management | 5672, 15672 | Message broker |
 | `zipkin` | openzipkin/zipkin:3.4.1 | 9411 | Distributed tracing |
-| `superset-db` | postgres:18-alpine | - | Superset database |
-| `superset-redis` | redis:7-alpine | - | Superset caching |
-| `superset` | 24onlinemdm-superset:4.1.1 | 8088 | Reporting UI |
-| `superset-worker` | 24onlinemdm-superset:4.1.1 | - | Superset async tasks |
-| `superset-beat` | 24onlinemdm-superset:4.1.1 | - | Superset scheduler |
 
 ### Production Checklist
 
 - [ ] Change default admin password
 - [ ] Configure HTTPS/TLS
 - [ ] Set secure JWT secret
-- [ ] Set secure Superset secret key
 - [ ] Enable audit logging
 - [ ] Configure backup strategy
 - [ ] Set up monitoring alerts
@@ -834,12 +838,6 @@ Error: 401 Unauthorized - Token expired
 Warning: Connection to RabbitMQ lost, retrying...
 ```
 **Solution**: Check RabbitMQ container status: `docker-compose ps rabbitmq`
-
-#### Superset Not Loading
-```
-Error: Connection refused to localhost:8088
-```
-**Solution**: Ensure Superset services are healthy: `docker-compose ps superset`
 
 ### Debug Mode
 

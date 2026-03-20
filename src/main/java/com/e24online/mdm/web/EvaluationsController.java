@@ -37,6 +37,12 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import static com.e24online.mdm.utils.WorkflowStatusModel.EVALUATION_CANCELLABLE_STATUSES;
+import static com.e24online.mdm.utils.WorkflowStatusModel.EVALUATION_TERMINAL_STATUSES;
+import static com.e24online.mdm.utils.WorkflowStatusModel.canonicalRemediationStatus;
+import static com.e24online.mdm.utils.WorkflowStatusModel.isCompletionTrackedRemediationStatus;
+import static com.e24online.mdm.utils.WorkflowStatusModel.isValidRemediationStatus;
+
 @RestController
 @RequestMapping("${api.version.prefix:v1}/evaluations")
 @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
@@ -45,9 +51,8 @@ public class EvaluationsController {
 
     private static final int DEFAULT_PAGE_SIZE = 50;
     private static final int MAX_PAGE_SIZE = 500;
-    private static final Set<String> CANCELLABLE_STATUSES = Set.of("QUEUED", "IN_PROGRESS", "VALIDATING", "RUNNING");
-    private static final Set<String> TERMINAL_STATUSES = Set.of("COMPLETED", "FAILED", "CANCELLED");
-    private static final Set<String> VALID_REMEDIATION_STATUSES = Set.of("PENDING", "SENT", "ACKED", "SKIPPED", "FAILED");
+    private static final Set<String> CANCELLABLE_STATUSES = EVALUATION_CANCELLABLE_STATUSES;
+    private static final Set<String> TERMINAL_STATUSES = EVALUATION_TERMINAL_STATUSES;
 
     private final PostureEvaluationRunRepository runRepository;
     private final PostureEvaluationMatchRepository matchRepository;
@@ -274,15 +279,15 @@ public class EvaluationsController {
         if (normalized == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "remediation_status is required");
         }
-        String upper = normalized.toUpperCase(Locale.ROOT);
-        if (!VALID_REMEDIATION_STATUSES.contains(upper)) {
+        String upper = canonicalRemediationStatus(normalized);
+        if (!isValidRemediationStatus(upper)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid remediation_status");
         }
         return upper;
     }
 
     private OffsetDateTime resolveCompletedAt(String remediationStatus, OffsetDateTime requestedCompletedAt) {
-        if ("ACKED".equals(remediationStatus) || "SKIPPED".equals(remediationStatus) || "FAILED".equals(remediationStatus)) {
+        if (isCompletionTrackedRemediationStatus(remediationStatus)) {
             return requestedCompletedAt != null ? requestedCompletedAt : OffsetDateTime.now();
         }
         return null;
@@ -319,7 +324,7 @@ public class EvaluationsController {
         List<DevicePosturePayload> failedPayloads = payloadRepository.findPaged(
             tenantId, 
             deviceExternalId, 
-            "PROCESSING_FAILED", 
+            "FAILED", 
             100, 
             0
         );
@@ -333,21 +338,13 @@ public class EvaluationsController {
             ));
         }
         
-        // Reset each payload to PENDING status
+        // Requeue each payload through the canonical queue-backed workflow.
         int reprocessed = 0;
         for (DevicePosturePayload payload : failedPayloads) {
             try {
-                // Update payload status back to PENDING
-                payload.setProcessStatus("PENDING");
-                payload.setProcessError(null);
-                payload.setProcessedAt(null);
-                payloadRepository.save(payload);
-                
-                // Trigger evaluation
-                workflowService.evaluateExistingPayload(payload.getTenantId(), payload.getId());
+                workflowService.queueExistingPayload(payload.getTenantId(), payload.getId());
                 reprocessed++;
             } catch (Exception e) {
-                // Log but continue with other payloads
                 log.error("Failed to reprocess payload " + payload.getId() + ": " + e.getMessage());
             }
         }

@@ -51,6 +51,7 @@ public class DeviceEnrollmentService {
     private final BlockingDb blockingDb;
     private final TransactionTemplate transactionTemplate;
     private final AuditEventService auditEventService;
+    private final TenantEntitlementService tenantEntitlementService;
     private final long deviceTokenTtlMinutes;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -63,6 +64,7 @@ public class DeviceEnrollmentService {
                                    BlockingDb blockingDb,
                                    TransactionTemplate transactionTemplate,
                                    AuditEventService auditEventService,
+                                   TenantEntitlementService tenantEntitlementService,
                                    @Value("${security.device-token.ttl-minutes:10080}") long deviceTokenTtlMinutes) {
         this.enrollmentRepository = enrollmentRepository;
         this.setupKeyRepository = setupKeyRepository;
@@ -73,6 +75,7 @@ public class DeviceEnrollmentService {
         this.blockingDb = blockingDb;
         this.transactionTemplate = transactionTemplate;
         this.auditEventService = auditEventService;
+        this.tenantEntitlementService = tenantEntitlementService;
         this.deviceTokenTtlMinutes = Math.max(1L, deviceTokenTtlMinutes);
     }
 
@@ -318,6 +321,7 @@ public class DeviceEnrollmentService {
                 DeviceEnrollmentServiceConstants.SUCCESS,
                 metadata
         );
+        tenantEntitlementService.refreshUsageSnapshotForTenantCode(normalizedTenant);
         return result;
     }
 
@@ -378,6 +382,7 @@ public class DeviceEnrollmentService {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid setup key");
             }
 
+            tenantEntitlementService.assertCanEnrollDevice(normalizedTenant);
             return createEnrollmentAndCredential(
                     normalizedTenant,
                     normalizedAgentId,
@@ -406,6 +411,7 @@ public class DeviceEnrollmentService {
                 DeviceEnrollmentServiceConstants.SUCCESS,
                 metadata
         );
+        tenantEntitlementService.refreshUsageSnapshotForTenantCode(tenantRef[0]);
         return claim;
     }
 

@@ -4,20 +4,39 @@ import com.e24online.mdm.enums.Role;
 import com.e24online.mdm.records.lookup.LookupRow;
 import com.e24online.mdm.records.lookup.LookupUpdateRequest;
 import com.e24online.mdm.records.lookup.LookupUpsertRequest;
+import com.e24online.mdm.records.operations.QueueHealthEntryResponse;
+import com.e24online.mdm.records.operations.QueueHealthSummaryResponse;
+import com.e24online.mdm.records.operations.PipelineDailyTrendResponse;
+import com.e24online.mdm.records.operations.PipelineFailureCategoryResponse;
+import com.e24online.mdm.records.operations.PipelineOperabilitySummaryResponse;
 import com.e24online.mdm.records.posture.evaluation.AppliedPolicy;
 import com.e24online.mdm.records.posture.evaluation.EvaluationComputation;
 import com.e24online.mdm.records.posture.evaluation.LifecycleResolution;
 import com.e24online.mdm.records.posture.evaluation.MatchDraft;
 import com.e24online.mdm.records.posture.evaluation.ParsedPosture;
 import com.e24online.mdm.records.posture.evaluation.RemediationCandidate;
+import com.e24online.mdm.records.posture.evaluation.RemediationStatusTransition;
 import com.e24online.mdm.records.posture.evaluation.SavedMatch;
 import com.e24online.mdm.records.posture.evaluation.SavedRemediation;
 import com.e24online.mdm.records.posture.evaluation.ScoreSignal;
+import com.e24online.mdm.records.reports.AgentCapabilityCoverageResponse;
+import com.e24online.mdm.records.reports.AgentVersionDistributionResponse;
+import com.e24online.mdm.records.reports.FleetOperationalSummaryResponse;
+import com.e24online.mdm.records.reports.RemediationFleetSummaryResponse;
+import com.e24online.mdm.records.reports.ScoreTrendPointResponse;
+import com.e24online.mdm.records.reports.TopFailingRuleResponse;
+import com.e24online.mdm.records.reports.TopRiskyApplicationResponse;
 import com.e24online.mdm.records.tenant.TenantContext;
+import com.e24online.mdm.records.tenant.SubscriptionPlanResponse;
+import com.e24online.mdm.records.tenant.TenantFeatureOverrideRequest;
+import com.e24online.mdm.records.tenant.TenantFeatureOverrideResponse;
 import com.e24online.mdm.records.tenant.TenantKeyMetadataResponse;
 import com.e24online.mdm.records.tenant.TenantKeyRotateResponse;
 import com.e24online.mdm.records.tenant.TenantResponse;
+import com.e24online.mdm.records.tenant.TenantSubscriptionResponse;
+import com.e24online.mdm.records.tenant.TenantSubscriptionUpsertRequest;
 import com.e24online.mdm.records.tenant.TenantUpsertRequest;
+import com.e24online.mdm.records.tenant.TenantUsageResponse;
 import com.e24online.mdm.records.ui.DataTablePage;
 import com.e24online.mdm.records.ui.PageParams;
 import com.e24online.mdm.records.user.AccessScope;
@@ -25,6 +44,7 @@ import com.e24online.mdm.records.user.UserPrincipal;
 import com.e24online.mdm.records.user.UserResponse;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -140,6 +160,44 @@ class RecordsCoverageTest {
         assertEquals("Tenant A", tenantUpsert.name());
         assertEquals("ACTIVE", tenantUpsert.status());
 
+        SubscriptionPlanResponse planResponse = new SubscriptionPlanResponse(
+                "TRIAL", "Trial", "desc", 25, 10, 5000L, 30, false, false
+        );
+        assertEquals("TRIAL", planResponse.planCode());
+        assertEquals("Trial", planResponse.planName());
+        assertEquals("desc", planResponse.description());
+
+        TenantFeatureOverrideRequest overrideRequest = new TenantFeatureOverrideRequest(true, now.plusDays(1), "manual");
+        assertTrue(overrideRequest.enabled());
+        assertEquals("manual", overrideRequest.reason());
+
+        TenantFeatureOverrideResponse overrideResponse = new TenantFeatureOverrideResponse(
+                "PREMIUM_REPORTING", true, now.plusDays(1), "manual"
+        );
+        assertEquals("PREMIUM_REPORTING", overrideResponse.featureKey());
+        assertTrue(overrideResponse.enabled());
+
+        TenantSubscriptionUpsertRequest subscriptionUpsert = new TenantSubscriptionUpsertRequest(
+                "TRIAL", "TRIALING", now, now.plusDays(30), now.plusDays(37), "notes"
+        );
+        assertEquals("TRIAL", subscriptionUpsert.planCode());
+        assertEquals("TRIALING", subscriptionUpsert.subscriptionState());
+
+        TenantSubscriptionResponse subscriptionResponse = new TenantSubscriptionResponse(
+                1L, "tenant-a", "TRIAL", "Trial", "TRIALING", 25, 10, 5000L,
+                30, false, false, now, now.plusDays(30), now.plusDays(37), "notes", List.of(overrideResponse)
+        );
+        assertEquals("TRIAL", subscriptionResponse.planCode());
+        assertEquals("TRIALING", subscriptionResponse.subscriptionState());
+        assertEquals("notes", subscriptionResponse.notes());
+        assertEquals(1, subscriptionResponse.featureOverrides().size());
+
+        TenantUsageResponse tenantUsageResponse = new TenantUsageResponse(
+                1L, "tenant-a", now.toLocalDate(), 3L, 4L, 5L, 25, 10, 5000L, false, false, false
+        );
+        assertEquals("tenant-a", tenantUsageResponse.tenantId());
+        assertEquals(5L, tenantUsageResponse.posturePayloadCount());
+
         UserPrincipal principal = new UserPrincipal(1L, "user", "TENANT_ADMIN", 99L);
         assertEquals(1L, principal.id());
         assertEquals("user", principal.username());
@@ -152,6 +210,141 @@ class RecordsCoverageTest {
         assertEquals("TENANT_ADMIN", user.role());
         assertEquals("ACTIVE", user.status());
         assertEquals("tenant-a", user.tenantId());
+
+        RemediationFleetSummaryResponse fleetSummary = new RemediationFleetSummaryResponse(
+                "tenant-a", 10L, 6L, 4L, 3L, 2L, 1L, 4L, now
+        );
+        assertEquals("tenant-a", fleetSummary.scopeTenantId());
+        assertEquals(10L, fleetSummary.totalTrackedIssues());
+        assertEquals(6L, fleetSummary.openIssues());
+        assertEquals(4L, fleetSummary.resolvedIssues());
+        assertEquals(3L, fleetSummary.devicesWithOpenIssues());
+        assertEquals(2L, fleetSummary.awaitingVerificationIssues());
+        assertEquals(1L, fleetSummary.stillOpenIssues());
+        assertEquals(4L, fleetSummary.resolvedOnRescanIssues());
+        assertEquals(now, fleetSummary.latestResolvedAt());
+
+        FleetOperationalSummaryResponse operationalSummary = new FleetOperationalSummaryResponse(
+                "tenant-a", 72, 25L, 7L, 4L, 1L, 3L, 18L, 2L, 1L, 4L
+        );
+        assertEquals("tenant-a", operationalSummary.scopeTenantId());
+        assertEquals(72, operationalSummary.staleAfterHours());
+        assertEquals(25L, operationalSummary.totalDevices());
+        assertEquals(7L, operationalSummary.staleDevices());
+        assertEquals(4L, operationalSummary.highRiskDevices());
+        assertEquals(1L, operationalSummary.criticalDevices());
+        assertEquals(3L, operationalSummary.lifecycleRiskDevices());
+        assertEquals(18L, operationalSummary.supportedDevices());
+        assertEquals(2L, operationalSummary.eolDevices());
+        assertEquals(1L, operationalSummary.eeolDevices());
+        assertEquals(4L, operationalSummary.notTrackedDevices());
+
+        TopFailingRuleResponse topFailingRule = new TopFailingRuleResponse(
+                44L, "RULE-44", "OS", "Outdated OS", "BLOCK", 4L, 2L, 5L, now
+        );
+        assertEquals(44L, topFailingRule.ruleId());
+        assertEquals("RULE-44", topFailingRule.ruleCode());
+        assertEquals("OS", topFailingRule.ruleTag());
+        assertEquals("Outdated OS", topFailingRule.ruleDescription());
+        assertEquals("BLOCK", topFailingRule.complianceAction());
+        assertEquals(4L, topFailingRule.impactedDevices());
+        assertEquals(2L, topFailingRule.blockedDevices());
+        assertEquals(5L, topFailingRule.currentMatchCount());
+        assertEquals(now, topFailingRule.latestEvaluatedAt());
+
+        TopRiskyApplicationResponse topRiskyApplication = new TopRiskyApplicationResponse(
+                "AnyDesk", "com.anydesk", "AnyDesk", "WINDOWS", "REMOTE_ACCESS", 3L, 1L, 3L, now
+        );
+        assertEquals("AnyDesk", topRiskyApplication.appName());
+        assertEquals("com.anydesk", topRiskyApplication.packageId());
+        assertEquals("AnyDesk", topRiskyApplication.publisher());
+        assertEquals("WINDOWS", topRiskyApplication.appOsType());
+        assertEquals("REMOTE_ACCESS", topRiskyApplication.policyTag());
+        assertEquals(3L, topRiskyApplication.impactedDevices());
+        assertEquals(1L, topRiskyApplication.blockedDevices());
+        assertEquals(3L, topRiskyApplication.currentMatchCount());
+        assertEquals(now, topRiskyApplication.latestEvaluatedAt());
+
+        AgentVersionDistributionResponse agentVersion = new AgentVersionDistributionResponse(
+                "6.2.1", "SUPPORTED_WITH_WARNINGS", 9L, 7L, now
+        );
+        assertEquals("6.2.1", agentVersion.agentVersion());
+        assertEquals("SUPPORTED_WITH_WARNINGS", agentVersion.schemaCompatibilityStatus());
+        assertEquals(9L, agentVersion.deviceCount());
+        assertEquals(7L, agentVersion.devicesWithCapabilities());
+        assertEquals(now, agentVersion.latestCaptureTime());
+
+        AgentCapabilityCoverageResponse capabilityCoverage = new AgentCapabilityCoverageResponse(
+                "payload_ack", 6L, now
+        );
+        assertEquals("payload_ack", capabilityCoverage.capabilityKey());
+        assertEquals(6L, capabilityCoverage.deviceCount());
+        assertEquals(now, capabilityCoverage.latestCaptureTime());
+
+        ScoreTrendPointResponse scoreTrendPoint = new ScoreTrendPointResponse(
+                LocalDate.now().minusDays(1), 11L, 8L, 73.5, 6L, 2L, 1L, 2L
+        );
+        assertEquals(11L, scoreTrendPoint.evaluationCount());
+        assertEquals(8L, scoreTrendPoint.distinctDevices());
+        assertEquals(73.5, scoreTrendPoint.averageTrustScore());
+        assertEquals(6L, scoreTrendPoint.allowCount());
+        assertEquals(2L, scoreTrendPoint.notifyCount());
+        assertEquals(1L, scoreTrendPoint.quarantineCount());
+        assertEquals(2L, scoreTrendPoint.blockCount());
+
+        QueueHealthEntryResponse queueHealthEntry = new QueueHealthEntryResponse(
+                "POSTURE_EVALUATION", "posture.queue", "posture.dlq", 5L, 1L, 2L, 2, 6, "DLQ_BACKLOG", null
+        );
+        assertEquals("POSTURE_EVALUATION", queueHealthEntry.pipelineKey());
+        assertEquals("posture.queue", queueHealthEntry.queueName());
+        assertEquals("posture.dlq", queueHealthEntry.deadLetterQueueName());
+        assertEquals(5L, queueHealthEntry.readyMessages());
+        assertEquals(1L, queueHealthEntry.deadLetterMessages());
+        assertEquals(2L, queueHealthEntry.activeConsumers());
+        assertEquals(2, queueHealthEntry.configuredConsumers());
+        assertEquals(6, queueHealthEntry.maxConsumers());
+        assertEquals("DLQ_BACKLOG", queueHealthEntry.status());
+
+        QueueHealthSummaryResponse queueHealthSummary = new QueueHealthSummaryResponse(
+                now, "DEGRADED", 5L, 1L, List.of(queueHealthEntry)
+        );
+        assertEquals(now, queueHealthSummary.checkedAt());
+        assertEquals("DEGRADED", queueHealthSummary.overallStatus());
+        assertEquals(5L, queueHealthSummary.totalReadyMessages());
+        assertEquals(1L, queueHealthSummary.totalDeadLetterMessages());
+        assertEquals(1, queueHealthSummary.queues().size());
+
+        PipelineOperabilitySummaryResponse pipelineSummary = new PipelineOperabilitySummaryResponse(
+                now, 4L, 1L, 2L, 1L, 7L, 3L, 2L, 5L, now.minusHours(2), 120L
+        );
+        assertEquals(now, pipelineSummary.checkedAt());
+        assertEquals(4L, pipelineSummary.inFlightPayloads());
+        assertEquals(1L, pipelineSummary.receivedPayloads());
+        assertEquals(2L, pipelineSummary.queuedPayloads());
+        assertEquals(1L, pipelineSummary.validatedPayloads());
+        assertEquals(7L, pipelineSummary.failedPayloads());
+        assertEquals(3L, pipelineSummary.failedLast24Hours());
+        assertEquals(2L, pipelineSummary.queueFailuresLast7Days());
+        assertEquals(5L, pipelineSummary.evaluationFailuresLast7Days());
+        assertEquals(120L, pipelineSummary.oldestInFlightAgeMinutes());
+
+        PipelineFailureCategoryResponse failureCategory = new PipelineFailureCategoryResponse(
+                "QUEUE_PUBLISH", 3L, now, "Queue publish failed: broker unavailable"
+        );
+        assertEquals("QUEUE_PUBLISH", failureCategory.categoryKey());
+        assertEquals(3L, failureCategory.failureCount());
+        assertEquals(now, failureCategory.latestFailureAt());
+        assertEquals("Queue publish failed: broker unavailable", failureCategory.sampleProcessError());
+
+        PipelineDailyTrendResponse pipelineTrend = new PipelineDailyTrendResponse(
+                LocalDate.now().minusDays(1), 12L, 10L, 2L, 9L, 1L, 3L
+        );
+        assertEquals(12L, pipelineTrend.ingestSuccessCount());
+        assertEquals(10L, pipelineTrend.queueSuccessCount());
+        assertEquals(2L, pipelineTrend.queueFailureCount());
+        assertEquals(9L, pipelineTrend.evaluationSuccessCount());
+        assertEquals(1L, pipelineTrend.evaluationFailureCount());
+        assertEquals(3L, pipelineTrend.failedPayloadCount());
     }
 
     @Test
@@ -246,5 +439,17 @@ class RecordsCoverageTest {
         assertNull(savedRemediation.remediation());
         assertNull(savedRemediation.rule());
         assertEquals("ENFORCE", savedRemediation.enforceMode());
+
+        RemediationStatusTransition transition = new RemediationStatusTransition(
+                12L, 13L, 14L, "MATCH", "SYSTEM_RULE", "DELIVERED", "STILL_OPEN", captureTime
+        );
+        assertEquals(12L, transition.remediationId());
+        assertEquals(13L, transition.postureEvaluationRunId());
+        assertEquals(14L, transition.remediationRuleId());
+        assertEquals("MATCH", transition.sourceType());
+        assertEquals("SYSTEM_RULE", transition.matchSource());
+        assertEquals("DELIVERED", transition.fromStatus());
+        assertEquals("STILL_OPEN", transition.toStatus());
+        assertEquals(captureTime, transition.completedAt());
     }
 }

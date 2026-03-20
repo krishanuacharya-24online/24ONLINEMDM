@@ -9,6 +9,7 @@ import com.e24online.mdm.domain.RemediationRule;
 import com.e24online.mdm.domain.RuleRemediationMapping;
 import com.e24online.mdm.records.posture.evaluation.MatchDraft;
 import com.e24online.mdm.records.posture.evaluation.ParsedPosture;
+import com.e24online.mdm.records.posture.evaluation.RemediationStatusTransition;
 import com.e24online.mdm.records.posture.evaluation.SavedMatch;
 import com.e24online.mdm.records.posture.evaluation.SavedRemediation;
 import com.e24online.mdm.repository.PostureEvaluationMatchRepository;
@@ -19,21 +20,28 @@ import com.e24online.mdm.web.dto.PosturePayloadIngestResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,6 +59,9 @@ class RemediationServiceTest {
     @Mock
     private PostureEvaluationMatchRepository matchRepository;
 
+    @Mock
+    private NamedParameterJdbcTemplate jdbc;
+
     private ObjectMapper objectMapper;
     private RemediationService service;
 
@@ -62,6 +73,7 @@ class RemediationServiceTest {
                 remediationRuleRepository,
                 remediationRepository,
                 matchRepository,
+                jdbc,
                 objectMapper,
                 reactor.core.scheduler.Schedulers.immediate()
         );
@@ -108,7 +120,7 @@ class RemediationServiceTest {
         assertEquals(2, remediations.size()); // duplicate match mapping is deduped
         assertEquals(200L, remediations.get(0).rule().getId());
         assertEquals(201L, remediations.get(1).rule().getId());
-        assertEquals("PENDING", remediations.get(0).remediation().getRemediationStatus());
+        assertEquals("PROPOSED", remediations.get(0).remediation().getRemediationStatus());
     }
 
     @Test
@@ -153,7 +165,7 @@ class RemediationServiceTest {
 
         PostureEvaluationRemediation remediation = new PostureEvaluationRemediation();
         remediation.setId(401L);
-        remediation.setRemediationStatus("PENDING");
+        remediation.setRemediationStatus("PROPOSED");
         remediation.setInstructionOverride("{\"steps\":[\"do-a\"]}");
         RemediationRule rule = remediationRule(402L, null, null, true);
         SavedRemediation savedRemediation = new SavedRemediation(remediation, rule, "AUTO");
@@ -184,6 +196,103 @@ class RemediationServiceTest {
         assertEquals(30L, response.getEvaluationRunId());
         assertEquals(901L, response.getDecisionResponseId());
         assertEquals(1, response.getRemediation().size());
+    }
+
+    @Test
+    void reconcilePriorOpenRemediations_marksMatchingPriorRowsStillOpen() {
+        OffsetDateTime now = OffsetDateTime.now();
+
+        PostureEvaluationRun currentRun = new PostureEvaluationRun();
+        currentRun.setId(10L);
+        currentRun.setDeviceTrustProfileId(20L);
+
+        PostureEvaluationMatch match = new PostureEvaluationMatch();
+        match.setId(100L);
+        SavedMatch currentMatch = new SavedMatch(
+                match,
+                new MatchDraft("SYSTEM_RULE", 1L, null, null, null, "SUPPORTED", 99L, (short) 3, "BLOCK", (short) -10, "{}")
+        );
+
+        PostureEvaluationRemediation currentRemediation = new PostureEvaluationRemediation();
+        currentRemediation.setId(501L);
+        currentRemediation.setPostureEvaluationRunId(10L);
+        currentRemediation.setRemediationRuleId(200L);
+        currentRemediation.setPostureEvaluationMatchId(100L);
+        currentRemediation.setSourceType("MATCH");
+        currentRemediation.setRemediationStatus("PROPOSED");
+
+        when(jdbc.queryForList(anyString(), any(MapSqlParameterSource.class))).thenReturn(List.of(priorRow(
+                900L,
+                8L,
+                200L,
+                "MATCH",
+                "USER_ACKNOWLEDGED",
+                now.minusDays(1),
+                "SYSTEM_RULE",
+                1L,
+                null,
+                null,
+                null
+        )));
+        when(jdbc.batchUpdate(anyString(), any(MapSqlParameterSource[].class))).thenReturn(new int[]{1});
+
+        List<RemediationStatusTransition> transitions = service.reconcilePriorOpenRemediations(
+                currentRun,
+                List.of(currentMatch),
+                List.of(new SavedRemediation(currentRemediation, remediationRule(200L, null, null, true), "AUTO")),
+                now
+        );
+
+        assertEquals(1, transitions.size());
+        assertEquals("USER_ACKNOWLEDGED", transitions.getFirst().fromStatus());
+        assertEquals("STILL_OPEN", transitions.getFirst().toStatus());
+        assertNull(transitions.getFirst().completedAt());
+
+        ArgumentCaptor<MapSqlParameterSource[]> batchCaptor = ArgumentCaptor.forClass(MapSqlParameterSource[].class);
+        verify(jdbc).batchUpdate(anyString(), batchCaptor.capture());
+        assertEquals("STILL_OPEN", batchCaptor.getValue()[0].getValue("status"));
+        assertNull(batchCaptor.getValue()[0].getValue("completedAt"));
+    }
+
+    @Test
+    void reconcilePriorOpenRemediations_marksMissingPriorRowsResolvedOnRescan() {
+        OffsetDateTime now = OffsetDateTime.now();
+
+        PostureEvaluationRun currentRun = new PostureEvaluationRun();
+        currentRun.setId(10L);
+        currentRun.setDeviceTrustProfileId(20L);
+
+        when(jdbc.queryForList(anyString(), any(MapSqlParameterSource.class))).thenReturn(List.of(priorRow(
+                901L,
+                7L,
+                201L,
+                "DECISION",
+                "DELIVERED",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        )));
+        when(jdbc.batchUpdate(anyString(), any(MapSqlParameterSource[].class))).thenReturn(new int[]{1});
+
+        List<RemediationStatusTransition> transitions = service.reconcilePriorOpenRemediations(
+                currentRun,
+                List.of(),
+                List.of(),
+                now
+        );
+
+        assertEquals(1, transitions.size());
+        assertEquals("DELIVERED", transitions.getFirst().fromStatus());
+        assertEquals("RESOLVED_ON_RESCAN", transitions.getFirst().toStatus());
+        assertEquals(now, transitions.getFirst().completedAt());
+
+        ArgumentCaptor<MapSqlParameterSource[]> batchCaptor = ArgumentCaptor.forClass(MapSqlParameterSource[].class);
+        verify(jdbc).batchUpdate(anyString(), batchCaptor.capture());
+        assertEquals("RESOLVED_ON_RESCAN", batchCaptor.getValue()[0].getValue("status"));
+        assertEquals(now, batchCaptor.getValue()[0].getValue("completedAt"));
     }
 
     private RuleRemediationMapping mapping(Long id,
@@ -256,5 +365,31 @@ class RemediationServiceTest {
         if (!value.contains(expectedPart)) {
             throw new AssertionError("Expected payload to contain: " + expectedPart + " but was: " + value);
         }
+    }
+
+    private Map<String, Object> priorRow(Long remediationId,
+                                         Long runId,
+                                         Long remediationRuleId,
+                                         String sourceType,
+                                         String remediationStatus,
+                                         OffsetDateTime completedAt,
+                                         String matchSource,
+                                         Long systemRuleId,
+                                         Long rejectApplicationId,
+                                         Long trustScorePolicyId,
+                                         Long osReleaseLifecycleMasterId) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", remediationId);
+        row.put("posture_evaluation_run_id", runId);
+        row.put("remediation_rule_id", remediationRuleId);
+        row.put("source_type", sourceType);
+        row.put("remediation_status", remediationStatus);
+        row.put("completed_at", completedAt);
+        row.put("match_source", matchSource);
+        row.put("system_information_rule_id", systemRuleId);
+        row.put("reject_application_list_id", rejectApplicationId);
+        row.put("trust_score_policy_id", trustScorePolicyId);
+        row.put("os_release_lifecycle_master_id", osReleaseLifecycleMasterId);
+        return row;
     }
 }

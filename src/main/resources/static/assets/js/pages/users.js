@@ -1,4 +1,4 @@
-import { apiFetch, fetchAuthenticatedUser } from '../api.js';
+import { apiFetch, apiFetchAllPages, fetchAuthenticatedUser } from '../api.js';
 import { LOOKUP_TYPES, populateLookupSelect } from '../lookups.js';
 
 const ROLE_OPTIONS = ['PRODUCT_ADMIN', 'TENANT_ADMIN', 'TENANT_USER'];
@@ -89,8 +89,7 @@ async function loadTenants() {
     return;
   }
   const current = tenantSelect.value;
-  const items = await apiFetch('/v1/admin/tenants?size=500');
-  const tenants = Array.isArray(items) ? items : [];
+  const tenants = await apiFetchAllPages('/v1/admin/tenants', { pageSize: 100 });
 
   tenantSelect.innerHTML = '<option value="">None</option>';
   tenants.forEach((tenant) => {
@@ -183,8 +182,8 @@ async function loadUserEnrollments(userId) {
     renderUserEnrollments([], null);
     return;
   }
-  const rows = await apiFetch(`/v1/devices/enrollments?user_id=${encodeURIComponent(userId)}&size=200`);
-  renderUserEnrollments(Array.isArray(rows) ? rows : [], userId);
+  const rows = await apiFetchAllPages(`/v1/devices/enrollments?user_id=${encodeURIComponent(userId)}`, { pageSize: 100 });
+  renderUserEnrollments(rows, userId);
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

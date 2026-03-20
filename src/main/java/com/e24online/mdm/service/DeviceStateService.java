@@ -7,6 +7,7 @@ import com.e24online.mdm.domain.OsReleaseLifecycleMaster;
 import com.e24online.mdm.records.cache.CachedLifecycleRows;
 import com.e24online.mdm.records.posture.evaluation.LifecycleResolution;
 import com.e24online.mdm.records.posture.evaluation.ParsedPosture;
+import com.e24online.mdm.utils.TextSanitizer;
 import com.e24online.mdm.repository.DeviceInstalledApplicationRepository;
 import com.e24online.mdm.repository.DeviceSystemSnapshotRepository;
 import com.e24online.mdm.repository.DeviceTrustProfileRepository;
@@ -220,27 +221,32 @@ public class DeviceStateService {
         Set<String> dedupe = new HashSet<>();
 
         for (JsonNode appNode : parsed.installedApps()) {
-            String appName = trimToNullAndCap(text(appNode, "app_name"), MAX_TEXT_LENGTH);
+            String packageId = trimToNullAndCap(TextSanitizer.sanitizeText(text(appNode, "package_id")), MAX_TEXT_LENGTH);
+            String appName = trimToNullAndCap(
+                    TextSanitizer.sanitizeAppDisplayName(text(appNode, "app_name"), packageId),
+                    MAX_TEXT_LENGTH
+            );
             if (appName == null) {
                 continue;
             }
-
             String appOsType = normalizeUpper(firstNonBlank(
-                    trimToNullAndCap(text(appNode, "app_os_type"), MAX_TEXT_LENGTH),
-                    trimToNullAndCap(text(appNode, "os_type"), MAX_TEXT_LENGTH),
+                    trimToNullAndCap(TextSanitizer.sanitizeText(text(appNode, "app_os_type")), MAX_TEXT_LENGTH),
+                    trimToNullAndCap(TextSanitizer.sanitizeText(text(appNode, "os_type")), MAX_TEXT_LENGTH),
                     parsed.osType()
             ));
             if (appOsType == null || !APP_OS_TYPES.contains(appOsType)) {
                 continue;
             }
 
-            String packageId = trimToNullAndCap(text(appNode, "package_id"), MAX_TEXT_LENGTH);
             String dedupeKey = appOsType + "::" + (packageId == null ? "" : packageId.toLowerCase(Locale.ROOT)) + "::" + appName.toLowerCase(Locale.ROOT);
             if (!dedupe.add(dedupeKey)) {
                 continue;
             }
 
-            String status = normalizeUpper(firstNonBlank(trimToNullAndCap(text(appNode, "status"), MAX_TEXT_LENGTH), "ACTIVE"));
+            String status = normalizeUpper(firstNonBlank(
+                    trimToNullAndCap(TextSanitizer.sanitizeText(text(appNode, "status")), MAX_TEXT_LENGTH),
+                    "ACTIVE"
+            ));
             if (!Set.of("ACTIVE", "REMOVED", "UNKNOWN").contains(status)) {
                 status = "ACTIVE";
             }
@@ -250,13 +256,13 @@ public class DeviceStateService {
                     .addValue("profileId", profile.getId())
                     .addValue("captureTime", parsed.captureTime())
                     .addValue("appName", appName)
-                    .addValue("publisher", trimToNullAndCap(text(appNode, "publisher"), MAX_TEXT_LENGTH))
+                    .addValue("publisher", trimToNullAndCap(TextSanitizer.sanitizeText(text(appNode, "publisher")), MAX_TEXT_LENGTH))
                     .addValue("packageId", packageId)
                     .addValue("appOsType", appOsType)
-                    .addValue("appVersion", trimToNullAndCap(text(appNode, "app_version"), MAX_VERSION_LENGTH))
-                    .addValue("latestAvailableVersion", trimToNullAndCap(text(appNode, "latest_available_version"), MAX_VERSION_LENGTH))
+                    .addValue("appVersion", trimToNullAndCap(TextSanitizer.sanitizeText(text(appNode, "app_version")), MAX_VERSION_LENGTH))
+                    .addValue("latestAvailableVersion", trimToNullAndCap(TextSanitizer.sanitizeText(text(appNode, "latest_available_version")), MAX_VERSION_LENGTH))
                     .addValue("systemApp", boolValue(appNode.get("is_system_app")))
-                    .addValue("installSource", trimToNullAndCap(text(appNode, "install_source"), MAX_TEXT_LENGTH))
+                    .addValue("installSource", trimToNullAndCap(TextSanitizer.sanitizeText(text(appNode, "install_source")), MAX_TEXT_LENGTH))
                     .addValue("status", status)
                     .addValue("createdAt", now)
                     .addValue("createdBy", "posture-parser");

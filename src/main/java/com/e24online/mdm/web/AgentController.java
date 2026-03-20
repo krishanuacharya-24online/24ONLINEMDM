@@ -11,6 +11,7 @@ import com.e24online.mdm.repository.TenantApiKeyRepository;
 import com.e24online.mdm.repository.TenantRepository;
 import com.e24online.mdm.service.BlockingDb;
 import com.e24online.mdm.service.DeviceEnrollmentService;
+import com.e24online.mdm.service.RemediationService;
 import com.e24online.mdm.service.WorkflowOrchestrationService;
 import com.e24online.mdm.web.dto.DecisionAckRequest;
 import com.e24online.mdm.web.dto.DecisionAckResponse;
@@ -44,9 +45,16 @@ import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static com.e24online.mdm.utils.WorkflowStatusModel.PAYLOAD_PROCESS_STATUSES;
+import static com.e24online.mdm.utils.WorkflowStatusModel.canonicalDeliveryStatus;
+import static com.e24online.mdm.utils.WorkflowStatusModel.isAcknowledgedDeliveryStatus;
+import static com.e24online.mdm.utils.WorkflowStatusModel.isDeliveryAttemptStatus;
+import static com.e24online.mdm.utils.WorkflowStatusModel.isValidDeliveryStatus;
 
 @RestController
 @RequestMapping("${api.version.prefix:v1}")
@@ -55,15 +63,12 @@ public class AgentController {
     private static final int DEFAULT_PAGE_SIZE = 50;
     private static final int MAX_PAGE_SIZE = 500;
     private static final int MAX_ERROR_MESSAGE_LENGTH = 2000;
-    private static final Set<String> PROCESS_STATUSES =
-            Set.of("RECEIVED", "QUEUED", "VALIDATED", "EVALUATED", "FAILED");
-    private static final Set<String> DELIVERY_STATUSES =
-            Set.of("PENDING", "SENT", "ACKED", "FAILED", "TIMEOUT");
     private static final int TENANT_KEY_LOOKBACK_LIMIT = 5;
 
     private final WorkflowOrchestrationService workflowService;
     private final DevicePosturePayloadRepository payloadRepository;
     private final DeviceDecisionResponseRepository decisionRepository;
+    private final RemediationService remediationService;
     private final TenantRepository tenantRepository;
     private final TenantApiKeyRepository tenantApiKeyRepository;
     private final PasswordEncoder passwordEncoder;
@@ -76,6 +81,7 @@ public class AgentController {
     public AgentController(WorkflowOrchestrationService workflowService,
                            DevicePosturePayloadRepository payloadRepository,
                            DeviceDecisionResponseRepository decisionRepository,
+                           RemediationService remediationService,
                            TenantRepository tenantRepository,
                            TenantApiKeyRepository tenantApiKeyRepository,
                            PasswordEncoder passwordEncoder,
@@ -86,6 +92,7 @@ public class AgentController {
         this.workflowService = workflowService;
         this.payloadRepository = payloadRepository;
         this.decisionRepository = decisionRepository;
+        this.remediationService = remediationService;
         this.tenantRepository = tenantRepository;
         this.tenantApiKeyRepository = tenantApiKeyRepository;
         this.passwordEncoder = passwordEncoder;
@@ -195,9 +202,11 @@ public class AgentController {
         String normalizedTenantId = normalizeTenantId(tenantId);
         String normalizedDeviceId = normalizeRequiredText(deviceExternalId, "device_external_id");
         return validateTenantAccess(normalizedTenantId, tenantKey)
-                .then(blockingDb.mono(() -> decisionRepository.findLatestByDevice(normalizedTenantId, normalizedDeviceId))
-                        .flatMap(Mono::justOrEmpty)
-                        .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Decision response not found"))));
+                .then(blockingDb.mono(() -> {
+                    DeviceDecisionResponse decision = decisionRepository.findLatestByDevice(normalizedTenantId, normalizedDeviceId)
+                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Decision response not found"));
+                    return markDecisionDeliveredIfPending(decision);
+                }));
     }
 
     @PostMapping("/agent/decision-responses/{response_id}/ack")
@@ -216,17 +225,21 @@ public class AgentController {
                                 .flatMap(existing -> {
                                     String deliveryStatus = normalizeDeliveryStatus(req.getDeliveryStatus());
                                     OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-                                    OffsetDateTime sentAt = existing.getSentAt() != null
-                                            ? existing.getSentAt() : now;
-                                    if ("SENT".equals(deliveryStatus) && existing.getSentAt() == null) {
-                                        existing.setSentAt(sentAt);
-                                    }
-
                                     OffsetDateTime acknowledgedAt = req.getAcknowledgedAt() != null
                                             ? req.getAcknowledgedAt()
                                             : existing.getAcknowledgedAt();
-                                    if ("ACKED".equals(deliveryStatus) && acknowledgedAt == null) {
+                                    if (isAcknowledgedDeliveryStatus(deliveryStatus) && acknowledgedAt == null) {
                                         acknowledgedAt = now;
+                                    }
+
+                                    OffsetDateTime sentAt = existing.getSentAt();
+                                    if (sentAt == null && acknowledgedAt != null) {
+                                        sentAt = acknowledgedAt;
+                                        existing.setSentAt(sentAt);
+                                    }
+                                    if (sentAt == null && isDeliveryAttemptStatus(deliveryStatus)) {
+                                        sentAt = now;
+                                        existing.setSentAt(sentAt);
                                     }
                                     if (acknowledgedAt != null && acknowledgedAt.isBefore(sentAt)) {
                                         return Mono.error(new ResponseStatusException(
@@ -238,7 +251,15 @@ public class AgentController {
                                     existing.setDeliveryStatus(deliveryStatus);
                                     existing.setAcknowledgedAt(acknowledgedAt);
                                     existing.setErrorMessage(truncate(req.getErrorMessage()));
-                                    return blockingDb.mono(() -> decisionRepository.save(existing));
+                                    return blockingDb.mono(() -> {
+                                        DeviceDecisionResponse saved = decisionRepository.save(existing);
+                                        if (isAcknowledgedDeliveryStatus(saved.getDeliveryStatus())) {
+                                            remediationService.markAcknowledged(saved.getPostureEvaluationRunId(), saved.getAcknowledgedAt());
+                                        } else if ("DELIVERED".equals(saved.getDeliveryStatus())) {
+                                            remediationService.markDelivered(saved.getPostureEvaluationRunId());
+                                        }
+                                        return saved;
+                                    });
                                 })
                                 .map(saved -> new DecisionAckResponse(
                                         saved.getId(),
@@ -372,19 +393,49 @@ public class AgentController {
             return null;
         }
         String normalized = value.toUpperCase(Locale.ROOT);
-        if (!PROCESS_STATUSES.contains(normalized)) {
+        if (!PAYLOAD_PROCESS_STATUSES.contains(normalized)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid process_status");
         }
         return normalized;
     }
 
     private String normalizeDeliveryStatus(String deliveryStatus) {
-        String value = normalizeRequiredText(deliveryStatus, "delivery_status");
-        String normalized = value.toUpperCase(Locale.ROOT);
-        if (!DELIVERY_STATUSES.contains(normalized)) {
+        String normalized = canonicalDeliveryStatus(normalizeRequiredText(deliveryStatus, "delivery_status"));
+        if (!isValidDeliveryStatus(normalized)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid delivery_status");
         }
         return normalized;
+    }
+
+    private DeviceDecisionResponse markDecisionDeliveredIfPending(DeviceDecisionResponse decision) {
+        if (decision == null) {
+            return null;
+        }
+        String currentStatus = canonicalDeliveryStatus(decision.getDeliveryStatus());
+        if (currentStatus == null) {
+            currentStatus = "PENDING";
+        }
+
+        boolean changed = !Objects.equals(currentStatus, decision.getDeliveryStatus());
+        if (changed) {
+            decision.setDeliveryStatus(currentStatus);
+        }
+
+        if ("PENDING".equals(currentStatus)) {
+            decision.setDeliveryStatus("DELIVERED");
+            if (decision.getSentAt() == null) {
+                decision.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));
+            }
+            remediationService.markDelivered(decision.getPostureEvaluationRunId());
+            changed = true;
+        } else if (isAcknowledgedDeliveryStatus(currentStatus)
+                && decision.getAcknowledgedAt() != null
+                && decision.getSentAt() == null) {
+            decision.setSentAt(decision.getAcknowledgedAt());
+            changed = true;
+        }
+
+        return changed ? decisionRepository.save(decision) : decision;
     }
 
     private int normalizePage(int page) {

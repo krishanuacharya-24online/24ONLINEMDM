@@ -72,7 +72,7 @@
             </div>
             <div>
                 <label>&nbsp;</label><br/>
-                <button id="refresh-timeline" class="secondary" type="button">🔄 Refresh Timeline</button>
+                <button id="refresh-timeline" class="secondary" type="button">Refresh timeline</button>
             </div>
         </div>
         
@@ -107,7 +107,16 @@
         </div>
 
         <section class="mt-1">
-            <h2 class="mb-025">Latest installed applications</h2>
+            <div class="page-head page-head--table">
+                <div>
+                    <h2 class="mb-025">Installed application history</h2>
+                </div>
+                <div class="table-inline-controls">
+                    <span id="device-apps-history-status" class="muted">Page 1</span>
+                    <button class="secondary compact-btn" type="button" data-history-nav="apps" data-direction="prev" disabled>Previous</button>
+                    <button class="secondary compact-btn" type="button" data-history-nav="apps" data-direction="next" disabled>Next</button>
+                </div>
+            </div>
             <table>
                 <thead>
                 <tr>
@@ -128,7 +137,16 @@
         </section>
 
         <section class="mt-1">
-            <h2 class="mb-025">Recent decisions</h2>
+            <div class="page-head page-head--table">
+                <div>
+                    <h2 class="mb-025">Decision history</h2>
+                </div>
+                <div class="table-inline-controls">
+                    <span id="device-decisions-history-status" class="muted">Page 1</span>
+                    <button class="secondary compact-btn" type="button" data-history-nav="decisions" data-direction="prev" disabled>Previous</button>
+                    <button class="secondary compact-btn" type="button" data-history-nav="decisions" data-direction="next" disabled>Next</button>
+                </div>
+            </div>
             <table>
                 <thead>
                 <tr>
@@ -149,7 +167,16 @@
         </section>
 
         <section class="mt-1">
-            <h2 class="mb-025">Recent posture payloads</h2>
+            <div class="page-head page-head--table">
+                <div>
+                    <h2 class="mb-025">Posture payload history</h2>
+                </div>
+                <div class="table-inline-controls">
+                    <span id="device-payloads-history-status" class="muted">Page 1</span>
+                    <button class="secondary compact-btn" type="button" data-history-nav="payloads" data-direction="prev" disabled>Previous</button>
+                    <button class="secondary compact-btn" type="button" data-history-nav="payloads" data-direction="next" disabled>Next</button>
+                </div>
+            </div>
             <table>
                 <thead>
                 <tr>
@@ -170,7 +197,16 @@
         </section>
 
         <section class="mt-1">
-            <h2 class="mb-025">Recent trust score events</h2>
+            <div class="page-head page-head--table">
+                <div>
+                    <h2 class="mb-025">Trust score event history</h2>
+                </div>
+                <div class="table-inline-controls">
+                    <span id="device-events-history-status" class="muted">Page 1</span>
+                    <button class="secondary compact-btn" type="button" data-history-nav="events" data-direction="prev" disabled>Previous</button>
+                    <button class="secondary compact-btn" type="button" data-history-nav="events" data-direction="next" disabled>Next</button>
+                </div>
+            </div>
             <table>
                 <thead>
                 <tr>
@@ -191,7 +227,16 @@
         </section>
 
         <section class="mt-1">
-            <h2 class="mb-025">Evaluation runs</h2>
+            <div class="page-head page-head--table">
+                <div>
+                    <h2 class="mb-025">Evaluation run history</h2>
+                </div>
+                <div class="table-inline-controls">
+                    <span id="device-runs-history-status" class="muted">Page 1</span>
+                    <button class="secondary compact-btn" type="button" data-history-nav="runs" data-direction="prev" disabled>Previous</button>
+                    <button class="secondary compact-btn" type="button" data-history-nav="runs" data-direction="next" disabled>Next</button>
+                </div>
+            </div>
             <table>
                 <thead>
                 <tr>
@@ -269,7 +314,6 @@
     </div>
 </section>
 
-<script type="module" th:src="@{/assets/js/pages/devices.js}"></script>
+<script type="module" th:src="@{/assets/js/pages/devices.js(v=2026032002)}"></script>
 </section>
 </html>
-

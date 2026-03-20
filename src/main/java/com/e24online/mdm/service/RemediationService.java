@@ -10,13 +10,20 @@ import com.e24online.mdm.web.dto.PosturePayloadIngestResponse;
 import com.e24online.mdm.web.dto.RemediationSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.scheduler.Scheduler;
 import tools.jackson.databind.ObjectMapper;
 
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,6 +33,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.e24online.mdm.utils.AgentWorkflowValueUtils.*;
+import static com.e24online.mdm.utils.WorkflowStatusModel.canonicalRemediationStatus;
 
 /**
  * Service for managing remediation rules and generating remediation actions.
@@ -39,6 +47,7 @@ public class RemediationService {
     private final RemediationRuleRepository remediationRuleRepository;
     private final PostureEvaluationRemediationRepository remediationRepository;
     private final PostureEvaluationMatchRepository matchRepository;
+    private final NamedParameterJdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
     private final Scheduler jdbcScheduler;
 
@@ -46,12 +55,14 @@ public class RemediationService {
                               RemediationRuleRepository remediationRuleRepository,
                               PostureEvaluationRemediationRepository remediationRepository,
                               PostureEvaluationMatchRepository matchRepository,
+                              NamedParameterJdbcTemplate jdbc,
                               ObjectMapper objectMapper,
                               Scheduler jdbcScheduler) {
         this.ruleRemediationMappingRepository = ruleRemediationMappingRepository;
         this.remediationRuleRepository = remediationRuleRepository;
         this.remediationRepository = remediationRepository;
         this.matchRepository = matchRepository;
+        this.jdbc = jdbc;
         this.objectMapper = objectMapper;
         this.jdbcScheduler = jdbcScheduler;
     }
@@ -114,7 +125,7 @@ public class RemediationService {
                 remediation.setRemediationRuleId(remediationRuleId);
                 remediation.setPostureEvaluationMatchId(candidate.matchId());
                 remediation.setSourceType(candidate.sourceType());
-                remediation.setRemediationStatus("PENDING");
+                remediation.setRemediationStatus("PROPOSED");
                 remediation.setInstructionOverride(rule.getInstructionJson());
                 remediation.setCreatedAt(now);
                 remediation.setCreatedBy("rule-engine");
@@ -125,6 +136,99 @@ public class RemediationService {
         }
 
         return saved;
+    }
+
+    public List<RemediationStatusTransition> reconcilePriorOpenRemediations(PostureEvaluationRun currentRun,
+                                                                            List<SavedMatch> currentMatches,
+                                                                            List<SavedRemediation> currentRemediations,
+                                                                            OffsetDateTime verifiedAt) {
+        if (currentRun == null || currentRun.getId() == null || currentRun.getDeviceTrustProfileId() == null) {
+            return List.of();
+        }
+
+        Map<Long, MatchDraft> currentMatchDraftsById = new HashMap<>();
+        for (SavedMatch savedMatch : currentMatches == null ? List.<SavedMatch>of() : currentMatches) {
+            if (savedMatch == null || savedMatch.match() == null || savedMatch.match().getId() == null || savedMatch.draft() == null) {
+                continue;
+            }
+            currentMatchDraftsById.put(savedMatch.match().getId(), savedMatch.draft());
+        }
+
+        Set<RemediationRescanKey> currentKeys = new HashSet<>();
+        for (SavedRemediation savedRemediation : currentRemediations == null ? List.<SavedRemediation>of() : currentRemediations) {
+            RemediationRescanKey key = currentKey(savedRemediation, currentMatchDraftsById);
+            if (key != null) {
+                currentKeys.add(key);
+            }
+        }
+
+        List<PriorOpenRemediation> priorOpenRemediations = loadPriorOpenRemediations(
+                currentRun.getDeviceTrustProfileId(),
+                currentRun.getId()
+        );
+        if (priorOpenRemediations.isEmpty()) {
+            return List.of();
+        }
+
+        List<RemediationStatusTransition> transitions = new ArrayList<>();
+        for (PriorOpenRemediation prior : priorOpenRemediations) {
+            String fromStatus = canonicalRemediationStatus(prior.remediationStatus());
+            RemediationRescanKey priorKey = priorKey(prior);
+            boolean stillOpen = currentKeys.contains(priorKey);
+            String toStatus = stillOpen ? "STILL_OPEN" : "RESOLVED_ON_RESCAN";
+            OffsetDateTime completedAt = stillOpen ? null : verifiedAt;
+
+            if (Objects.equals(fromStatus, toStatus) && Objects.equals(prior.completedAt(), completedAt)) {
+                continue;
+            }
+
+            transitions.add(new RemediationStatusTransition(
+                    prior.id(),
+                    prior.postureEvaluationRunId(),
+                    prior.remediationRuleId(),
+                    prior.sourceType(),
+                    prior.matchSource(),
+                    fromStatus,
+                    toStatus,
+                    completedAt
+            ));
+        }
+
+        if (transitions.isEmpty()) {
+            return List.of();
+        }
+
+        MapSqlParameterSource[] batch = transitions.stream()
+                .map(transition -> new MapSqlParameterSource()
+                        .addValue("id", transition.remediationId())
+                        .addValue("status", transition.toStatus())
+                        .addValue("completedAt", transition.completedAt()))
+                .toArray(MapSqlParameterSource[]::new);
+
+        jdbc.batchUpdate("""
+                UPDATE posture_evaluation_remediation
+                   SET remediation_status = :status,
+                       completed_at = :completedAt
+                 WHERE id = :id
+                """, batch);
+
+        log.debug("Reconciled {} prior remediation rows for runId={}", transitions.size(), currentRun.getId());
+        return transitions;
+    }
+
+    public int markDelivered(Long runId) {
+        if (runId == null || runId <= 0L) {
+            return 0;
+        }
+        return remediationRepository.markDeliveredByRunId(runId);
+    }
+
+    public int markAcknowledged(Long runId, OffsetDateTime completedAt) {
+        if (runId == null || runId <= 0L) {
+            return 0;
+        }
+        OffsetDateTime effectiveCompletedAt = completedAt != null ? completedAt : OffsetDateTime.now();
+        return remediationRepository.markAcknowledgedByRunId(runId, effectiveCompletedAt);
     }
 
     /**
@@ -236,7 +340,7 @@ public class RemediationService {
         map.put("remediation_type", rule.getRemediationType());
         map.put("enforce_mode", saved.enforceMode());
         map.put("instruction", safeText(r.getInstructionOverride() != null ? r.getInstructionOverride() : rule.getInstructionJson()));
-        map.put("status", r.getRemediationStatus());
+        map.put("status", canonicalRemediationStatus(r.getRemediationStatus()));
 
         return map;
     }
@@ -254,7 +358,7 @@ public class RemediationService {
                 rule.getRemediationType(),
                 saved.enforceMode(),
                 row.getInstructionOverride() != null ? row.getInstructionOverride() : rule.getInstructionJson(),
-                row.getRemediationStatus()
+                canonicalRemediationStatus(row.getRemediationStatus())
         );
     }
 
@@ -264,5 +368,150 @@ public class RemediationService {
         } catch (Exception _) {
             throw new RuntimeException("JSON serialization failed");
         }
+    }
+
+    private List<PriorOpenRemediation> loadPriorOpenRemediations(Long profileId, Long currentRunId) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                SELECT r.id,
+                       r.posture_evaluation_run_id,
+                       r.remediation_rule_id,
+                       r.source_type,
+                       r.remediation_status,
+                       r.completed_at,
+                       m.match_source,
+                       m.system_information_rule_id,
+                       m.reject_application_list_id,
+                       m.trust_score_policy_id,
+                       m.os_release_lifecycle_master_id
+                  FROM posture_evaluation_remediation r
+                  JOIN posture_evaluation_run run
+                    ON run.id = r.posture_evaluation_run_id
+             LEFT JOIN posture_evaluation_match m
+                    ON m.id = r.posture_evaluation_match_id
+                 WHERE run.device_trust_profile_id = :profileId
+                   AND r.posture_evaluation_run_id <> :currentRunId
+                   AND r.remediation_status IN (:openStatuses)
+                 ORDER BY r.created_at ASC, r.id ASC
+                """, new MapSqlParameterSource()
+                .addValue("profileId", profileId)
+                .addValue("currentRunId", currentRunId)
+                .addValue("openStatuses", List.copyOf(com.e24online.mdm.utils.WorkflowStatusModel.OPEN_REMEDIATION_STATUSES)));
+
+        List<PriorOpenRemediation> remediations = new ArrayList<>(rows.size());
+        for (Map<String, Object> row : rows) {
+            remediations.add(new PriorOpenRemediation(
+                    longValue(row.get("id")),
+                    longValue(row.get("posture_evaluation_run_id")),
+                    longValue(row.get("remediation_rule_id")),
+                    stringValue(row.get("source_type")),
+                    stringValue(row.get("remediation_status")),
+                    offsetDateTimeValue(row.get("completed_at")),
+                    stringValue(row.get("match_source")),
+                    longValue(row.get("system_information_rule_id")),
+                    longValue(row.get("reject_application_list_id")),
+                    longValue(row.get("trust_score_policy_id")),
+                    longValue(row.get("os_release_lifecycle_master_id"))
+            ));
+        }
+        return remediations;
+    }
+
+    private RemediationRescanKey currentKey(SavedRemediation savedRemediation, Map<Long, MatchDraft> currentMatchDraftsById) {
+        if (savedRemediation == null || savedRemediation.remediation() == null) {
+            return null;
+        }
+        PostureEvaluationRemediation remediation = savedRemediation.remediation();
+        MatchDraft draft = remediation.getPostureEvaluationMatchId() == null
+                ? null
+                : currentMatchDraftsById.get(remediation.getPostureEvaluationMatchId());
+
+        return new RemediationRescanKey(
+                remediation.getRemediationRuleId() != null
+                        ? remediation.getRemediationRuleId()
+                        : savedRemediation.rule() == null ? null : savedRemediation.rule().getId(),
+                normalizeUpper(remediation.getSourceType()),
+                draft == null ? null : normalizeUpper(draft.matchSource()),
+                draft == null ? null : draft.systemRuleId(),
+                draft == null ? null : draft.rejectApplicationId(),
+                draft == null ? null : draft.trustScorePolicyId(),
+                draft == null ? null : draft.osReleaseLifecycleMasterId()
+        );
+    }
+
+    private RemediationRescanKey priorKey(PriorOpenRemediation prior) {
+        return new RemediationRescanKey(
+                prior.remediationRuleId(),
+                normalizeUpper(prior.sourceType()),
+                normalizeUpper(prior.matchSource()),
+                prior.systemInformationRuleId(),
+                prior.rejectApplicationListId(),
+                prior.trustScorePolicyId(),
+                prior.osReleaseLifecycleMasterId()
+        );
+    }
+
+    private Long longValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            return Long.parseLong(text);
+        }
+        return null;
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private OffsetDateTime offsetDateTimeValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof OffsetDateTime offsetDateTime) {
+            return offsetDateTime;
+        }
+        if (value instanceof Timestamp timestamp) {
+            return timestamp.toInstant().atOffset(ZoneOffset.UTC);
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return localDateTime.atOffset(ZoneOffset.UTC);
+        }
+        if (value instanceof Instant instant) {
+            return instant.atOffset(ZoneOffset.UTC);
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            return OffsetDateTime.parse(text);
+        }
+        return null;
+    }
+
+    private record PriorOpenRemediation(
+            Long id,
+            Long postureEvaluationRunId,
+            Long remediationRuleId,
+            String sourceType,
+            String remediationStatus,
+            OffsetDateTime completedAt,
+            String matchSource,
+            Long systemInformationRuleId,
+            Long rejectApplicationListId,
+            Long trustScorePolicyId,
+            Long osReleaseLifecycleMasterId
+    ) {
+    }
+
+    private record RemediationRescanKey(
+            Long remediationRuleId,
+            String sourceType,
+            String matchSource,
+            Long systemInformationRuleId,
+            Long rejectApplicationListId,
+            Long trustScorePolicyId,
+            Long osReleaseLifecycleMasterId
+    ) {
     }
 }

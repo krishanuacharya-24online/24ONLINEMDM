@@ -118,6 +118,8 @@ class AgentPostureWorkflowServiceTest {
     private NamedParameterJdbcTemplate jdbc;
     @Mock
     private AuditEventService auditEventService;
+    @Mock
+    private PayloadFailureService payloadFailureService;
 
     private ObjectMapper objectMapper;
     private AgentPostureWorkflowService service;
@@ -147,7 +149,8 @@ class AgentPostureWorkflowServiceTest {
                 auditEventService,
                 objectMapper,
                 new BlockingDb(Schedulers.immediate()),
-                jdbc
+                jdbc,
+                payloadFailureService
         );
 
         lenient().when(payloadRepository.save(any(DevicePosturePayload.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -188,11 +191,7 @@ class AgentPostureWorkflowServiceTest {
         );
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        ArgumentCaptor<DevicePosturePayload> captor = ArgumentCaptor.forClass(DevicePosturePayload.class);
-        verify(payloadRepository, atLeastOnce()).save(captor.capture());
-        DevicePosturePayload last = captor.getAllValues().get(captor.getAllValues().size() - 1);
-        assertEquals("FAILED", last.getProcessStatus());
-        assertEquals("Invalid payload_json", last.getProcessError());
+        verify(payloadFailureService).markPayloadFailed(payload, "Invalid payload_json", 900);
     }
 
     @Test

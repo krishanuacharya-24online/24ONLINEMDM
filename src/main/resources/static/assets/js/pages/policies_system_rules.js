@@ -43,12 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
       { name: 'device_type', label: 'Device type', type: 'select', options: ['', 'PHONE', 'TABLET', 'LAPTOP', 'DESKTOP', 'IOT', 'SERVER'], defaultValue: '' },
       { name: 'os_type', label: 'OS type', type: 'select', required: true, defaultValue: 'ANDROID', options: ['ANDROID', 'IOS', 'WINDOWS', 'MACOS', 'LINUX', 'CHROMEOS', 'FREEBSD', 'OPENBSD'] },
       { name: 'os_name', label: 'OS name (LINUX only)', placeholder: 'UBUNTU' },
-      { name: 'os_version', label: 'OS version', placeholder: '15.0.1' },
-      { name: 'time_zone', label: 'Time zone', placeholder: 'Asia/Kolkata' },
-      { name: 'kernel_version', label: 'Kernel version', placeholder: '6.8.0' },
       { name: 'effective_from', label: 'Effective from (ISO-8601)', required: true, defaultValue: nowIso, placeholder: '2026-02-27T10:00:00Z' },
       { name: 'effective_to', label: 'Effective to (ISO-8601)', placeholder: 'Optional' }
     ]
   });
 });
-

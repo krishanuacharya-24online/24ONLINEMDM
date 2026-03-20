@@ -1,0 +1,10 @@
+agent-config.json
+agent-secrets.json
+agent-state.json
+out/
+node_modules/
+dist/
+release/
+dist-electron*/
+build/agent-build-config.json
+build/icons/

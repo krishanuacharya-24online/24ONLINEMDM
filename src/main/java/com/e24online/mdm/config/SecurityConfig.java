@@ -26,10 +26,7 @@ import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -37,12 +34,6 @@ import java.util.Set;
 public class SecurityConfig {
 
     private final ApiVersionConfig apiVersionConfig;
-
-    @Value("${reports.superset.enabled:false}")
-    private boolean supersetReportsEnabled;
-
-    @Value("${reports.superset.base-url:}")
-    private String supersetBaseUrl;
 
     public SecurityConfig(ApiVersionConfig apiVersionConfig) {
         this.apiVersionConfig = apiVersionConfig;
@@ -201,14 +192,6 @@ public class SecurityConfig {
     }
 
     private String buildContentSecurityPolicy() {
-        Set<String> frameSources = new LinkedHashSet<>();
-        frameSources.add("'self'");
-
-        String supersetOrigin = supersetReportsEnabled ? normalizeOrigin(supersetBaseUrl) : null;
-        if (supersetOrigin != null) {
-            frameSources.add(supersetOrigin);
-        }
-
         List<String> directives = new ArrayList<>();
         directives.add("default-src 'self'");
         directives.add("base-uri 'self'");
@@ -219,32 +202,8 @@ public class SecurityConfig {
         directives.add("img-src 'self' data:");
         directives.add("font-src 'self' data:");
         directives.add("connect-src 'self'");
-        directives.add("frame-src " + String.join(" ", frameSources));
+        directives.add("frame-src 'self'");
         directives.add("form-action 'self'");
         return String.join("; ", directives);
-    }
-
-    private String normalizeOrigin(String rawUrl) {
-        if (rawUrl == null || rawUrl.isBlank()) {
-            return null;
-        }
-        try {
-            URI uri = URI.create(rawUrl.trim());
-            String scheme = uri.getScheme();
-            String host = uri.getHost();
-            if (scheme == null || host == null) {
-                return null;
-            }
-            String normalizedScheme = scheme.toLowerCase(Locale.ROOT);
-            if (!"http".equals(normalizedScheme) && !"https".equals(normalizedScheme)) {
-                return null;
-            }
-            int port = uri.getPort();
-            return port > 0
-                    ? normalizedScheme + "://" + host + ":" + port
-                    : normalizedScheme + "://" + host;
-        } catch (IllegalArgumentException _) {
-            return null;
-        }
     }
 }

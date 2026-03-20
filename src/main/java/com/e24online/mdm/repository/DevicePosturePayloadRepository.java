@@ -108,4 +108,17 @@ public interface DevicePosturePayloadRepository extends CrudRepository<DevicePos
             @Param("id") Long id,
             @Param("tenantId") String tenantId
     );
+
+    @Query("""
+            SELECT COUNT(*)
+            FROM device_posture_payload
+            WHERE tenant_id IS NOT DISTINCT FROM :tenantId
+              AND received_at >= :fromInclusive
+              AND received_at < :toExclusive
+            """)
+    long countReceivedInWindow(
+            @Param("tenantId") String tenantId,
+            @Param("fromInclusive") OffsetDateTime fromInclusive,
+            @Param("toExclusive") OffsetDateTime toExclusive
+    );
 }

@@ -214,11 +214,13 @@ class PoliciesCrudServiceTest {
         ).block();
         assertEquals(70L, created.getSystemInformationRuleId());
         assertEquals((short) 1, created.getConditionGroup());
+        assertEquals((short) 1, created.getWeight());
         assertEquals("ACTIVE", created.getStatus());
         assertEquals("ui", created.getCreatedBy());
 
         SystemInformationRuleCondition existing = condition(71L, 70L);
         existing.setConditionGroup((short) 3);
+        existing.setWeight((short) 7);
         existing.setStatus("INACTIVE");
         existing.setCreatedBy("seed");
         existing.setCreatedAt(OffsetDateTime.now().minusDays(1));
@@ -234,6 +236,7 @@ class PoliciesCrudServiceTest {
                 reactor.core.publisher.Mono.just(updateBody)
         ).block();
         assertEquals((short) 3, updated.getConditionGroup());
+        assertEquals((short) 7, updated.getWeight());
         assertEquals("INACTIVE", updated.getStatus());
         assertEquals("editor", updated.getModifiedBy());
 

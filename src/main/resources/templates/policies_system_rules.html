@@ -69,12 +69,17 @@
                     <div class="v">
                         <select id="os_type" name="os_type" required></select>
                     </div>
+                    <div class="k" data-os-name-field hidden><label for="os_name">OS name</label></div>
+                    <div class="v" data-os-name-field hidden>
+                        <input id="os_name" name="os_name" type="text" placeholder="Linux distribution or family, for example UBUNTU"/>
+                        <div class="muted">Optional Linux-only target. Leave blank to apply to all Linux distributions.</div>
+                    </div>
                     <div class="k"><label for="device_type">Device type</label></div>
                     <div class="v">
                         <select id="device_type" name="device_type"></select>
                     </div>
                     <div class="k"><label for="status">Status</label></div>
-                    <div class="v"><select id="status" name="status"></select></div>
+                    <div class="v"><select id="status" name="status" required></select></div>
                 </div>
             </div>
             <div>
@@ -92,18 +97,18 @@
                     </div>
                     <div class="k"><label for="priority">Priority</label></div>
                     <div class="v">
-                        <input id="priority" name="priority" type="number" value="100" required/>
+                        <input id="priority" name="priority" type="number" value="100" min="1" max="100000" step="1" inputmode="numeric" required/>
                         <div id="priority_hint" class="muted"></div>
                     </div>
                     <div class="k"><label for="version">Version</label></div>
-                    <div class="v"><input id="version" name="version" type="number" value="1" required/></div>
+                    <div class="v"><input id="version" name="version" type="number" value="1" min="1" max="100000" step="1" inputmode="numeric" required/></div>
                     <div class="k"><label for="match_mode">Match mode</label></div>
-                    <div class="v"><select id="match_mode" name="match_mode"></select></div>
+                    <div class="v"><select id="match_mode" name="match_mode" required></select></div>
                     <div class="k"><label for="compliance_action">Compliance action</label></div>
-                    <div class="v"><select id="compliance_action" name="compliance_action"></select></div>
+                    <div class="v"><select id="compliance_action" name="compliance_action" required></select></div>
                     <div class="k"><label for="risk_score_delta">Risk delta</label></div>
                     <div class="v">
-                        <input id="risk_score_delta" name="risk_score_delta" type="number" value="0" required/>
+                        <input id="risk_score_delta" name="risk_score_delta" type="number" value="0" min="-1000" max="1000" step="1" inputmode="numeric" required/>
                         <div id="risk_delta_hint" class="muted"></div>
                     </div>
                     <div class="k"><label for="score_preview_examples">Score preview</label></div>
@@ -113,18 +118,21 @@
                         <div id="score_preview_override_note" class="muted"></div>
                     </div>
                     <div class="k"><label for="description">Description</label></div>
-                    <div class="v"><textarea id="description" name="description"></textarea></div>
+                    <div class="v"><textarea id="description" name="description" placeholder="Optional"></textarea></div>
                 </div>
                 <div class="form-row mt-075">
                     <input id="edit_id" type="hidden"/>
+                    <input id="effective_from" type="hidden"/>
+                    <input id="effective_to" type="hidden"/>
                     <button type="submit">Save</button>
                     <button id="resetBtn" class="secondary" type="button">Reset</button>
                 </div>
+                <div id="systemRuleFormError" class="form-message form-message--error" hidden aria-live="polite"></div>
             </div>
         </form>
     </section>
 
-    <script type="module" th:src="@{/assets/js/pages/policies_system_rules_dt.js(v=202603063)}"></script>
+    <script type="module" th:src="@{/assets/js/pages/policies_system_rules_dt.js(v=2026031901)}"></script>
 </section>
 </html>
 

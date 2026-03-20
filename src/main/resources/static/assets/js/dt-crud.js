@@ -80,6 +80,8 @@ export function mountDtCrud({
   fieldIds,
   defaults = () => ({}),
   beforeSave = (payload) => payload,
+  loadEditRow = async ({ row }) => row,
+  afterFill = async () => {},
   canEditRow = () => true,
   canDeleteRow = () => true,
   onAction = async () => false
@@ -104,6 +106,13 @@ export function mountDtCrud({
   const form = el(formId);
   const resetBtn = el(resetId);
   const editId = el('edit_id');
+
+  async function applyAfterFill(row) {
+    if (typeof afterFill !== 'function') {
+      return;
+    }
+    await afterFill(row);
+  }
 
   function payloadFromForm() {
     const payload = {};
@@ -136,7 +145,11 @@ export function mountDtCrud({
         window.mdmToast?.('This record is read-only in your scope. Clone it to your tenant to make changes.');
         return;
       }
-      resetForm(row);
+      const hydratedRow = typeof loadEditRow === 'function'
+        ? await loadEditRow({ id, row, requestHeaders: resolveRequestHeaders })
+        : row;
+      resetForm(hydratedRow ?? row);
+      await applyAfterFill(hydratedRow ?? row);
       window.mdmToast?.(`Editing #${id}`);
     } else if (act === 'del') {
       if (!canDeleteRow(row)) {
@@ -152,6 +165,7 @@ export function mountDtCrud({
       window.mdmToast?.('Deleted');
       dt.ajax.reload(null, false);
       resetForm(null);
+      await applyAfterFill(null);
     } else {
       const handled = await onAction({
         act,
@@ -159,8 +173,14 @@ export function mountDtCrud({
         row,
         requestHeaders: resolveRequestHeaders,
         reload: () => dt.ajax.reload(null, false),
-        reset: () => resetForm(null),
-        fill: (value) => resetForm(value)
+        reset: async () => {
+          resetForm(null);
+          await applyAfterFill(null);
+        },
+        fill: async (value) => {
+          resetForm(value);
+          await applyAfterFill(value);
+        }
       });
       if (handled) {
         return;
@@ -189,14 +209,26 @@ export function mountDtCrud({
     }
     dt.ajax.reload(null, false);
     resetForm(null);
+    await applyAfterFill(null);
   });
 
-  resetBtn.addEventListener('click', () => resetForm(null));
+  resetBtn.addEventListener('click', async () => {
+    resetForm(null);
+    await applyAfterFill(null);
+  });
   resetForm(null);
+  void applyAfterFill(null);
 
   return {
     table: dt,
     reload: () => dt.ajax.reload(null, false),
-    reset: () => resetForm(null)
+    reset: async () => {
+      resetForm(null);
+      await applyAfterFill(null);
+    },
+    fill: async (row) => {
+      resetForm(row);
+      await applyAfterFill(row);
+    }
   };
 }
