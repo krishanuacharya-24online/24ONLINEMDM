@@ -43,36 +43,49 @@ public class SimplePolicySimulationService {
         this.objectMapper = objectMapper;
     }
 
-    public Mono<SimplePolicySimulationResponse> simulate(String tenantId, Mono<SimplePolicySimulationRequest> request) {
-        return request.flatMap(body -> blockingDb.mono(() -> {
-            if (body == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required");
-            }
+    public Mono<SimplePolicySimulationResponse> simulate(
+            String tenantId,
+            Mono<SimplePolicySimulationRequest> request
+    ) {
+        return request
+                .switchIfEmpty(Mono.error(
+                        new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is required")
+                ))
+                .flatMap(body -> blockingDb.mono(() -> simulateInternal(tenantId, body)));
+    }
 
-            OffsetDateTime now = OffsetDateTime.now();
-            ObjectNode root = buildRoot(body);
-            ParsedPosture parsed = deviceStateService.parsePosture(
-                    root,
-                    defaultIfBlank(body.getDeviceExternalId(), "simulated-device"),
-                    "simple-policy-simulator",
-                    tenantId,
-                    now
-            );
-            LifecycleResolution lifecycle = deviceStateService.resolveLifecycle(parsed, now.toLocalDate());
-            DeviceTrustProfile profile = new DeviceTrustProfile();
-            profile.setTenantId(tenantId);
-            profile.setDeviceExternalId(parsed.deviceExternalId());
-            profile.setCurrentScore(clampScore(body.getCurrentScore()));
+    private SimplePolicySimulationResponse simulateInternal(
+            String tenantId,
+            SimplePolicySimulationRequest body
+    ) {
+        OffsetDateTime now = OffsetDateTime.now();
 
-            EvaluationComputation computation = evaluationEngineService.computeEvaluation(
-                    profile,
-                    parsed,
-                    toInstalledApps(body.getInstalledApps(), parsed, now),
-                    lifecycle,
-                    now
-            );
-            return toResponse(computation, lifecycle);
-        }));
+        ObjectNode root = buildRoot(body);
+
+        ParsedPosture parsed = deviceStateService.parsePosture(
+                root,
+                defaultIfBlank(body.getDeviceExternalId(), "simulated-device"),
+                "simple-policy-simulator",
+                tenantId,
+                now
+        );
+
+        LifecycleResolution lifecycle = deviceStateService.resolveLifecycle(parsed, now.toLocalDate());
+
+        DeviceTrustProfile profile = new DeviceTrustProfile();
+        profile.setTenantId(tenantId);
+        profile.setDeviceExternalId(parsed.deviceExternalId());
+        profile.setCurrentScore(clampScore(body.getCurrentScore()));
+
+        EvaluationComputation computation = evaluationEngineService.computeEvaluation(
+                profile,
+                parsed,
+                toInstalledApps(body.getInstalledApps(), parsed, now),
+                lifecycle,
+                now
+        );
+
+        return toResponse(computation, lifecycle);
     }
 
     private ObjectNode buildRoot(SimplePolicySimulationRequest body) {
@@ -245,7 +258,7 @@ public class SimplePolicySimulationService {
                 return null;
             }
             return trimToNull(node.asText());
-        } catch (Exception ex) {
+        } catch (Exception _) {
             return null;
         }
     }

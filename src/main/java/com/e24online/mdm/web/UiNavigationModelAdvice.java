@@ -7,6 +7,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -60,17 +61,20 @@ public class UiNavigationModelAdvice {
     }
 
     private Set<String> extractRoles(Authentication authentication) {
-        Set<String> roles = new HashSet<>();
-        if (authentication == null || authentication.getAuthorities() == null) {
-            return roles;
+        if (authentication == null) {
+            return Collections.emptySet();
         }
-        authentication.getAuthorities().forEach(authority -> {
-            String value = authority == null ? "" : String.valueOf(authority.getAuthority());
-            String normalized = normalizeRole(value);
-            if (!normalized.isBlank()) {
-                roles.add(normalized);
+        var authorities = authentication.getAuthorities();
+        Set<String> roles = HashSet.newHashSet(authorities.size());
+
+        for (var authority : authorities) {
+            if (authority != null) {
+                String role = normalizeRole(authority.getAuthority());
+                if (!role.isBlank()) {
+                    roles.add(role);
+                }
             }
-        });
+        }
         return roles;
     }
 

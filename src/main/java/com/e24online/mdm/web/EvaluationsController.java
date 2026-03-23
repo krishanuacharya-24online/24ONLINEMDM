@@ -345,7 +345,7 @@ public class EvaluationsController {
                 workflowService.queueExistingPayload(payload.getTenantId(), payload.getId());
                 reprocessed++;
             } catch (Exception e) {
-                log.error("Failed to reprocess payload " + payload.getId() + ": " + e.getMessage());
+                log.error("Failed to reprocess payload {}: {}", payload.getId(), e.getMessage());
             }
         }
         

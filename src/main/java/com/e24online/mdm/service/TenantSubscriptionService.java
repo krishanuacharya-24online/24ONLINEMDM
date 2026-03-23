@@ -129,17 +129,21 @@ public class TenantSubscriptionService {
         subscription.setSubscriptionPlanId(nextPlan.getId());
         subscription.setSubscriptionState(nextState);
         subscription.setStartedAt(subscription.getStartedAt() == null ? now : subscription.getStartedAt());
-        subscription.setCurrentPeriodStart(request.currentPeriodStart() != null
-                ? request.currentPeriodStart()
-                : (subscription.getCurrentPeriodStart() == null ? now : subscription.getCurrentPeriodStart()));
+
+        OffsetDateTime requestStart = request.currentPeriodStart();
+
+        if (requestStart != null) {
+            subscription.setCurrentPeriodStart(requestStart);
+        } else if (subscription.getCurrentPeriodStart() == null) {
+            subscription.setCurrentPeriodStart(now);
+        }
+
         if (request.currentPeriodEnd() != null) {
             subscription.setCurrentPeriodEnd(request.currentPeriodEnd());
         }
-        if (request.graceEndsAt() != null || "GRACE".equals(nextState)) {
-            subscription.setGraceEndsAt(request.graceEndsAt());
-        } else if (!"GRACE".equals(nextState)) {
-            subscription.setGraceEndsAt(null);
-        }
+        subscription.setGraceEndsAt(
+                "GRACE".equals(nextState) ? request.graceEndsAt() : null
+        );
         subscription.setSuspendedAt("SUSPENDED".equals(nextState) ? now : null);
         subscription.setCancelledAt(("CANCELLED".equals(nextState) || "EXPIRED".equals(nextState)) ? now : null);
         subscription.setNotes(normalizeOptionalText(request.notes(), 2000));

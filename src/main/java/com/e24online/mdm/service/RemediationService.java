@@ -8,6 +8,7 @@ import com.e24online.mdm.repository.RemediationRuleRepository;
 import com.e24online.mdm.repository.RuleRemediationMappingRepository;
 import com.e24online.mdm.web.dto.PosturePayloadIngestResponse;
 import com.e24online.mdm.web.dto.RemediationSummary;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -21,6 +22,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -140,38 +142,32 @@ public class RemediationService {
 
     public List<RemediationStatusTransition> reconcilePriorOpenRemediations(PostureEvaluationRun currentRun,
                                                                             List<SavedMatch> currentMatches,
-                                                                            List<SavedRemediation> currentRemediations,
+                                                                            List<SavedRemediation> currentRemediation,
                                                                             OffsetDateTime verifiedAt) {
         if (currentRun == null || currentRun.getId() == null || currentRun.getDeviceTrustProfileId() == null) {
             return List.of();
         }
 
-        Map<Long, MatchDraft> currentMatchDraftsById = new HashMap<>();
-        for (SavedMatch savedMatch : currentMatches == null ? List.<SavedMatch>of() : currentMatches) {
-            if (savedMatch == null || savedMatch.match() == null || savedMatch.match().getId() == null || savedMatch.draft() == null) {
-                continue;
-            }
-            currentMatchDraftsById.put(savedMatch.match().getId(), savedMatch.draft());
-        }
+        Map<Long, MatchDraft> currentMatchDraftsById = getLongMatchDraftMap(currentMatches);
 
         Set<RemediationRescanKey> currentKeys = new HashSet<>();
-        for (SavedRemediation savedRemediation : currentRemediations == null ? List.<SavedRemediation>of() : currentRemediations) {
+        for (SavedRemediation savedRemediation : currentRemediation == null ? List.<SavedRemediation>of() : currentRemediation) {
             RemediationRescanKey key = currentKey(savedRemediation, currentMatchDraftsById);
             if (key != null) {
                 currentKeys.add(key);
             }
         }
 
-        List<PriorOpenRemediation> priorOpenRemediations = loadPriorOpenRemediations(
+        List<PriorOpenRemediation> priorOpenRemediation = loadPriorOpenRemediation(
                 currentRun.getDeviceTrustProfileId(),
                 currentRun.getId()
         );
-        if (priorOpenRemediations.isEmpty()) {
+        if (priorOpenRemediation.isEmpty()) {
             return List.of();
         }
 
         List<RemediationStatusTransition> transitions = new ArrayList<>();
-        for (PriorOpenRemediation prior : priorOpenRemediations) {
+        for (PriorOpenRemediation prior : priorOpenRemediation) {
             String fromStatus = canonicalRemediationStatus(prior.remediationStatus());
             RemediationRescanKey priorKey = priorKey(prior);
             boolean stillOpen = currentKeys.contains(priorKey);
@@ -214,6 +210,27 @@ public class RemediationService {
 
         log.debug("Reconciled {} prior remediation rows for runId={}", transitions.size(), currentRun.getId());
         return transitions;
+    }
+
+    private static @NonNull Map<Long, MatchDraft> getLongMatchDraftMap(List<SavedMatch> currentMatches) {
+        Map<Long, MatchDraft> currentMatchDraftsById = new HashMap<>();
+
+        List<SavedMatch> matches = currentMatches != null ? currentMatches : List.of();
+
+        for (SavedMatch savedMatch : matches) {
+            if (savedMatch != null) {
+                var match = savedMatch.match();
+                var draft = savedMatch.draft();
+
+                if (match != null && draft != null) {
+                    Long matchId = match.getId();
+                    if (matchId != null) {
+                        currentMatchDraftsById.put(matchId, draft);
+                    }
+                }
+            }
+        }
+        return currentMatchDraftsById;
     }
 
     public int markDelivered(Long runId) {
@@ -370,7 +387,7 @@ public class RemediationService {
         }
     }
 
-    private List<PriorOpenRemediation> loadPriorOpenRemediations(Long profileId, Long currentRunId) {
+    private List<PriorOpenRemediation> loadPriorOpenRemediation(Long profileId, Long currentRunId) {
         List<Map<String, Object>> rows = jdbc.queryForList("""
                 SELECT r.id,
                        r.posture_evaluation_run_id,
@@ -397,9 +414,9 @@ public class RemediationService {
                 .addValue("currentRunId", currentRunId)
                 .addValue("openStatuses", List.copyOf(com.e24online.mdm.utils.WorkflowStatusModel.OPEN_REMEDIATION_STATUSES)));
 
-        List<PriorOpenRemediation> remediations = new ArrayList<>(rows.size());
+        List<PriorOpenRemediation> remediation = new ArrayList<>(rows.size());
         for (Map<String, Object> row : rows) {
-            remediations.add(new PriorOpenRemediation(
+            remediation.add(new PriorOpenRemediation(
                     longValue(row.get("id")),
                     longValue(row.get("posture_evaluation_run_id")),
                     longValue(row.get("remediation_rule_id")),
@@ -413,7 +430,7 @@ public class RemediationService {
                     longValue(row.get("os_release_lifecycle_master_id"))
             ));
         }
-        return remediations;
+        return remediation;
     }
 
     private RemediationRescanKey currentKey(SavedRemediation savedRemediation, Map<Long, MatchDraft> currentMatchDraftsById) {
@@ -425,16 +442,27 @@ public class RemediationService {
                 ? null
                 : currentMatchDraftsById.get(remediation.getPostureEvaluationMatchId());
 
+        Long remediationRuleId = remediation.getRemediationRuleId();
+        if (remediationRuleId == null) {
+            var rule = savedRemediation.rule();
+            remediationRuleId = rule != null ? rule.getId() : null;
+        }
+
+        String sourceType = normalizeUpper(remediation.getSourceType());
+        String matchSource = draft != null ? normalizeUpper(draft.matchSource()) : null;
+        Long systemRuleId = draft != null ? draft.systemRuleId() : null;
+        Long rejectApplicationId = draft != null ? draft.rejectApplicationId() : null;
+        Long trustScorePolicyId = draft != null ? draft.trustScorePolicyId() : null;
+        Long osReleaseLifecycleMasterId = draft != null ? draft.osReleaseLifecycleMasterId() : null;
+
         return new RemediationRescanKey(
-                remediation.getRemediationRuleId() != null
-                        ? remediation.getRemediationRuleId()
-                        : savedRemediation.rule() == null ? null : savedRemediation.rule().getId(),
-                normalizeUpper(remediation.getSourceType()),
-                draft == null ? null : normalizeUpper(draft.matchSource()),
-                draft == null ? null : draft.systemRuleId(),
-                draft == null ? null : draft.rejectApplicationId(),
-                draft == null ? null : draft.trustScorePolicyId(),
-                draft == null ? null : draft.osReleaseLifecycleMasterId()
+                remediationRuleId,
+                sourceType,
+                matchSource,
+                systemRuleId,
+                rejectApplicationId,
+                trustScorePolicyId,
+                osReleaseLifecycleMasterId
         );
     }
 
@@ -451,16 +479,18 @@ public class RemediationService {
     }
 
     private Long longValue(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        if (value instanceof String text && !text.isBlank()) {
-            return Long.parseLong(text);
-        }
-        return null;
+        return switch (value) {
+            case Number number -> number.longValue();
+
+            case String text when !text.isBlank() -> {
+                try {
+                    yield Long.parseLong(text);
+                } catch (NumberFormatException _) {
+                    yield null;
+                }
+            }
+            default -> null; // covers null + all other types
+        };
     }
 
     private String stringValue(Object value) {
@@ -468,25 +498,20 @@ public class RemediationService {
     }
 
     private OffsetDateTime offsetDateTimeValue(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof OffsetDateTime offsetDateTime) {
-            return offsetDateTime;
-        }
-        if (value instanceof Timestamp timestamp) {
-            return timestamp.toInstant().atOffset(ZoneOffset.UTC);
-        }
-        if (value instanceof LocalDateTime localDateTime) {
-            return localDateTime.atOffset(ZoneOffset.UTC);
-        }
-        if (value instanceof Instant instant) {
-            return instant.atOffset(ZoneOffset.UTC);
-        }
-        if (value instanceof String text && !text.isBlank()) {
-            return OffsetDateTime.parse(text);
-        }
-        return null;
+        return switch (value) {
+            case OffsetDateTime offsetDateTime -> offsetDateTime;
+            case Timestamp timestamp -> timestamp.toInstant().atOffset(ZoneOffset.UTC);
+            case LocalDateTime localDateTime -> localDateTime.atOffset(ZoneOffset.UTC);
+            case Instant instant -> instant.atOffset(ZoneOffset.UTC);
+            case String text when !text.isBlank() -> {
+                try {
+                    yield OffsetDateTime.parse(text.trim());
+                } catch (DateTimeParseException _) {
+                    yield null;
+                }
+            }
+            default -> null;
+        };
     }
 
     private record PriorOpenRemediation(

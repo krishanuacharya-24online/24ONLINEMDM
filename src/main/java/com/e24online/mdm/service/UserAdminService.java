@@ -336,7 +336,7 @@ public class UserAdminService {
             OffsetDateTime now = OffsetDateTime.now();
 
             for (AuthUser user : authUserRepository.findAll()) {
-                if (user == null || user.isDeleted()) {
+                if (user.isDeleted()) {
                     continue;
                 }
                 if (isProtectedAdminUser(user)) {

@@ -112,7 +112,7 @@ public class BreachedPasswordService {
             return parseHIBPResponse(response, suffix);
             
         } catch (Exception e) {
-            log.warn("Failed to check password against HIBP database: {}", e.getMessage());
+            log.warn("Failed to check password against external HIBP database: {}", e.getMessage());
             // Fail open - don't block login if HIBP is unavailable
             return false;
         }

@@ -240,7 +240,7 @@ public class AgentController {
                                         sentAt = now;
                                         existing.setSentAt(sentAt);
                                     }
-                                    if (acknowledgedAt != null && sentAt != null && acknowledgedAt.isBefore(sentAt)) {
+                                    if (acknowledgedAt != null && acknowledgedAt.isBefore(sentAt)) {
                                         acknowledgedAt = sentAt;
                                     }
 

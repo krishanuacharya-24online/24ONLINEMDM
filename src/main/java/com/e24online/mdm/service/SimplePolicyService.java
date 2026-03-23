@@ -7,6 +7,7 @@ import com.e24online.mdm.domain.RuleRemediationMapping;
 import com.e24online.mdm.domain.SystemInformationRule;
 import com.e24online.mdm.domain.SystemInformationRuleCondition;
 import com.e24online.mdm.domain.TrustScoreDecisionPolicy;
+import com.e24online.mdm.enums.OSType;
 import com.e24online.mdm.repository.PolicyChangeAuditRepository;
 import com.e24online.mdm.repository.RejectApplicationRepository;
 import com.e24online.mdm.repository.RemediationRuleRepository;
@@ -350,17 +351,7 @@ public class SimplePolicyService {
     }
 
     private static String displayOsName(String osType) {
-        return switch (osType) {
-            case "ANDROID" -> "Android";
-            case "IOS" -> "iOS";
-            case "WINDOWS" -> "Windows";
-            case "MACOS" -> "macOS";
-            case "LINUX" -> "Linux";
-            case "CHROMEOS" -> "ChromeOS";
-            case "FREEBSD" -> "FreeBSD";
-            case "OPENBSD" -> "OpenBSD";
-            default -> osType == null ? "device" : osType;
-        };
+        return OSType.display(osType);
     }
 
     public Flux<SimpleDevicePolicySummary> listDevicePolicies(String role, String scopeTenantId) {
