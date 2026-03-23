@@ -359,25 +359,6 @@ public class AuthController {
         }
     }
 
-    /**
-     * Invalidates all JWT tokens (both access and refresh) for a user by incrementing
-     * the token version. All existing tokens with old versions will be rejected.
-     */
-    private void invalidateAllTokens(Long userId) {
-        if (userId == null) {
-            return;
-        }
-        Optional<AuthUser> userOpt = userRepository.findById(userId);
-        if (userOpt.isPresent()) {
-            AuthUser user = userOpt.get();
-            user.setTokenVersion((user.getTokenVersion() != null ? user.getTokenVersion() : 0L) + 1);
-            user.setModifiedAt(OffsetDateTime.now());
-            user.setModifiedBy("security");
-            userRepository.save(user);
-            revokeAllRefreshTokens(userId);
-        }
-    }
-
     private void clearCookies(ServerWebExchange exchange) {
         ResponseCookie expiredAccess = ResponseCookie.from(ACCESS_COOKIE, "")
                 .path("/")

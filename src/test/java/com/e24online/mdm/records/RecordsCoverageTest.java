@@ -40,6 +40,7 @@ import com.e24online.mdm.records.tenant.TenantUsageResponse;
 import com.e24online.mdm.records.ui.DataTablePage;
 import com.e24online.mdm.records.ui.PageParams;
 import com.e24online.mdm.records.user.AccessScope;
+import com.e24online.mdm.records.user.BulkUserTokenInvalidationResponse;
 import com.e24online.mdm.records.user.UserPrincipal;
 import com.e24online.mdm.records.user.UserResponse;
 import org.junit.jupiter.api.Test;
@@ -210,6 +211,11 @@ class RecordsCoverageTest {
         assertEquals("TENANT_ADMIN", user.role());
         assertEquals("ACTIVE", user.status());
         assertEquals("tenant-a", user.tenantId());
+
+        BulkUserTokenInvalidationResponse bulkInvalidate = new BulkUserTokenInvalidationResponse(5L, 1L, 9L);
+        assertEquals(5L, bulkInvalidate.invalidatedUserCount());
+        assertEquals(1L, bulkInvalidate.skippedProtectedUserCount());
+        assertEquals(9L, bulkInvalidate.revokedRefreshTokenCount());
 
         RemediationFleetSummaryResponse fleetSummary = new RemediationFleetSummaryResponse(
                 "tenant-a", 10L, 6L, 4L, 3L, 2L, 1L, 4L, now

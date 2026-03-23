@@ -1,6 +1,7 @@
 package com.e24online.mdm.web;
 
 import com.e24online.mdm.records.user.UserCreateRequest;
+import com.e24online.mdm.records.user.BulkUserTokenInvalidationResponse;
 import com.e24online.mdm.records.user.UserUpdateRequest;
 import com.e24online.mdm.records.user.UserPrincipal;
 import com.e24online.mdm.records.user.UserResponse;
@@ -111,5 +112,33 @@ class UserAdminControllerTest {
         verify(userAdminService).updateUser(2L, principal, "TENANT_USER", "INACTIVE", "tenant-a", "NextStrong1!");
         verify(userAdminService).deleteUser(2L, principal);
         verify(requestContext, atLeastOnce()).requireUserPrincipal(any(Authentication.class));
+    }
+
+    @Test
+    void invalidateAllTokens_delegatesToService() {
+        UserPrincipal principal = new UserPrincipal(10L, "admin", "PRODUCT_ADMIN", null);
+        UserResponse response = new UserResponse(5L, "tenant-user", "TENANT_USER", "ACTIVE", "tenant-a");
+        when(requestContext.requireUserPrincipal(authentication)).thenReturn(principal);
+        when(userAdminService.invalidateAllTokens(5L, principal)).thenReturn(Mono.just(response));
+
+        UserResponse result = controller.invalidateAllTokens(authentication, 5L).block();
+
+        assertNotNull(result);
+        assertEquals(5L, result.id());
+        verify(userAdminService).invalidateAllTokens(5L, principal);
+    }
+
+    @Test
+    void invalidateAllTokensForAllUsers_delegatesToService() {
+        UserPrincipal principal = new UserPrincipal(10L, "admin", "PRODUCT_ADMIN", null);
+        BulkUserTokenInvalidationResponse response = new BulkUserTokenInvalidationResponse(8L, 1L, 14L);
+        when(requestContext.requireUserPrincipal(authentication)).thenReturn(principal);
+        when(userAdminService.invalidateAllTokensForAllUsers(principal)).thenReturn(Mono.just(response));
+
+        BulkUserTokenInvalidationResponse result = controller.invalidateAllTokensForAllUsers(authentication).block();
+
+        assertNotNull(result);
+        assertEquals(8L, result.invalidatedUserCount());
+        verify(userAdminService).invalidateAllTokensForAllUsers(principal);
     }
 }

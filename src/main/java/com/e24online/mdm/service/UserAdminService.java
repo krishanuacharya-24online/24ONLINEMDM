@@ -4,6 +4,7 @@ import com.e24online.mdm.domain.AuthRefreshToken;
 import com.e24online.mdm.domain.AuthUser;
 import com.e24online.mdm.domain.Tenant;
 import com.e24online.mdm.records.user.AccessScope;
+import com.e24online.mdm.records.user.BulkUserTokenInvalidationResponse;
 import com.e24online.mdm.records.user.UserResponse;
 import com.e24online.mdm.repository.AuthRefreshTokenRepository;
 import com.e24online.mdm.repository.AuthUserRepository;
@@ -28,6 +29,7 @@ import java.util.regex.Pattern;
 @Service
 public class UserAdminService {
 
+    private static final String PROTECTED_ADMIN_USERNAME = "admin";
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9._-]{3,64}$");
     private static final int DEFAULT_PAGE_SIZE = 50;
     private static final int MAX_PAGE_SIZE = 500;
@@ -283,6 +285,94 @@ public class UserAdminService {
         });
     }
 
+    public Mono<UserResponse> invalidateAllTokens(Long id, UserPrincipal actorPrincipal) {
+        return blockingDb.mono(() -> {
+            AccessScope actorScope = resolveActorScope(actorPrincipal);
+            if (!actorScope.productAdmin()) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only PRODUCT_ADMIN can invalidate user tokens");
+            }
+
+            AuthUser existing = authUserRepository.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            if (existing.isDeleted()) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+            }
+            if (isProtectedAdminUser(existing)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tokens for admin user cannot be invalidated");
+            }
+
+            long beforeVersion = existing.getTokenVersion() == null ? 0L : existing.getTokenVersion();
+            int revokedRefreshTokens = revokeAllRefreshTokens(existing.getId());
+            OffsetDateTime now = OffsetDateTime.now();
+            existing.setTokenVersion(nextTokenVersion(existing.getTokenVersion()));
+            existing.setModifiedAt(now);
+            existing.setModifiedBy(actorScope.actor());
+            AuthUser saved = authUserRepository.save(existing);
+
+            String mappedTenantCode = resolveTenantCode(saved.getTenantId());
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("username", saved.getUsername());
+            metadata.put("role", saved.getRole());
+            metadata.put("status", saved.getStatus());
+            metadata.put("tenantId", mappedTenantCode);
+            metadata.put("beforeTokenVersion", beforeVersion);
+            metadata.put("afterTokenVersion", saved.getTokenVersion());
+            metadata.put("revokedRefreshTokenCount", revokedRefreshTokens);
+            recordAudit("USER_TOKENS_INVALIDATED", "INVALIDATE_TOKENS", mappedTenantCode, actorScope.actor(), saved.getId(), metadata);
+            return new UserResponse(saved.getId(), saved.getUsername(), saved.getRole(), saved.getStatus(), mappedTenantCode);
+        });
+    }
+
+    public Mono<BulkUserTokenInvalidationResponse> invalidateAllTokensForAllUsers(UserPrincipal actorPrincipal) {
+        return blockingDb.mono(() -> {
+            AccessScope actorScope = resolveActorScope(actorPrincipal);
+            if (!actorScope.productAdmin()) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only PRODUCT_ADMIN can invalidate all user tokens");
+            }
+
+            long invalidatedUserCount = 0L;
+            long skippedProtectedUserCount = 0L;
+            long revokedRefreshTokenCount = 0L;
+            OffsetDateTime now = OffsetDateTime.now();
+
+            for (AuthUser user : authUserRepository.findAll()) {
+                if (user == null || user.isDeleted()) {
+                    continue;
+                }
+                if (isProtectedAdminUser(user)) {
+                    skippedProtectedUserCount++;
+                    continue;
+                }
+
+                user.setTokenVersion(nextTokenVersion(user.getTokenVersion()));
+                user.setModifiedAt(now);
+                user.setModifiedBy(actorScope.actor());
+                revokedRefreshTokenCount += revokeAllRefreshTokens(user.getId());
+                authUserRepository.save(user);
+                invalidatedUserCount++;
+            }
+
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("invalidatedUserCount", invalidatedUserCount);
+            metadata.put("skippedProtectedUserCount", skippedProtectedUserCount);
+            metadata.put("revokedRefreshTokenCount", revokedRefreshTokenCount);
+            recordAudit(
+                    "USER_TOKENS_INVALIDATED_BULK",
+                    "INVALIDATE_ALL_TOKENS",
+                    null,
+                    actorScope.actor(),
+                    null,
+                    metadata
+            );
+
+            return new BulkUserTokenInvalidationResponse(
+                    invalidatedUserCount,
+                    skippedProtectedUserCount,
+                    revokedRefreshTokenCount
+            );
+        });
+    }
+
     private boolean shouldConsumeTenantUserCapacity(AuthUser existing, String newStatus, Long newTenantId) {
         if (newTenantId == null || !"ACTIVE".equals(newStatus)) {
             return false;
@@ -330,17 +420,20 @@ public class UserAdminService {
         return (currentVersion == null ? 0L : currentVersion) + 1L;
     }
 
-    private void revokeAllRefreshTokens(Long userId) {
+    private int revokeAllRefreshTokens(Long userId) {
         if (userId == null) {
-            return;
+            return 0;
         }
+        int revoked = 0;
         for (AuthRefreshToken token : authRefreshTokenRepository.findByUserId(userId)) {
             if (token.isRevoked()) {
                 continue;
             }
             token.setRevoked(true);
             authRefreshTokenRepository.save(token);
+            revoked++;
         }
+        return revoked;
     }
 
     private String normalizeUsername(String username) {
@@ -523,6 +616,13 @@ public class UserAdminService {
         Long tenantId = user.getTenantId();
         String mappedTenantCode = resolveTenantCode(tenantId);
         return new UserResponse(user.getId(), user.getUsername(), user.getRole(), user.getStatus(), mappedTenantCode);
+    }
+
+    private boolean isProtectedAdminUser(AuthUser user) {
+        if (user == null || user.getUsername() == null) {
+            return false;
+        }
+        return PROTECTED_ADMIN_USERNAME.equalsIgnoreCase(user.getUsername().trim());
     }
 
     private AccessScope resolveActorScope(UserPrincipal actorPrincipal) {

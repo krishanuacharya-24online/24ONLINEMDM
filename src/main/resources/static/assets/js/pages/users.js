@@ -18,17 +18,48 @@ function esc(value) {
     .replaceAll("'", '&#39;');
 }
 
-async function confirmDanger(message, title = 'Confirm deletion') {
+async function confirmAction({ message, title = 'Confirm action', confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false }) {
   if (typeof window.mdmConfirm === 'function') {
     return window.mdmConfirm({
       title,
       message,
-      confirmLabel: 'Delete',
-      cancelLabel: 'Cancel',
-      danger: true
+      confirmLabel,
+      cancelLabel,
+      danger
     });
   }
   return window.confirm(message);
+}
+
+async function confirmDanger(message, title = 'Confirm deletion') {
+  return confirmAction({
+    title,
+    message,
+    confirmLabel: 'Delete',
+    cancelLabel: 'Cancel',
+    danger: true
+  });
+}
+
+async function confirmInvalidateTokens(username) {
+  const subject = username ? ` for ${username}` : '';
+  return confirmAction({
+    title: 'Invalidate all tokens',
+    message: `Invalidate all JWT tokens${subject}? The user will need to log in again on all devices.`,
+    confirmLabel: 'Invalidate',
+    cancelLabel: 'Cancel',
+    danger: true
+  });
+}
+
+async function confirmInvalidateAllTokens() {
+  return confirmAction({
+    title: 'Invalidate all user tokens',
+    message: 'Invalidate all JWT tokens for every user except the protected admin account? All affected users will need to log in again.',
+    confirmLabel: 'Invalidate all',
+    cancelLabel: 'Cancel',
+    danger: true
+  });
 }
 
 function el(id) {
@@ -194,6 +225,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (session.role === 'PRODUCT_ADMIN') {
     const card = el('userEnrollmentsCard');
     if (card) card.hidden = true;
+    const invalidateAllBtn = el('invalidateAllTokensBtn');
+    if (invalidateAllBtn) invalidateAllBtn.hidden = false;
   }
   if (session.role === 'TENANT_ADMIN') {
     const tenantWrap = el('tenantIdFieldWrap');
@@ -216,9 +249,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       {
         data: null,
         orderable: false,
-        render: () =>
-          `<button class="secondary" data-act="edit">Edit</button>
-           <button class="danger" data-act="del">Delete</button>`
+        render: (_, __, row) => {
+          const username = String(getValue(row, 'username') || '').trim().toLowerCase();
+          const actions = ['<button class="secondary" data-act="edit">Edit</button>'];
+          if (session.role === 'PRODUCT_ADMIN' && username !== 'admin') {
+            actions.push('<button class="secondary" data-act="invalidate">Invalidate tokens</button>');
+          }
+          actions.push('<button class="danger" data-act="del">Delete</button>');
+          return actions.join(' ');
+        }
       }
     ]
   });
@@ -243,6 +282,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       return;
     }
+    if (act === 'invalidate') {
+      const confirmed = await confirmInvalidateTokens(getValue(row, 'username'));
+      if (!confirmed) return;
+      await apiFetch(`/v1/admin/users/${encodeURIComponent(id)}/invalidate-tokens`, { method: 'POST' });
+      window.mdmToast?.('All user tokens invalidated');
+      dt.ajax.reload(null, false);
+      return;
+    }
     if (act === 'del') {
       const confirmed = await confirmDanger(`Delete user #${id}?`);
       if (!confirmed) return;
@@ -254,6 +301,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderUserEnrollments([], null);
       }
     }
+  });
+
+  el('invalidateAllTokensBtn')?.addEventListener('click', async () => {
+    if (session.role !== 'PRODUCT_ADMIN') return;
+    const confirmed = await confirmInvalidateAllTokens();
+    if (!confirmed) return;
+    const response = await apiFetch('/v1/admin/users/invalidate-all-tokens', { method: 'POST' });
+    const invalidated = Number(getValue(response, 'invalidatedUserCount', 'invalidated_user_count') || 0);
+    const skipped = Number(getValue(response, 'skippedProtectedUserCount', 'skipped_protected_user_count') || 0);
+    const revoked = Number(getValue(response, 'revokedRefreshTokenCount', 'revoked_refresh_token_count') || 0);
+    window.mdmToast?.(`Invalidated ${invalidated} users, skipped ${skipped} protected account, revoked ${revoked} refresh tokens`);
+    dt.ajax.reload(null, false);
+    fillForm(null);
+    renderUserEnrollments([], null);
   });
 
   el('userEnrollmentsTableBody')?.addEventListener('click', async (event) => {

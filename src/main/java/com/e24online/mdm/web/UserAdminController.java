@@ -1,6 +1,7 @@
 package com.e24online.mdm.web;
 
 import com.e24online.mdm.records.user.UserCreateRequest;
+import com.e24online.mdm.records.user.BulkUserTokenInvalidationResponse;
 import com.e24online.mdm.records.user.UserUpdateRequest;
 import com.e24online.mdm.records.user.UserResponse;
 import com.e24online.mdm.service.UserAdminService;
@@ -103,6 +104,25 @@ public class UserAdminController {
     ) {
         UserPrincipal principal = requestContext.requireUserPrincipal(authentication);
         return userAdminService.deleteUser(id, principal);
+    }
+
+    @PostMapping("/{id}/invalidate-tokens")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
+    public Mono<UserResponse> invalidateAllTokens(
+            Authentication authentication,
+            @PathVariable("id") Long id
+    ) {
+        UserPrincipal principal = requestContext.requireUserPrincipal(authentication);
+        return userAdminService.invalidateAllTokens(id, principal);
+    }
+
+    @PostMapping("/invalidate-all-tokens")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
+    public Mono<BulkUserTokenInvalidationResponse> invalidateAllTokensForAllUsers(
+            Authentication authentication
+    ) {
+        UserPrincipal principal = requestContext.requireUserPrincipal(authentication);
+        return userAdminService.invalidateAllTokensForAllUsers(principal);
     }
 
 }

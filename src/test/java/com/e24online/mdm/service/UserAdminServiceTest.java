@@ -3,6 +3,7 @@ package com.e24online.mdm.service;
 import com.e24online.mdm.domain.AuthRefreshToken;
 import com.e24online.mdm.domain.AuthUser;
 import com.e24online.mdm.domain.Tenant;
+import com.e24online.mdm.records.user.BulkUserTokenInvalidationResponse;
 import com.e24online.mdm.records.user.UserPrincipal;
 import com.e24online.mdm.records.user.UserResponse;
 import com.e24online.mdm.repository.AuthRefreshTokenRepository;
@@ -286,5 +287,134 @@ class UserAdminServiceTest {
         assertNotNull(response);
         verify(tenantEntitlementService, times(1)).assertCanCreateActiveTenantUser(11L);
         verify(tenantEntitlementService, times(1)).refreshUsageSnapshotForTenantId(11L);
+    }
+
+    @Test
+    void invalidateAllTokens_productAdmin_incrementsTokenVersionAndRevokesRefreshTokens() {
+        AuthUser existing = new AuthUser();
+        existing.setId(44L);
+        existing.setUsername("tenant-user");
+        existing.setRole("TENANT_USER");
+        existing.setStatus("ACTIVE");
+        existing.setTenantId(11L);
+        existing.setTokenVersion(7L);
+        existing.setDeleted(false);
+        when(authUserRepository.findById(44L)).thenReturn(Optional.of(existing));
+
+        Tenant tenant = new Tenant();
+        tenant.setId(11L);
+        tenant.setTenantId("acme");
+        tenant.setStatus("ACTIVE");
+        when(tenantRepository.findById(11L)).thenReturn(Optional.of(tenant));
+
+        AuthRefreshToken active = new AuthRefreshToken();
+        active.setUserId(44L);
+        active.setRevoked(false);
+        AuthRefreshToken alreadyRevoked = new AuthRefreshToken();
+        alreadyRevoked.setUserId(44L);
+        alreadyRevoked.setRevoked(true);
+        when(authRefreshTokenRepository.findByUserId(44L)).thenReturn(List.of(active, alreadyRevoked));
+
+        UserResponse response = service.invalidateAllTokens(
+                44L,
+                new UserPrincipal(1L, "root", "PRODUCT_ADMIN", null)
+        ).block();
+
+        assertNotNull(response);
+        assertEquals(8L, existing.getTokenVersion());
+        verify(authRefreshTokenRepository, times(1)).save(active);
+        verify(authRefreshTokenRepository, never()).save(alreadyRevoked);
+    }
+
+    @Test
+    void invalidateAllTokens_rejectsProtectedAdminUser() {
+        AuthUser existing = new AuthUser();
+        existing.setId(45L);
+        existing.setUsername("admin");
+        existing.setRole("PRODUCT_ADMIN");
+        existing.setStatus("ACTIVE");
+        existing.setTokenVersion(2L);
+        existing.setDeleted(false);
+        when(authUserRepository.findById(45L)).thenReturn(Optional.of(existing));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                service.invalidateAllTokens(45L, new UserPrincipal(1L, "root", "PRODUCT_ADMIN", null)).block()
+        );
+
+        assertEquals(403, ex.getStatusCode().value());
+        verify(authRefreshTokenRepository, never()).findByUserId(anyLong());
+    }
+
+    @Test
+    void invalidateAllTokens_rejectsTenantAdminActor() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                service.invalidateAllTokens(46L, new UserPrincipal(2L, "tenant-admin", "TENANT_ADMIN", 7L)).block()
+        );
+
+        assertEquals(403, ex.getStatusCode().value());
+        verify(authUserRepository, never()).findById(anyLong());
+    }
+
+    @Test
+    void invalidateAllTokensForAllUsers_productAdmin_skipsProtectedAdmin() {
+        AuthUser protectedAdmin = new AuthUser();
+        protectedAdmin.setId(1L);
+        protectedAdmin.setUsername("admin");
+        protectedAdmin.setRole("PRODUCT_ADMIN");
+        protectedAdmin.setStatus("ACTIVE");
+        protectedAdmin.setTokenVersion(9L);
+        protectedAdmin.setDeleted(false);
+
+        AuthUser tenantUser = new AuthUser();
+        tenantUser.setId(2L);
+        tenantUser.setUsername("alice");
+        tenantUser.setRole("TENANT_USER");
+        tenantUser.setStatus("ACTIVE");
+        tenantUser.setTokenVersion(3L);
+        tenantUser.setDeleted(false);
+
+        AuthUser productAdmin = new AuthUser();
+        productAdmin.setId(3L);
+        productAdmin.setUsername("ops-admin");
+        productAdmin.setRole("PRODUCT_ADMIN");
+        productAdmin.setStatus("ACTIVE");
+        productAdmin.setTokenVersion(null);
+        productAdmin.setDeleted(false);
+
+        when(authUserRepository.findAll()).thenReturn(List.of(protectedAdmin, tenantUser, productAdmin));
+
+        AuthRefreshToken tenantToken = new AuthRefreshToken();
+        tenantToken.setUserId(2L);
+        tenantToken.setRevoked(false);
+        AuthRefreshToken productToken = new AuthRefreshToken();
+        productToken.setUserId(3L);
+        productToken.setRevoked(false);
+        when(authRefreshTokenRepository.findByUserId(2L)).thenReturn(List.of(tenantToken));
+        when(authRefreshTokenRepository.findByUserId(3L)).thenReturn(List.of(productToken));
+
+        BulkUserTokenInvalidationResponse response = service.invalidateAllTokensForAllUsers(
+                new UserPrincipal(1L, "admin", "PRODUCT_ADMIN", null)
+        ).block();
+
+        assertNotNull(response);
+        assertEquals(2L, response.invalidatedUserCount());
+        assertEquals(1L, response.skippedProtectedUserCount());
+        assertEquals(2L, response.revokedRefreshTokenCount());
+        assertEquals(9L, protectedAdmin.getTokenVersion());
+        assertEquals(4L, tenantUser.getTokenVersion());
+        assertEquals(1L, productAdmin.getTokenVersion());
+        verify(authUserRepository, times(2)).save(any(AuthUser.class));
+        verify(authRefreshTokenRepository, times(1)).save(tenantToken);
+        verify(authRefreshTokenRepository, times(1)).save(productToken);
+    }
+
+    @Test
+    void invalidateAllTokensForAllUsers_rejectsTenantAdminActor() {
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                service.invalidateAllTokensForAllUsers(new UserPrincipal(2L, "tenant-admin", "TENANT_ADMIN", 7L)).block()
+        );
+
+        assertEquals(403, ex.getStatusCode().value());
+        verify(authUserRepository, never()).findAll();
     }
 }

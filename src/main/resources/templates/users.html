@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
-<section>
+<section data-preserve-button-labels="true">
     <section class="card">
         <div class="page-head">
             <div>
                 <h2>Users</h2>
                 <div class="muted">Product admins and tenant admins can create and manage users within allowed scope.</div>
+            </div>
+            <div class="form-row">
+                <button id="invalidateAllTokensBtn" class="danger" type="button" hidden>Invalidate All Tokens</button>
             </div>
         </div>
     </section>
