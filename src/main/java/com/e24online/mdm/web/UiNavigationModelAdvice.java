@@ -1,6 +1,7 @@
 package com.e24online.mdm.web;
 
 import com.e24online.mdm.records.ui.NavVisibility;
+import com.e24online.mdm.records.ui.PolicyNavVisibility;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -27,7 +28,7 @@ public class UiNavigationModelAdvice {
                 tenantAdmin || tenantUser,                   // enrollments
                 productAdmin,                                // payloads
                 productAdmin || tenantAdmin || auditor,      // audit
-                productAdmin || tenantAdmin,                 // policies
+                productAdmin || tenantAdmin || auditor,      // policies
                 productAdmin,                                // catalog
                 productAdmin,                                // lookups
                 productAdmin,                                // tenants
@@ -35,6 +36,26 @@ public class UiNavigationModelAdvice {
                 productAdmin || tenantAdmin,                 // reports
                 productAdmin,                                // osLifecycle
                 productAdmin                                 // management
+        );
+    }
+
+    @ModelAttribute("policyNav")
+    public PolicyNavVisibility policyNavVisibility(Authentication authentication) {
+        Set<String> roles = extractRoles(authentication);
+
+        boolean productAdmin = roles.contains("PRODUCT_ADMIN");
+        boolean tenantAdmin = roles.contains("TENANT_ADMIN");
+        boolean auditor = roles.contains("AUDITOR");
+
+        String shellHref = auditor && !productAdmin && !tenantAdmin
+                ? "/ui/policies/audit-trail"
+                : "/ui/policies";
+
+        return new PolicyNavVisibility(
+                shellHref,
+                productAdmin || tenantAdmin,
+                productAdmin,
+                productAdmin || auditor
         );
     }
 

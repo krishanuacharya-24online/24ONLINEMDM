@@ -83,21 +83,21 @@ class EvaluationEngineServiceTest {
         DeviceTrustProfile profile = new DeviceTrustProfile();
         profile.setCurrentScore((short) 90);
 
-        ParsedPosture parsed = posture("WINDOWS", "LAPTOP", 33, "Acme Inc");
+        ParsedPosture parsed = posture("SOLARIS", "WORKSTATION", 33, "Acme Inc");
         DeviceInstalledApplication app = new DeviceInstalledApplication();
         app.setId(701L);
         app.setAppName("Malware");
         app.setPackageId("bad.pkg");
-        app.setAppOsType("WINDOWS");
+        app.setAppOsType("SOLARIS");
         app.setAppVersion("1.0.0");
 
         SystemInformationRule rule = new SystemInformationRule();
         rule.setId(11L);
         rule.setDeleted(false);
         rule.setStatus("ACTIVE");
-        rule.setOsType("WINDOWS");
-        rule.setOsName("WINDOWS 11");
-        rule.setDeviceType("LAPTOP");
+        rule.setOsType("SOLARIS");
+        rule.setOsName("SOLARIS 11");
+        rule.setDeviceType("WORKSTATION");
         rule.setMatchMode("ANY");
         rule.setRuleCode("RULE_CODE_A");
         rule.setRuleTag("RULE_TAG_A");
@@ -128,7 +128,7 @@ class EvaluationEngineServiceTest {
         reject.setId(22L);
         reject.setDeleted(false);
         reject.setStatus("ACTIVE");
-        reject.setAppOsType("WINDOWS");
+        reject.setAppOsType("SOLARIS");
         reject.setPackageId("bad.pkg");
         reject.setAppName("Malware");
         reject.setPolicyTag("BLOCKLIST-A");
@@ -172,9 +172,9 @@ class EvaluationEngineServiceTest {
         decisionPolicy.setRemediationRequired(true);
         decisionPolicy.setResponseMessage("Policy decision");
 
-        when(systemRuleRepository.findActiveForEvaluation(anyString(), anyString(), any(OffsetDateTime.class))).thenReturn(List.of(rule));
+        when(systemRuleRepository.findActiveForEvaluation(anyString(), any(OffsetDateTime.class))).thenReturn(List.of(rule));
         when(conditionRepository.findActiveByRuleIds(anyList())).thenReturn(List.of(c1, c2));
-        when(rejectApplicationRepository.findActiveForEvaluation(anyString(), anyString(), any(OffsetDateTime.class))).thenReturn(List.of(reject));
+        when(rejectApplicationRepository.findActiveForEvaluation(anyString(), any(OffsetDateTime.class))).thenReturn(List.of(reject));
         when(trustScorePolicyRepository.findActiveForEvaluation(anyString(), any(OffsetDateTime.class))).thenReturn(List.of(rulePolicy, rejectPolicy, lifecyclePolicy));
         when(trustScoreDecisionPolicyRepository.findActivePolicyForScore(anyString(), anyInt(), any(OffsetDateTime.class)))
                 .thenReturn(Optional.of(decisionPolicy));
@@ -204,10 +204,10 @@ class EvaluationEngineServiceTest {
     void computeEvaluation_withoutPolicies_usesDefaultDecisionAndSignals() {
         DeviceTrustProfile profile = new DeviceTrustProfile();
         profile.setCurrentScore((short) 55);
-        ParsedPosture parsed = posture("WINDOWS", "LAPTOP", 30, "Acme");
+        ParsedPosture parsed = posture("SOLARIS", "WORKSTATION", 30, "Acme");
 
-        when(systemRuleRepository.findActiveForEvaluation(anyString(), anyString(), any(OffsetDateTime.class))).thenReturn(List.of());
-        when(rejectApplicationRepository.findActiveForEvaluation(anyString(), anyString(), any(OffsetDateTime.class))).thenReturn(List.of());
+        when(systemRuleRepository.findActiveForEvaluation(anyString(), any(OffsetDateTime.class))).thenReturn(List.of());
+        when(rejectApplicationRepository.findActiveForEvaluation(anyString(), any(OffsetDateTime.class))).thenReturn(List.of());
         when(trustScorePolicyRepository.findActiveForEvaluation(anyString(), any(OffsetDateTime.class))).thenReturn(List.of());
         when(trustScoreDecisionPolicyRepository.findActivePolicyForScore(anyString(), anyInt(), any(OffsetDateTime.class)))
                 .thenReturn(Optional.empty());
@@ -229,6 +229,66 @@ class EvaluationEngineServiceTest {
         assertTrue(result.remediationRequired()); // non-ALLOW defaults to remediation required
     }
 
+    @Test
+    void computeEvaluation_handlesNullSignalCandidatesWithoutCrashing() {
+        DeviceTrustProfile profile = new DeviceTrustProfile();
+        profile.setCurrentScore((short) 100);
+        ParsedPosture parsed = posture("WINDOWS", "WORKSTATION", 30, "Acme");
+
+        DeviceInstalledApplication app = new DeviceInstalledApplication();
+        app.setId(801L);
+        app.setAppName("Remote Tool");
+        app.setPackageId(null);
+        app.setAppOsType("WINDOWS");
+        app.setAppVersion("1.0.0");
+
+        SystemInformationRule rule = new SystemInformationRule();
+        rule.setId(31L);
+        rule.setDeleted(false);
+        rule.setStatus("ACTIVE");
+        rule.setOsType("WINDOWS");
+        rule.setDeviceType("WORKSTATION");
+        rule.setRuleCode("WINDOWS_VM");
+        rule.setRuleTag(null);
+        rule.setSeverity((short) 2);
+        rule.setComplianceAction("NOTIFY");
+        rule.setRiskScoreDelta((short) -5);
+
+        RejectApplication reject = new RejectApplication();
+        reject.setId(32L);
+        reject.setDeleted(false);
+        reject.setStatus("ACTIVE");
+        reject.setAppOsType("WINDOWS");
+        reject.setPackageId(null);
+        reject.setAppName("Remote Tool");
+        reject.setPolicyTag(null);
+        reject.setSeverity((short) 3);
+        reject.setMinAllowedVersion(null);
+
+        when(systemRuleRepository.findActiveForEvaluation(anyString(), any(OffsetDateTime.class))).thenReturn(List.of(rule));
+        when(conditionRepository.findActiveByRuleIds(anyList())).thenReturn(List.of());
+        when(rejectApplicationRepository.findActiveForEvaluation(anyString(), any(OffsetDateTime.class))).thenReturn(List.of(reject));
+        when(trustScorePolicyRepository.findActiveForEvaluation(anyString(), any(OffsetDateTime.class))).thenReturn(List.of());
+        when(trustScoreDecisionPolicyRepository.findActivePolicyForScore(anyString(), anyInt(), any(OffsetDateTime.class)))
+                .thenReturn(Optional.empty());
+
+        EvaluationComputation result = service.computeEvaluation(
+                profile,
+                parsed,
+                List.of(app),
+                new LifecycleResolution(5L, "NOT_TRACKED", null),
+                OffsetDateTime.now()
+        );
+
+        assertNotNull(result);
+        assertEquals(1, result.matchedRuleCount());
+        assertEquals(1, result.matchedAppCount());
+        assertEquals(3, result.scoreSignals().size());
+        assertEquals(2, result.matches().size());
+        assertEquals(50, result.scoreAfter());
+        assertEquals("QUARANTINE", result.decisionAction());
+    }
+
     private ParsedPosture posture(String osType, String deviceType, int apiLevel, String manufacturer) {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("manufacturer", manufacturer);
@@ -239,7 +299,7 @@ class EvaluationEngineServiceTest {
                 "dev-1",
                 "agent-1",
                 osType,
-                "WINDOWS 11",
+                osType + " 11",
                 "11.0.0",
                 "11",
                 deviceType,

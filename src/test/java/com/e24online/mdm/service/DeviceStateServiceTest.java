@@ -103,6 +103,27 @@ class DeviceStateServiceTest {
     }
 
     @Test
+    void parsePosture_acceptsDynamicOsAndDeviceTypes() {
+        ObjectNode root = objectMapper.createObjectNode();
+        root.put("os_type", "solaris");
+        root.put("os_name", "Solaris 11");
+        root.put("os_version", "11.4");
+        root.put("device_type", "workstation");
+
+        ParsedPosture parsed = service.parsePosture(
+                root,
+                "dev-1",
+                "agent-1",
+                "tenant-a",
+                OffsetDateTime.now()
+        );
+
+        assertEquals("SOLARIS", parsed.osType());
+        assertEquals("SOLARIS 11", parsed.osName());
+        assertEquals("WORKSTATION", parsed.deviceType());
+    }
+
+    @Test
     void parsePosture_rejectsMissingOsType() {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("os_name", "Windows");
@@ -230,7 +251,7 @@ class DeviceStateServiceTest {
         when(jdbc.queryForObject(anyString(), any(org.springframework.jdbc.core.namedparam.MapSqlParameterSource.class), eq(Long.class)))
                 .thenReturn(0L);
         when(jdbc.batchUpdate(anyString(), any(org.springframework.jdbc.core.namedparam.MapSqlParameterSource[].class)))
-                .thenReturn(new int[] {1, 1});
+                .thenReturn(new int[] {1, 1, 1});
 
         ArrayNode apps = objectMapper.createArrayNode();
         apps.addObject()
@@ -243,7 +264,7 @@ class DeviceStateServiceTest {
                 .put("app_os_type", "WINDOWS")
                 .put("package_id", "com.chrome")
                 .put("status", "ACTIVE");
-        apps.addObject() // invalid os type, should skip
+        apps.addObject() // dynamic app os type should still persist
                 .put("app_name", "Bad")
                 .put("app_os_type", "SOLARIS")
                 .put("package_id", "bad.pkg");
@@ -262,12 +283,23 @@ class DeviceStateServiceTest {
         DeviceInstalledApplication two = new DeviceInstalledApplication();
         two.setId(1002L);
         two.setStatus("ACTIVE");
-        when(installedApplicationRepository.findByPayloadId(101L)).thenReturn(List.of(one, two));
+        DeviceInstalledApplication three = new DeviceInstalledApplication();
+        three.setId(1003L);
+        three.setStatus("ACTIVE");
+        when(installedApplicationRepository.findByPayloadId(101L)).thenReturn(List.of(one, two, three));
 
         List<DeviceInstalledApplication> saved = service.saveInstalledApps(101L, profile, parsed, OffsetDateTime.now());
 
-        assertEquals(2, saved.size());
+        assertEquals(3, saved.size());
         assertEquals("ACTIVE", saved.getFirst().getStatus());
+
+        ArgumentCaptor<org.springframework.jdbc.core.namedparam.MapSqlParameterSource[]> captor =
+                ArgumentCaptor.forClass(org.springframework.jdbc.core.namedparam.MapSqlParameterSource[].class);
+        verify(jdbc).batchUpdate(anyString(), captor.capture());
+        org.springframework.jdbc.core.namedparam.MapSqlParameterSource[] params = captor.getValue();
+        assertEquals(3, params.length);
+        assertEquals("SOLARIS", params[1].getValue("appOsType"));
+        assertEquals("ACTIVE", params[2].getValue("status"));
     }
 
     @Test

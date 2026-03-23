@@ -1,5 +1,6 @@
 import { apiFetch } from './api.js';
 
+const ROLE_PRODUCT_ADMIN = 'PRODUCT_ADMIN';
 const ROLE_TENANT_ADMIN = 'TENANT_ADMIN';
 const CLONE_MANAGED_KEYS = new Set([
   'id',
@@ -38,14 +39,44 @@ export function isTenantAdminPolicyScope(scope) {
   return normalizeRole(scope?.role) === ROLE_TENANT_ADMIN;
 }
 
-export function canWritePolicyRow(scope, row) {
-  if (!isTenantAdminPolicyScope(scope)) {
-    return true;
+function scopeMode(scope) {
+  if (typeof scope?.mode === 'function') {
+    return String(scope.mode() || '').trim().toLowerCase();
   }
-  return !isGlobalPolicyRow(row);
+  return String(scope?.mode || '').trim().toLowerCase();
+}
+
+function scopeTenantId(scope) {
+  if (typeof scope?.tenantId === 'function') {
+    return normalizeTenantId(scope.tenantId());
+  }
+  return normalizeTenantId(scope?.tenantId);
+}
+
+export function canWritePolicyRow(scope, row) {
+  const role = normalizeRole(scope?.role);
+  const rowTenant = rowTenantId(row);
+
+  if (role === ROLE_PRODUCT_ADMIN) {
+    const currentScopeTenantId = scopeMode(scope) === 'tenant' ? scopeTenantId(scope) : null;
+    if (currentScopeTenantId == null) {
+      return rowTenant == null;
+    }
+    return rowTenant === currentScopeTenantId;
+  }
+
+  if (role === ROLE_TENANT_ADMIN) {
+    return rowTenant != null;
+  }
+
+  return false;
 }
 
 export function shouldShowCloneToTenant(scope, row) {
+  const role = normalizeRole(scope?.role);
+  if (role === ROLE_PRODUCT_ADMIN) {
+    return scopeMode(scope) === 'tenant' && scopeTenantId(scope) != null && isGlobalPolicyRow(row);
+  }
   return isTenantAdminPolicyScope(scope) && isGlobalPolicyRow(row);
 }
 

@@ -260,12 +260,13 @@ class AgentControllerTest {
     }
 
     @Test
-    void acknowledgeDecision_rejectsAckBeforeSentAt() {
+    void acknowledgeDecision_clampsAckBeforeSentAt() {
         Tenant tenant = activeTenant(1L, "tenant-a");
         TenantApiKey activeKey = activeKey(1L, "hash");
         OffsetDateTime sentAt = OffsetDateTime.now(ZoneOffset.UTC);
         DeviceDecisionResponse existing = new DeviceDecisionResponse();
         existing.setId(44L);
+        existing.setPostureEvaluationRunId(440L);
         existing.setSentAt(sentAt);
 
         when(tenantRepository.findActiveByTenantId("tenant-a")).thenReturn(Optional.of(tenant));
@@ -273,17 +274,20 @@ class AgentControllerTest {
         when(passwordEncoder.matches("secret", "hash")).thenReturn(true);
         when(passwordEncoder.upgradeEncoding("hash")).thenReturn(false);
         when(decisionRepository.findByIdAndTenant(44L, "tenant-a")).thenReturn(Optional.of(existing));
+        when(decisionRepository.save(any(DeviceDecisionResponse.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         DecisionAckRequest request = new DecisionAckRequest();
         request.setDeliveryStatus("ACKNOWLEDGED");
         request.setAcknowledgedAt(sentAt.minusMinutes(1));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                controller.acknowledgeDecision("tenant-a", "secret", 44L, Mono.just(request)).block()
-        );
+        var response = controller
+                .acknowledgeDecision("tenant-a", "secret", 44L, Mono.just(request))
+                .block();
 
-        assertEquals(400, ex.getStatusCode().value());
-        verify(decisionRepository, never()).save(any(DeviceDecisionResponse.class));
+        assertNotNull(response);
+        assertEquals("ACKNOWLEDGED", response.getDeliveryStatus());
+        assertEquals(sentAt, response.getAcknowledgedAt());
+        verify(remediationService).markAcknowledged(440L, sentAt);
     }
 
     @Test

@@ -101,7 +101,7 @@ public class EvaluationEngineService {
                 parsed.osType() == null);
         List<SystemInformationRule> activeRules = activeSystemRules(parsed, now);
         Map<Long, List<SystemInformationRuleCondition>> conditionsByRule = activeRuleConditions(activeRules);
-        List<RejectApplication> activeRejectApps = activeRejectApps(parsed.tenantId(), parsed.osType(), now);
+        List<RejectApplication> activeRejectApps = activeRejectApps(parsed.tenantId(), now);
         List<TrustScorePolicy> activePolicies = activeTrustPolicies(parsed.tenantId(), now);
 
         List<MatchDraft> matches = new ArrayList<>();
@@ -117,7 +117,7 @@ public class EvaluationEngineService {
             AppliedPolicy applied = findAppliedPolicy(
                     activePolicies,
                     "SYSTEM_RULE",
-                    List.of(rule.getRuleCode(), rule.getRuleTag()),
+                    signalCandidates(rule.getRuleCode(), rule.getRuleTag()),
                     rule.getSeverity(),
                     rule.getComplianceAction(),
                     parsed.tenantId()
@@ -163,7 +163,7 @@ public class EvaluationEngineService {
                 AppliedPolicy applied = findAppliedPolicy(
                         activePolicies,
                         "REJECT_APPLICATION",
-                        List.of(reject.getPackageId(), reject.getAppName(), reject.getPolicyTag()),
+                        signalCandidates(reject.getPackageId(), reject.getAppName(), reject.getPolicyTag()),
                         reject.getSeverity(),
                         "BLOCK",
                         parsed.tenantId()
@@ -201,7 +201,14 @@ public class EvaluationEngineService {
         }
 
         if (!"SUPPORTED".equalsIgnoreCase(lifecycle.state())) {
-            AppliedPolicy applied = findAppliedPolicy(activePolicies, "POSTURE_SIGNAL", List.of(lifecycle.signalKey()), null, null, parsed.tenantId());
+            AppliedPolicy applied = findAppliedPolicy(
+                    activePolicies,
+                    "POSTURE_SIGNAL",
+                    signalCandidates(lifecycle.signalKey()),
+                    null,
+                    null,
+                    parsed.tenantId()
+            );
             short delta = applied != null ? weightedDelta(applied.policy()) : defaultLifecycleDelta(lifecycle.state());
 
             signals.add(new ScoreSignal(
@@ -272,14 +279,14 @@ public class EvaluationEngineService {
     }
 
     private List<SystemInformationRule> activeSystemRules(ParsedPosture parsed, OffsetDateTime now) {
-        String cacheKey = String.valueOf(parsed.tenantId()) + "|" + String.valueOf(parsed.osType());
+        String cacheKey = String.valueOf(parsed.tenantId());
         List<SystemInformationRule> rules = getCached(
                 systemRuleCache,
                 cacheKey,
-                () -> List.copyOf(systemRuleRepository.findActiveForEvaluation(parsed.tenantId(), parsed.osType(), now))
+                () -> List.copyOf(systemRuleRepository.findActiveForEvaluation(parsed.tenantId(), now))
         );
         return rules.stream()
-                .filter(x -> equalsIgnoreCase(x.getOsType(), parsed.osType()))
+                .filter(x -> x.getOsType() == null || x.getOsType().isBlank() || equalsIgnoreCase(x.getOsType(), parsed.osType()))
                 .filter(x -> x.getOsName() == null || x.getOsName().isBlank() || equalsIgnoreCase(x.getOsName(), parsed.osName()))
                 .filter(x -> x.getDeviceType() == null || x.getDeviceType().isBlank() || equalsIgnoreCase(x.getDeviceType(), parsed.deviceType()))
                 .sorted(Comparator.comparingInt(x -> x.getPriority() == null ? Integer.MAX_VALUE : x.getPriority()))
@@ -315,12 +322,12 @@ public class EvaluationEngineService {
         );
     }
 
-    private List<RejectApplication> activeRejectApps(String tenantId, String osType, OffsetDateTime now) {
-        String cacheKey = String.valueOf(tenantId) + "|" + String.valueOf(osType);
+    private List<RejectApplication> activeRejectApps(String tenantId, OffsetDateTime now) {
+        String cacheKey = String.valueOf(tenantId);
         return getCached(
                 rejectApplicationCache,
                 cacheKey,
-                () -> List.copyOf(rejectApplicationRepository.findActiveForEvaluation(tenantId, osType, now))
+                () -> List.copyOf(rejectApplicationRepository.findActiveForEvaluation(tenantId, now))
         );
     }
 
@@ -550,8 +557,23 @@ public class EvaluationEngineService {
         return new AppliedPolicy(matches.getFirst());
     }
 
+    private List<String> signalCandidates(String... values) {
+        if (values == null || values.length == 0) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>(values.length);
+        for (String value : values) {
+            String normalized = trimToNull(value);
+            if (normalized != null) {
+                out.add(normalized);
+            }
+        }
+        return out.isEmpty() ? List.of() : List.copyOf(out);
+    }
+
     private boolean matchesRejectApp(DeviceInstalledApplication app, RejectApplication reject) {
-        if (!equalsIgnoreCase(app.getAppOsType(), reject.getAppOsType())) {
+        if (reject.getAppOsType() != null && !reject.getAppOsType().isBlank()
+                && !equalsIgnoreCase(app.getAppOsType(), reject.getAppOsType())) {
             return false;
         }
 

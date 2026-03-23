@@ -1,26 +1,19 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section})}">
-<section>
+<section data-preserve-button-labels="true">
     <section class="card">
         <div class="page-head">
             <div>
                 <h2 th:text="'System rule conditions - Rule #' + ${ruleId}">System rule conditions</h2>
                 <div class="muted">Backed by <code>system_information_rule_condition</code>. Deletions are soft deletes.</div>
             </div>
-            <div class="tab-links">
-                <a class="link-btn" th:href="@{/ui/policies/system-rules}" th:attr="data-active=${activePolicy == 'system-rules'}">System rules</a>
-                <a class="link-btn" th:href="@{/ui/policies/reject-apps}" th:attr="data-active=${activePolicy == 'reject-apps'}">Reject apps</a>
-                <a class="link-btn" th:href="@{/ui/policies/trust-score-policies}" th:attr="data-active=${activePolicy == 'trust-score-policies'}">Trust policies</a>
-                <a class="link-btn" th:href="@{/ui/policies/trust-decision-policies}" th:attr="data-active=${activePolicy == 'trust-decision-policies'}">Decision policies</a>
-                <a class="link-btn" th:href="@{/ui/policies/remediation-rules}" th:attr="data-active=${activePolicy == 'remediation-rules'}">Remediations</a>
-                <a class="link-btn" th:href="@{/ui/policies/rule-remediation-mappings}" th:attr="data-active=${activePolicy == 'rule-remediation-mappings'}">Mappings</a>
-                <a class="link-btn" th:href="@{/ui/policies/audit-trail}" th:attr="data-active=${activePolicy == 'audit-trail'}">Audit trail</a>
-            </div>
+            <div th:replace="~{fragments/policy_nav :: links(${activePolicy})}"></div>
         </div>
     </section>
 
     <section class="card mt-1">
         <h2>Conditions</h2>
+        <div class="muted mb-025"><a class="link-btn" th:href="@{/ui/policies/system-rules}"><span class="link-btn__icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M15 18l-6-6 6-6"/></svg></span><span>Back to system rules</span></a></div>
         <table id="ruleConditionsTable" class="display responsive nowrap w-100" th:attr="data-rule-id=${ruleId}">
             <thead>
             <tr>

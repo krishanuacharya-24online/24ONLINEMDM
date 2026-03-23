@@ -14,7 +14,7 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("${api.version.prefix:v1}/policies")
-@PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+@PreAuthorize("hasRole('PRODUCT_ADMIN')")
 public class PoliciesController {
 
     private final PoliciesCrudService policiesCrudService;

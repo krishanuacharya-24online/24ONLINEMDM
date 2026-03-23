@@ -177,4 +177,102 @@ class WebDtoCoverageTest {
         assertEquals("{\"b\":2}", allArgs.getInstructionJson());
         assertEquals("CLOSED", allArgs.getRemediationStatus());
     }
+
+    @Test
+    void simplePolicyDtos_roundTripProperties() {
+        SimpleDevicePolicyRequest deviceRequest = new SimpleDevicePolicyRequest();
+        deviceRequest.setName("Rooted Android device");
+        deviceRequest.setSeverity((short) 5);
+        deviceRequest.setFieldName("root_detected");
+        deviceRequest.setOperator("EQ");
+        deviceRequest.setValueType("BOOLEAN");
+        deviceRequest.setValueBoolean(true);
+        deviceRequest.setRemediationRuleId(10L);
+        assertEquals("Rooted Android device", deviceRequest.getName());
+        assertEquals((short) 5, deviceRequest.getSeverity());
+        assertTrue(deviceRequest.getValueBoolean());
+        assertEquals(10L, deviceRequest.getRemediationRuleId());
+
+        SimpleDevicePolicySummary deviceSummary = new SimpleDevicePolicySummary();
+        deviceSummary.setId(1L);
+        deviceSummary.setRuleCode("SR-1");
+        deviceSummary.setComplex(true);
+        deviceSummary.setComplexityReason("Multiple conditions");
+        assertEquals(1L, deviceSummary.getId());
+        assertEquals("SR-1", deviceSummary.getRuleCode());
+        assertTrue(deviceSummary.isComplex());
+        assertEquals("Multiple conditions", deviceSummary.getComplexityReason());
+
+        SimpleAppPolicyRequest appRequest = new SimpleAppPolicyRequest();
+        appRequest.setPolicyTag("Block remote admin tool");
+        appRequest.setAppName("AnyDesk");
+        appRequest.setSeverity((short) 4);
+        appRequest.setRemediationRuleId(11L);
+        assertEquals("Block remote admin tool", appRequest.getPolicyTag());
+        assertEquals("AnyDesk", appRequest.getAppName());
+        assertEquals((short) 4, appRequest.getSeverity());
+        assertEquals(11L, appRequest.getRemediationRuleId());
+
+        SimpleAppPolicySummary appSummary = new SimpleAppPolicySummary();
+        appSummary.setId(2L);
+        appSummary.setPolicyTag("Block remote admin tool");
+        appSummary.setComplex(false);
+        assertEquals(2L, appSummary.getId());
+        assertEquals("Block remote admin tool", appSummary.getPolicyTag());
+        assertFalse(appSummary.isComplex());
+
+        SimplePolicyStarterPackSummary starterPackSummary = new SimplePolicyStarterPackSummary();
+        starterPackSummary.setScope("tenant-a");
+        starterPackSummary.setCreatedDeviceChecks(3);
+        starterPackSummary.setCreatedTrustLevels(4);
+        starterPackSummary.setCreatedFixes(3);
+        assertEquals("tenant-a", starterPackSummary.getScope());
+        assertEquals(3, starterPackSummary.getCreatedDeviceChecks());
+        assertEquals(4, starterPackSummary.getCreatedTrustLevels());
+        assertEquals(3, starterPackSummary.getCreatedFixes());
+
+        SimplePolicySimulationAppInput appInput = new SimplePolicySimulationAppInput();
+        appInput.setAppName("AnyDesk");
+        appInput.setPackageId("AnyDeskSoftwareGmbH.AnyDesk");
+        appInput.setAppVersion("1.0.0");
+        appInput.setPublisher("AnyDesk");
+        appInput.setAppOsType("WINDOWS");
+        assertEquals("AnyDesk", appInput.getAppName());
+        assertEquals("AnyDeskSoftwareGmbH.AnyDesk", appInput.getPackageId());
+
+        SimplePolicySimulationRequest simulationRequest = new SimplePolicySimulationRequest();
+        simulationRequest.setCurrentScore(80);
+        simulationRequest.setOsType("WINDOWS");
+        simulationRequest.setOsCycle("23H2");
+        simulationRequest.setInstalledApps(List.of(appInput));
+        assertEquals(80, simulationRequest.getCurrentScore());
+        assertEquals("WINDOWS", simulationRequest.getOsType());
+        assertEquals("23H2", simulationRequest.getOsCycle());
+        assertEquals(1, simulationRequest.getInstalledApps().size());
+        simulationRequest.setInstalledApps(null);
+        assertNotNull(simulationRequest.getInstalledApps());
+        assertTrue(simulationRequest.getInstalledApps().isEmpty());
+
+        SimplePolicySimulationFinding finding = new SimplePolicySimulationFinding();
+        finding.setCategory("DEVICE_CHECK");
+        finding.setTitle("Rooted Android device");
+        finding.setDetail("Matched device posture rule.");
+        finding.setSeverity((short) 5);
+        finding.setAction("BLOCK");
+        finding.setScoreDelta((short) -60);
+        assertEquals("DEVICE_CHECK", finding.getCategory());
+        assertEquals("Rooted Android device", finding.getTitle());
+        assertEquals((short) -60, finding.getScoreDelta());
+
+        SimplePolicySimulationResponse simulationResponse = new SimplePolicySimulationResponse();
+        simulationResponse.setDecisionAction("BLOCK");
+        simulationResponse.setLifecycleState("EEOL");
+        simulationResponse.setFindings(List.of(finding));
+        assertEquals("BLOCK", simulationResponse.getDecisionAction());
+        assertEquals("EEOL", simulationResponse.getLifecycleState());
+        assertEquals(1, simulationResponse.getFindings().size());
+        simulationResponse.setFindings(null);
+        assertNotNull(simulationResponse.getFindings());
+        assertTrue(simulationResponse.getFindings().isEmpty());
+    }
 }

@@ -37,7 +37,7 @@ public class UiDataTablesController {
     }
 
     @GetMapping("/system-rules")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<DataTableResponse<Map<String, Object>>> systemRules(
             Authentication authentication,
             @RequestHeader(name = "X-Tenant-Id", required = false) String tenantId,
@@ -64,7 +64,7 @@ public class UiDataTablesController {
     }
 
     @GetMapping("/reject-apps")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<DataTableResponse<Map<String, Object>>> rejectApps(
             Authentication authentication,
             @RequestHeader(name = "X-Tenant-Id", required = false) String tenantId,
@@ -93,7 +93,7 @@ public class UiDataTablesController {
     }
 
     @GetMapping("/trust-score-policies")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<DataTableResponse<Map<String, Object>>> trustScorePolicies(
             Authentication authentication,
             @RequestHeader(name = "X-Tenant-Id", required = false) String tenantId,
@@ -120,7 +120,7 @@ public class UiDataTablesController {
     }
 
     @GetMapping("/trust-decision-policies")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<DataTableResponse<Map<String, Object>>> trustDecisionPolicies(
             Authentication authentication,
             @RequestHeader(name = "X-Tenant-Id", required = false) String tenantId,
@@ -147,7 +147,7 @@ public class UiDataTablesController {
     }
 
     @GetMapping("/remediation-rules")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<DataTableResponse<Map<String, Object>>> remediationRules(
             Authentication authentication,
             @RequestHeader(name = "X-Tenant-Id", required = false) String tenantId,
@@ -174,7 +174,7 @@ public class UiDataTablesController {
     }
 
     @GetMapping("/rule-remediation-mappings")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<DataTableResponse<Map<String, Object>>> ruleRemediationMappings(
             Authentication authentication,
             @RequestHeader(name = "X-Tenant-Id", required = false) String tenantId,
@@ -201,7 +201,7 @@ public class UiDataTablesController {
     }
 
     @GetMapping("/policy-audit")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN','AUDITOR')")
+    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','AUDITOR')")
     public Mono<DataTableResponse<Map<String, Object>>> policyAudit(
             Authentication authentication,
             @RequestHeader(name = "X-Tenant-Id", required = false) String tenantId,
@@ -309,7 +309,7 @@ public class UiDataTablesController {
     }
 
     @GetMapping("/system-rule-conditions")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<DataTableResponse<Map<String, Object>>> systemRuleConditions(
             Authentication authentication,
             @RequestHeader(name = "X-Tenant-Id", required = false) String tenantId,

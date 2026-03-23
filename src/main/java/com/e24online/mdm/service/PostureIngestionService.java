@@ -11,7 +11,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import tools.jackson.core.JacksonException;
@@ -21,6 +24,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
@@ -55,17 +59,23 @@ public class PostureIngestionService {
     private final ObjectMapper objectMapper;
     private final Scheduler jdbcScheduler;
     private final TenantEntitlementService tenantEntitlementService;
+    private final TransactionTemplate requiresNewReadTx;
 
     public PostureIngestionService(DevicePosturePayloadRepository repository,
                                    AuditEventService auditEventService,
                                    ObjectMapper objectMapper,
                                    Scheduler jdbcScheduler,
-                                   TenantEntitlementService tenantEntitlementService) {
+                                   TenantEntitlementService tenantEntitlementService,
+                                   PlatformTransactionManager transactionManager) {
         this.repository = repository;
         this.auditEventService = auditEventService;
         this.objectMapper = objectMapper;
         this.jdbcScheduler = jdbcScheduler;
         this.tenantEntitlementService = tenantEntitlementService;
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setReadOnly(true);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.requiresNewReadTx = template;
     }
 
     @Retry(name = "ingest")
@@ -176,8 +186,12 @@ public class PostureIngestionService {
             auditIngestionEvent("SUCCESS", normalizedTenantId, deviceExternalId, saved.getId(), "INSERT_NEW", null);
             return new IngestionResult(saved, true);
         } catch (DataIntegrityViolationException ex) {
-            // Concurrency-safe fallback when two requests race on the same idempotency key.
-            Optional<DevicePosturePayload> raced = repository.findByIdempotencyKey(
+            if (!isIdempotencyConflict(ex)) {
+                throw ex;
+            }
+
+            log.debug("Payload insert hit idempotency conflict for device: {} tenant: {}", deviceExternalId, normalizedTenantId);
+            Optional<DevicePosturePayload> raced = lookupExistingPayloadInNewTransaction(
                     normalizedTenantId,
                     deviceExternalId,
                     idempotencyKey
@@ -189,6 +203,48 @@ public class PostureIngestionService {
             }
             throw ex;
         }
+    }
+
+    private Optional<DevicePosturePayload> lookupExistingPayloadInNewTransaction(String tenantId,
+                                                                                 String deviceExternalId,
+                                                                                 String idempotencyKey) {
+        return Optional.ofNullable(requiresNewReadTx.execute(_ ->
+                repository.findByIdempotencyKey(tenantId, deviceExternalId, idempotencyKey).orElse(null)
+        ));
+    }
+
+    private boolean isIdempotencyConflict(DataIntegrityViolationException ex) {
+        SQLException sqlException = extractSqlException(ex);
+        if (sqlException == null || !"23505".equals(sqlException.getSQLState())) {
+            return false;
+        }
+        String message = rootMessage(ex).toLowerCase(Locale.ROOT);
+        return message.contains("uq_posture_payload_idempotency")
+                || message.contains("idempotency_key")
+                || message.contains("idempotency key");
+    }
+
+    private SQLException extractSqlException(Throwable ex) {
+        Throwable cursor = ex;
+        while (cursor != null) {
+            if (cursor instanceof SQLException sqlException) {
+                return sqlException;
+            }
+            cursor = cursor.getCause();
+        }
+        return null;
+    }
+
+    private String rootMessage(Throwable ex) {
+        Throwable cursor = ex;
+        String message = ex == null ? null : ex.getMessage();
+        while (cursor != null) {
+            if (cursor.getMessage() != null && !cursor.getMessage().isBlank()) {
+                message = cursor.getMessage();
+            }
+            cursor = cursor.getCause();
+        }
+        return message == null ? "" : message;
     }
 
     private ContractMetadata resolveContractMetadata(PosturePayloadIngestRequest request,

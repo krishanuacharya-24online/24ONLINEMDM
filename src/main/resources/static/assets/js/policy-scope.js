@@ -2,6 +2,7 @@ import { apiFetch, fetchAuthenticatedUser } from './api.js';
 
 const ROLE_PRODUCT_ADMIN = 'PRODUCT_ADMIN';
 const ROLE_TENANT_ADMIN = 'TENANT_ADMIN';
+const ROLE_AUDITOR = 'AUDITOR';
 const STORAGE_KEY = 'mdm.policy.scope.v1';
 
 function normalizeRole(role) {
@@ -86,7 +87,10 @@ function resolveHeadersFromTenantId(tenantId) {
 
 function resolveScopeHint(state) {
   if (state.role === ROLE_TENANT_ADMIN) {
-    return 'Policy scope: your tenant (with global fallback)';
+    return 'Policy scope: your tenant. Shared global references remain available where this page supports them.';
+  }
+  if (state.role === ROLE_AUDITOR) {
+    return 'Policy scope: your tenant audit view.';
   }
   if (state.mode !== 'tenant') {
     return 'Policy scope: global';
@@ -94,7 +98,7 @@ function resolveScopeHint(state) {
   if (!state.tenantId) {
     return 'Policy scope: choose a tenant';
   }
-  return `Policy scope: tenant ${state.tenantId} (with global fallback)`;
+  return `Policy scope: tenant ${state.tenantId}. Shared global references remain available where this page supports them.`;
 }
 
 function applyProductAdminScope(state, mode, tenantId, tenantOptions) {
@@ -136,7 +140,7 @@ function renderScopeControl(state, tenantOptions, onChange, mountSelector) {
 
   const wrap = createElement('div', { class: 'form-row mt-075', 'data-policy-scope-control': 'true' });
 
-  if (state.role === ROLE_TENANT_ADMIN) {
+  if (state.role === ROLE_TENANT_ADMIN || state.role === ROLE_AUDITOR) {
     const label = createElement('div', { class: 'muted', text: resolveScopeHint(state) });
     wrap.appendChild(label);
     mount.appendChild(wrap);
@@ -220,7 +224,7 @@ export async function initPolicyScope({
     } else {
       applyProductAdminScope(state, 'global', null, tenants);
     }
-  } else if (role === ROLE_TENANT_ADMIN) {
+  } else if (role === ROLE_TENANT_ADMIN || role === ROLE_AUDITOR) {
     state.mode = 'tenant';
     state.tenantId = null;
   }

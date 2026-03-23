@@ -78,8 +78,17 @@ public class UiController {
         return Mono.just("audit_trail");
     }
 
-    @GetMapping("/policies/system-rules")
+    @GetMapping("/policies")
     @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    public Mono<String> policiesSimpleCenter(Model model) {
+        model.addAttribute("activePage", "policies");
+        model.addAttribute("activePolicy", "simple");
+        model.addAttribute("title", "Policy center");
+        return Mono.just("policies_simple_center");
+    }
+
+    @GetMapping("/policies/system-rules")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<String> policiesSystemRules(Model model) {
         model.addAttribute("activePage", "policies");
         model.addAttribute("activePolicy", "system-rules");
@@ -88,7 +97,7 @@ public class UiController {
     }
 
     @GetMapping("/policies/system-rules/{id}/conditions")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<String> policiesSystemRuleConditions(
             @PathVariable("id") Long id,
             Model model
@@ -101,7 +110,7 @@ public class UiController {
     }
 
     @GetMapping("/policies/reject-apps")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<String> policiesRejectApps(Model model) {
         model.addAttribute("activePage", "policies");
         model.addAttribute("activePolicy", "reject-apps");
@@ -110,7 +119,7 @@ public class UiController {
     }
 
     @GetMapping("/policies/trust-score-policies")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<String> policiesTrustScorePolicies(Model model) {
         model.addAttribute("activePage", "policies");
         model.addAttribute("activePolicy", "trust-score-policies");
@@ -119,7 +128,7 @@ public class UiController {
     }
 
     @GetMapping("/policies/trust-decision-policies")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<String> policiesTrustDecisionPolicies(Model model) {
         model.addAttribute("activePage", "policies");
         model.addAttribute("activePolicy", "trust-decision-policies");
@@ -128,7 +137,7 @@ public class UiController {
     }
 
     @GetMapping("/policies/remediation-rules")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<String> policiesRemediationRules(Model model) {
         model.addAttribute("activePage", "policies");
         model.addAttribute("activePolicy", "remediation-rules");
@@ -137,7 +146,7 @@ public class UiController {
     }
 
     @GetMapping("/policies/rule-remediation-mappings")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN')")
+    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
     public Mono<String> policiesRuleRemediationMappings(Model model) {
         model.addAttribute("activePage", "policies");
         model.addAttribute("activePolicy", "rule-remediation-mappings");
@@ -146,7 +155,7 @@ public class UiController {
     }
 
     @GetMapping("/policies/audit-trail")
-    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN','AUDITOR')")
+    @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','AUDITOR')")
     public Mono<String> policiesAuditTrail(Model model) {
         model.addAttribute("activePage", "policies");
         model.addAttribute("activePolicy", "audit-trail");

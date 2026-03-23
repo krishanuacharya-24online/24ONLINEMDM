@@ -85,6 +85,11 @@ class UiControllerTest {
 
     @Test
     void policyPages_setExpectedPolicyContext() {
+        Model simpleModel = new ExtendedModelMap();
+        assertEquals("policies_simple_center", controller.policiesSimpleCenter(simpleModel).block());
+        assertEquals("policies", simpleModel.getAttribute("activePage"));
+        assertEquals("simple", simpleModel.getAttribute("activePolicy"));
+
         Model systemRulesModel = new ExtendedModelMap();
         assertEquals("policies_system_rules", controller.policiesSystemRules(systemRulesModel).block());
         assertEquals("policies", systemRulesModel.getAttribute("activePage"));

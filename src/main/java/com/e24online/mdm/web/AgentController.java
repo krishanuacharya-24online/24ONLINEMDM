@@ -241,11 +241,8 @@ public class AgentController {
                                         sentAt = now;
                                         existing.setSentAt(sentAt);
                                     }
-                                    if (acknowledgedAt != null && acknowledgedAt.isBefore(sentAt)) {
-                                        return Mono.error(new ResponseStatusException(
-                                                HttpStatus.BAD_REQUEST,
-                                                "acknowledged_at cannot be before sent_at"
-                                        ));
+                                    if (acknowledgedAt != null && sentAt != null && acknowledgedAt.isBefore(sentAt)) {
+                                        acknowledgedAt = sentAt;
                                     }
 
                                     existing.setDeliveryStatus(deliveryStatus);

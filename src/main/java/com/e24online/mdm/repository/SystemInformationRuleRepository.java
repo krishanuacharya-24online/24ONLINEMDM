@@ -71,4 +71,25 @@ public interface SystemInformationRuleRepository extends CrudRepository<SystemIn
             @Param("osType") String osType,
             @Param("asOf") OffsetDateTime asOf
     );
+
+    @Query("""
+            SELECT *
+            FROM system_information_rule
+            WHERE is_deleted = false
+              AND status = 'ACTIVE'
+              AND effective_from <= :asOf
+              AND (effective_to IS NULL OR effective_to > :asOf)
+              AND (
+                    (CAST(:tenantId AS varchar) IS NULL AND tenant_id IS NULL)
+                 OR (CAST(:tenantId AS varchar) IS NOT NULL AND (tenant_id IS NULL OR tenant_id = :tenantId))
+              )
+            ORDER BY
+              CASE WHEN tenant_id = :tenantId THEN 0 ELSE 1 END,
+              priority,
+              id
+            """)
+    List<SystemInformationRule> findActiveForEvaluation(
+            @Param("tenantId") String tenantId,
+            @Param("asOf") OffsetDateTime asOf
+    );
 }

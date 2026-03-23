@@ -12,6 +12,7 @@ import java.util.Map;
 public final class TextSanitizer {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String NULL_CHAR = "\u0000";
     private static final String REPLACEMENT_CHAR = "\uFFFD";
     private static final String LATIN1_REPLACEMENT = "\u00EF\u00BF\u00BD";
     private static final String DOUBLE_ENCODED_REPLACEMENT = "\u00C3\u00AF\u00C2\u00BF\u00C2\u00BD";
@@ -34,6 +35,7 @@ public final class TextSanitizer {
             return null;
         }
         String sanitized = value
+                .replace(NULL_CHAR, "")
                 .replace(REPLACEMENT_CHAR, "")
                 .replace(LATIN1_REPLACEMENT, "")
                 .replace(DOUBLE_ENCODED_REPLACEMENT, "")
@@ -55,6 +57,7 @@ public final class TextSanitizer {
             return false;
         }
         return value.contains(REPLACEMENT_CHAR)
+                || value.contains(NULL_CHAR)
                 || value.contains(LATIN1_REPLACEMENT)
                 || value.contains(DOUBLE_ENCODED_REPLACEMENT)
                 || value.contains(MOJIBAKE_ELLIPSIS)

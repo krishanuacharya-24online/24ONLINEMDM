@@ -9,7 +9,7 @@
     <link rel="stylesheet" th:href="@{/assets/css/device-timeline.css(v=202603171)}"/>
     <link rel="icon" th:href="@{/assets/favicon.svg}" type="image/x-icon"/>
     <script th:src="@{/assets/js/dt-helpers.js(v=202603062)}" defer></script>
-    <script th:src="@{/assets/js/app.js(v=202603175)}" defer></script>
+    <script th:src="@{/assets/js/app.js(v=2026032304)}" defer></script>
     <script type="module" th:src="@{/assets/js/reference-sync.js(v=202603176)}"></script>
 </head>
 <body>
@@ -51,7 +51,8 @@
                 <a th:if="${nav.enrollments}" th:href="@{/ui/enrollments}" th:attr="data-active=${activePage == 'enrollments'}">Enrollments</a>
                 <a th:if="${nav.payloads}" th:href="@{/ui/payloads}" th:attr="data-active=${activePage == 'payloads'}">Payloads</a>
                 <a th:if="${nav.audit}" th:href="@{/ui/audit-trail}" th:attr="data-active=${activePage == 'audit'}">Audit</a>
-                <a th:if="${nav.policies}" th:href="@{/ui/policies/system-rules}" th:attr="data-active=${activePage == 'policies'}">Policies</a>
+                <a th:if="${nav.policies and policyNav.shellHref == '/ui/policies'}" th:href="@{/ui/policies}" th:attr="data-active=${activePage == 'policies'}">Policies</a>
+                <a th:if="${nav.policies and policyNav.shellHref == '/ui/policies/audit-trail'}" th:href="@{/ui/policies/audit-trail}" th:attr="data-active=${activePage == 'policies'}">Policies</a>
                 <a th:if="${nav.catalog}" th:href="@{/ui/catalog/applications}" th:attr="data-active=${activePage == 'catalog'}">Catalog</a>
                 <a th:if="${nav.lookups}" th:href="@{/ui/lookups}" th:attr="data-active=${activePage == 'lookups'}">Lookups</a>
                 <a th:if="${nav.tenants}" th:href="@{/ui/tenants}" th:attr="data-active=${activePage == 'tenants'}">Tenants</a>

@@ -1185,6 +1185,7 @@
   function isIconizationCandidate(button) {
     if (!(button instanceof HTMLButtonElement)) return false;
     if (button.dataset.noIcon === 'true') return false;
+    if (button.closest('[data-preserve-button-labels="true"]')) return false;
     if (button.classList.contains('select2-lite__trigger')) return false;
     if (button.classList.contains('select2-lite__option')) return false;
     if (button.closest('.select2-lite')) return false;

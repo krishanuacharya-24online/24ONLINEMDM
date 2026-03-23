@@ -50,8 +50,6 @@ public class DeviceStateService {
     private static final int MAX_OS_CYCLE_LENGTH = 64;
     private static final int MAX_TIME_ZONE_LENGTH = 100;
     private static final int MAX_INSTALLED_APPS = 5000;
-    private static final Set<String> OS_TYPES = Set.of("ANDROID", "IOS", "WINDOWS", "MACOS", "LINUX", "CHROMEOS", "FREEBSD", "OPENBSD");
-    private static final Set<String> APP_OS_TYPES = Set.of("ANDROID", "IOS", "WINDOWS", "MACOS", "LINUX");
     private static final long DEFAULT_LIFECYCLE_CACHE_SECONDS = 60L;
 
     private final DeviceTrustProfileRepository profileRepository;
@@ -92,7 +90,7 @@ public class DeviceStateService {
                                       OffsetDateTime now) {
         log.debug("parsePosture method");
         String osType = normalizeUpper(text(root, "os_type"));
-        if (osType == null || !OS_TYPES.contains(osType)) {
+        if (osType == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payload_json.os_type is required");
         }
 
@@ -159,7 +157,7 @@ public class DeviceStateService {
             profile.setCreatedBy("posture-parser");
         }
 
-        profile.setDeviceType(validDeviceType(parsed.deviceType()));
+        profile.setDeviceType(parsed.deviceType());
         profile.setOsType(parsed.osType());
         profile.setOsName(parsed.osName());
         if (profile.getOsLifecycleState() == null || profile.getOsLifecycleState().isBlank()) {
@@ -186,7 +184,7 @@ public class DeviceStateService {
             snapshot.setDevicePosturePayloadId(payloadId);
             snapshot.setDeviceTrustProfileId(profile.getId());
             snapshot.setCaptureTime(parsed.captureTime());
-            snapshot.setDeviceType(validDeviceType(parsed.deviceType()));
+            snapshot.setDeviceType(parsed.deviceType());
             snapshot.setOsType(parsed.osType());
             snapshot.setOsName(parsed.osName());
             snapshot.setOsCycle(parsed.osCycle());
@@ -234,7 +232,7 @@ public class DeviceStateService {
                     trimToNullAndCap(TextSanitizer.sanitizeText(text(appNode, "os_type")), MAX_TEXT_LENGTH),
                     parsed.osType()
             ));
-            if (appOsType == null || !APP_OS_TYPES.contains(appOsType)) {
+            if (appOsType == null) {
                 continue;
             }
 
@@ -395,15 +393,6 @@ public class DeviceStateService {
             case null -> "-";
             default -> "OS_SUPPORTED";
         };
-    }
-
-    private String validDeviceType(String value) {
-        String normalized = normalizeUpper(value);
-        if (normalized == null) {
-            return null;
-        }
-        Set<String> deviceType = Set.of("PHONE", "TABLET", "LAPTOP", "DESKTOP", "IOT", "SERVER");
-        return deviceType.contains(normalized) ? normalized : null;
     }
 
     private <T> List<T> toList(Iterable<T> iterable) {

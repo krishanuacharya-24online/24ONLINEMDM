@@ -9,17 +9,22 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 import reactor.core.scheduler.Schedulers;
 import tools.jackson.databind.ObjectMapper;
 
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -27,6 +32,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class PostureIngestionServiceTest {
@@ -38,17 +44,21 @@ class PostureIngestionServiceTest {
     private AuditEventService auditEventService;
     @Mock
     private TenantEntitlementService tenantEntitlementService;
+    @Mock
+    private PlatformTransactionManager transactionManager;
 
     private PostureIngestionService service;
 
     @BeforeEach
     void setUp() {
+        lenient().when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
         service = new PostureIngestionService(
                 repository,
                 auditEventService,
                 new ObjectMapper(),
                 Schedulers.immediate(),
-                tenantEntitlementService
+                tenantEntitlementService,
+                transactionManager
         );
     }
 
@@ -126,6 +136,56 @@ class PostureIngestionServiceTest {
     }
 
     @Test
+    void ingest_duplicateRaceOnSave_returnsExistingPayloadUsingNewTransactionLookup() {
+        AtomicInteger lookupCount = new AtomicInteger();
+        DevicePosturePayload existing = new DevicePosturePayload();
+        existing.setId(250L);
+
+        when(repository.findByIdempotencyKey(eq("tenant-a"), eq("dev-01"), anyString()))
+                .thenAnswer(invocation -> lookupCount.getAndIncrement() == 0 ? Optional.empty() : Optional.of(existing));
+        when(repository.save(any(DevicePosturePayload.class)))
+                .thenThrow(new DataIntegrityViolationException(
+                        "duplicate key value violates unique constraint \"uq_posture_payload_idempotency\"",
+                        new SQLException("duplicate key value violates unique constraint \"uq_posture_payload_idempotency\"", "23505")
+                ));
+
+        PosturePayloadIngestRequest request = new PosturePayloadIngestRequest();
+        request.setDeviceExternalId("dev-01");
+        request.setAgentId("agent-01");
+        request.setPayloadVersion("1.0");
+        request.setPayloadHash("abc123");
+        request.setPayloadJson(new ObjectMapper().createObjectNode().put("os_type", "ANDROID"));
+
+        Long id = service.ingest("tenant-a", request);
+
+        assertEquals(250L, id);
+        verify(repository, times(2)).findByIdempotencyKey(eq("tenant-a"), eq("dev-01"), anyString());
+        verify(tenantEntitlementService, never()).recordPayloadAccepted(eq("tenant-a"), any());
+    }
+
+    @Test
+    void ingest_nonIdempotencyIntegrityViolation_rethrowsOriginalError() {
+        when(repository.findByIdempotencyKey(eq("tenant-a"), eq("dev-01"), anyString()))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(DevicePosturePayload.class)))
+                .thenThrow(new DataIntegrityViolationException(
+                        "new row violates check constraint",
+                        new SQLException("new row violates check constraint", "23514")
+                ));
+
+        PosturePayloadIngestRequest request = new PosturePayloadIngestRequest();
+        request.setDeviceExternalId("dev-01");
+        request.setAgentId("agent-01");
+        request.setPayloadVersion("1.0");
+        request.setPayloadHash("abc123");
+        request.setPayloadJson(new ObjectMapper().createObjectNode().put("os_type", "ANDROID"));
+
+        assertThrows(DataIntegrityViolationException.class, () -> service.ingest("tenant-a", request));
+
+        verify(repository, times(1)).findByIdempotencyKey(eq("tenant-a"), eq("dev-01"), anyString());
+    }
+
+    @Test
     void ingest_rejectsNullPayloadJson() {
         PosturePayloadIngestRequest request = new PosturePayloadIngestRequest();
         request.setDeviceExternalId("dev-01");
@@ -186,5 +246,38 @@ class PostureIngestionServiceTest {
         ArgumentCaptor<DevicePosturePayload> captor = ArgumentCaptor.forClass(DevicePosturePayload.class);
         verify(repository).save(captor.capture());
         assertEquals("{\"os_type\":\"WINDOWS\",\"installed_apps\":[{\"app_name\":\"uTorrent\",\"package_id\":\"uTorrent\"}]}", captor.getValue().getPayloadJson());
+    }
+
+    @Test
+    void ingest_stripsNullCharactersFromPayloadJsonTextValues() {
+        when(repository.findByIdempotencyKey(eq("tenant-a"), eq("dev-01"), anyString()))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(DevicePosturePayload.class))).thenAnswer(invocation -> {
+            DevicePosturePayload payload = invocation.getArgument(0);
+            payload.setId(301L);
+            return payload;
+        });
+
+        ObjectMapper mapper = new ObjectMapper();
+        PosturePayloadIngestRequest request = new PosturePayloadIngestRequest();
+        request.setDeviceExternalId("dev-01");
+        request.setAgentId("agent-01");
+        request.setPayloadVersion("1.0");
+        request.setPayloadJson(mapper.createObjectNode()
+                .put("os_type", "WINDOWS")
+                .set("installed_apps", mapper.createArrayNode()
+                        .add(mapper.createObjectNode()
+                                .put("app_name", "Remote Help")
+                                .put("publisher", "Microsoft\u0000 Corporation")
+                                .put("package_id", "com.microsoft.remotehelp"))));
+
+        service.ingest("tenant-a", request);
+
+        ArgumentCaptor<DevicePosturePayload> captor = ArgumentCaptor.forClass(DevicePosturePayload.class);
+        verify(repository).save(captor.capture());
+        assertEquals(
+                "{\"os_type\":\"WINDOWS\",\"installed_apps\":[{\"app_name\":\"Remote Help\",\"publisher\":\"Microsoft Corporation\",\"package_id\":\"com.microsoft.remotehelp\"}]}",
+                captor.getValue().getPayloadJson()
+        );
     }
 }
