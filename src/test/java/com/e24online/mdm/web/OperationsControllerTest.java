@@ -24,6 +24,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -138,5 +139,73 @@ class OperationsControllerTest {
         assertNotNull(tableResponse);
         assertEquals(2, tableResponse.draw());
         assertEquals(1, tableResponse.data().size());
+    }
+
+    @Test
+    void pipelineEndpoints_allowGlobalScopeWhenTenantHeaderMissing() {
+        OffsetDateTime now = OffsetDateTime.now();
+        PipelineOperabilitySummaryResponse summary = new PipelineOperabilitySummaryResponse(
+                now,
+                4L,
+                1L,
+                2L,
+                1L,
+                7L,
+                3L,
+                2L,
+                5L,
+                now.minusHours(2),
+                120L
+        );
+        List<PipelineFailureCategoryResponse> categories = List.of(new PipelineFailureCategoryResponse(
+                "QUEUE_PUBLISH",
+                3L,
+                now.minusMinutes(30),
+                "Queue publish failed: broker unavailable"
+        ));
+        List<PipelineDailyTrendResponse> trend = List.of(new PipelineDailyTrendResponse(
+                LocalDate.now().minusDays(1),
+                12L,
+                10L,
+                2L,
+                9L,
+                1L,
+                3L
+        ));
+        DataTableResponse<Map<String, Object>> failedPayloads = new DataTableResponse<>(
+                2,
+                4L,
+                4L,
+                List.of(Map.of("id", 91L, "tenant_id", "", "failure_category", "QUEUE_PUBLISH"))
+        );
+
+        when(requestContext.resolveOptionalTenantId(authentication, null)).thenReturn(Mono.empty());
+        when(operationsReportingService.getPipelineSummary("")).thenReturn(Mono.just(summary));
+        when(operationsReportingService.getFailureCategories("", 7, 6)).thenReturn(Mono.just(categories));
+        when(operationsReportingService.getPipelineTrend("", 7)).thenReturn(Mono.just(trend));
+        when(operationsReportingService.getFailedPayloadsTable("", 2, 0, 25, 7, "dev", "processed_at", "desc"))
+                .thenReturn(Mono.just(failedPayloads));
+
+        PipelineOperabilitySummaryResponse summaryResponse = controller.getPipelineSummary(authentication, null).block();
+        List<PipelineFailureCategoryResponse> categoryResponse = controller
+                .getFailureCategories(authentication, null, 7, 6)
+                .block();
+        List<PipelineDailyTrendResponse> trendResponse = controller
+                .getPipelineTrend(authentication, null, 7)
+                .block();
+        DataTableResponse<Map<String, Object>> tableResponse = controller
+                .getFailedPayloadsTable(authentication, null, 2, 0, 25, 7, "dev", "processed_at", "desc")
+                .block();
+
+        assertEquals(summary, summaryResponse);
+        assertEquals(categories, categoryResponse);
+        assertEquals(trend, trendResponse);
+        assertNotNull(tableResponse);
+        assertEquals(2, tableResponse.draw());
+        assertEquals(1, tableResponse.data().size());
+        verify(operationsReportingService).getPipelineSummary("");
+        verify(operationsReportingService).getFailureCategories("", 7, 6);
+        verify(operationsReportingService).getPipelineTrend("", 7);
+        verify(operationsReportingService).getFailedPayloadsTable("", 2, 0, 25, 7, "dev", "processed_at", "desc");
     }
 }

@@ -355,8 +355,7 @@ public class OperationsReportingService {
         params.addValue("limit", safeLength);
         params.addValue("offset", safeStart);
 
-        List<Map<String, Object>> data = jdbc.queryForList(
-                failedPayloadBaseSql("""
+        String dataSql = failedPayloadBaseSql("""
                         SELECT
                             id,
                             tenant_id,
@@ -372,12 +371,14 @@ public class OperationsReportingService {
                             processed_at
                         FROM failed_payloads
                         WHERE 1 = 1
-                        """) + searchPredicate + """
-                        ORDER BY """ + orderBy + " " + orderDir + ", id DESC" + """
+                        """)
+                + searchPredicate
+                + """
+                        ORDER BY %s %s, id DESC
                         LIMIT :limit OFFSET :offset
-                        """,
-                params
-        );
+                        """.formatted(orderBy, orderDir);
+
+        List<Map<String, Object>> data = jdbc.queryForList(dataSql, params);
 
         return new DataTableResponse<>(draw, recordsTotal, recordsFiltered, data);
     }

@@ -47,7 +47,7 @@ public class OperationsController {
             Authentication authentication,
             @RequestHeader(name = "X-Tenant-Id", required = false) String tenantId
     ) {
-        return requestContext.resolveOptionalTenantId(authentication, tenantId)
+        return resolveTenantId(authentication, tenantId)
                 .flatMap(operationsReportingService::getPipelineSummary);
     }
 
@@ -58,7 +58,7 @@ public class OperationsController {
             @RequestParam(name = "days", required = false) Integer days,
             @RequestParam(name = "limit", required = false) Integer limit
     ) {
-        return requestContext.resolveOptionalTenantId(authentication, tenantId)
+        return resolveTenantId(authentication, tenantId)
                 .flatMap(resolvedTenantId -> operationsReportingService.getFailureCategories(
                         resolvedTenantId,
                         days,
@@ -72,7 +72,7 @@ public class OperationsController {
             @RequestHeader(name = "X-Tenant-Id", required = false) String tenantId,
             @RequestParam(name = "days", required = false) Integer days
     ) {
-        return requestContext.resolveOptionalTenantId(authentication, tenantId)
+        return resolveTenantId(authentication, tenantId)
                 .flatMap(resolvedTenantId -> operationsReportingService.getPipelineTrend(
                         resolvedTenantId,
                         days
@@ -91,7 +91,7 @@ public class OperationsController {
             @RequestParam(name = "sort_by", required = false) String sortBy,
             @RequestParam(name = "sort_dir", required = false) String sortDir
     ) {
-        return requestContext.resolveOptionalTenantId(authentication, tenantId)
+        return resolveTenantId(authentication, tenantId)
                 .flatMap(resolvedTenantId -> operationsReportingService.getFailedPayloadsTable(
                         resolvedTenantId,
                         draw,
@@ -102,5 +102,10 @@ public class OperationsController {
                         sortBy,
                         sortDir
                 ));
+    }
+
+    private Mono<String> resolveTenantId(Authentication authentication, String tenantId) {
+        return requestContext.resolveOptionalTenantId(authentication, tenantId)
+                .defaultIfEmpty("");
     }
 }

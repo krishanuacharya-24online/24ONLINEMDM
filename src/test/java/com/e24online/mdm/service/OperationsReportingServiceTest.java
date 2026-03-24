@@ -188,5 +188,11 @@ class OperationsReportingServiceTest {
         assertEquals(1, response.data().size());
         assertEquals("tenant-a", response.data().getFirst().get("tenant_id"));
         assertEquals("EVALUATION_PROCESSING", response.data().getFirst().get("failure_category"));
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbc).queryForList(sqlCaptor.capture(), any(MapSqlParameterSource.class));
+        String sql = sqlCaptor.getValue();
+        assertTrue(sql.contains("ORDER BY processed_at DESC, id DESC"));
+        assertTrue(sql.contains("LIMIT :limit OFFSET :offset"));
     }
 }
