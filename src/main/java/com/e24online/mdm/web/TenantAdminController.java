@@ -3,6 +3,8 @@ package com.e24online.mdm.web;
 import com.e24online.mdm.records.tenant.TenantKeyMetadataResponse;
 import com.e24online.mdm.records.tenant.TenantKeyRotateResponse;
 import com.e24online.mdm.records.tenant.TenantResponse;
+import com.e24online.mdm.records.tenant.SubscriptionPlanAdminResponse;
+import com.e24online.mdm.records.tenant.SubscriptionPlanUpsertRequest;
 import com.e24online.mdm.records.tenant.TenantFeatureOverrideRequest;
 import com.e24online.mdm.records.tenant.TenantFeatureOverrideResponse;
 import com.e24online.mdm.records.tenant.TenantSubscriptionResponse;
@@ -62,6 +64,39 @@ public class TenantAdminController {
     @GetMapping("/subscription-plans")
     public Flux<SubscriptionPlanResponse> listSubscriptionPlans() {
         return tenantSubscriptionService.listPlans();
+    }
+
+    @GetMapping("/subscription-plans/catalog")
+    public Flux<SubscriptionPlanAdminResponse> listSubscriptionPlanCatalog() {
+        return tenantSubscriptionService.listPlanCatalog();
+    }
+
+    @PostMapping("/subscription-plans")
+    public Mono<SubscriptionPlanAdminResponse> createSubscriptionPlan(
+            Authentication authentication,
+            @RequestBody Mono<SubscriptionPlanUpsertRequest> request
+    ) {
+        String actor = requestContext.resolveActor(authentication);
+        return request.flatMap(body -> tenantSubscriptionService.createPlan(actor, body));
+    }
+
+    @PutMapping("/subscription-plans/{planId}")
+    public Mono<SubscriptionPlanAdminResponse> updateSubscriptionPlan(
+            Authentication authentication,
+            @PathVariable("planId") Long planId,
+            @RequestBody Mono<SubscriptionPlanUpsertRequest> request
+    ) {
+        String actor = requestContext.resolveActor(authentication);
+        return request.flatMap(body -> tenantSubscriptionService.updatePlan(planId, actor, body));
+    }
+
+    @PostMapping("/subscription-plans/{planId}/retire")
+    public Mono<SubscriptionPlanAdminResponse> retireSubscriptionPlan(
+            Authentication authentication,
+            @PathVariable("planId") Long planId
+    ) {
+        String actor = requestContext.resolveActor(authentication);
+        return tenantSubscriptionService.retirePlan(planId, actor);
     }
 
     @PostMapping

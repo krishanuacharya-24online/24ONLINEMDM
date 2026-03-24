@@ -13,6 +13,24 @@ public interface SubscriptionPlanRepository extends CrudRepository<SubscriptionP
     @Query("""
             SELECT *
             FROM subscription_plan
+            WHERE id = :id
+              AND is_deleted = false
+            LIMIT 1
+            """)
+    Optional<SubscriptionPlan> findAvailableById(@Param("id") Long id);
+
+    @Query("""
+            SELECT *
+            FROM subscription_plan
+            WHERE plan_code = :planCode
+              AND is_deleted = false
+            LIMIT 1
+            """)
+    Optional<SubscriptionPlan> findAvailableByPlanCode(@Param("planCode") String planCode);
+
+    @Query("""
+            SELECT *
+            FROM subscription_plan
             WHERE plan_code = :planCode
               AND is_deleted = false
               AND status = 'ACTIVE'
@@ -34,9 +52,18 @@ public interface SubscriptionPlanRepository extends CrudRepository<SubscriptionP
             SELECT *
             FROM subscription_plan
             WHERE is_deleted = false
+            ORDER BY
+              CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END,
+              plan_code
+            """)
+    List<SubscriptionPlan> findAllAvailable();
+
+    @Query("""
+            SELECT *
+            FROM subscription_plan
+            WHERE is_deleted = false
               AND status = 'ACTIVE'
             ORDER BY plan_code
             """)
     List<SubscriptionPlan> findAllActive();
 }
-

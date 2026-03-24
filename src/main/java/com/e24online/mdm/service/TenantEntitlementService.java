@@ -1,6 +1,7 @@
 package com.e24online.mdm.service;
 
 import com.e24online.mdm.domain.TenantUsageSnapshot;
+import com.e24online.mdm.records.tenant.ResolvedSubscription;
 import com.e24online.mdm.records.tenant.TenantUsageResponse;
 import com.e24online.mdm.repository.AuthUserRepository;
 import com.e24online.mdm.repository.DeviceEnrollmentRepository;
@@ -47,7 +48,7 @@ public class TenantEntitlementService {
         if (tenantId == null || tenantId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "tenantId is required for premium reporting");
         }
-        TenantSubscriptionService.ResolvedSubscription resolved = tenantSubscriptionService.loadResolvedSubscriptionByTenantCode(tenantId);
+        ResolvedSubscription resolved = tenantSubscriptionService.loadResolvedSubscriptionByTenantCode(tenantId);
         assertSubscriptionAllowsCoreFlow(resolved, "premium reporting");
         if (!tenantSubscriptionService.isFeatureEnabled(TenantSubscriptionService.FEATURE_PREMIUM_REPORTING, resolved)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Current tenant subscription does not include premium reporting");
@@ -55,7 +56,7 @@ public class TenantEntitlementService {
     }
 
     public void assertCanCreateActiveTenantUser(Long tenantMasterId) {
-        TenantSubscriptionService.ResolvedSubscription resolved = tenantSubscriptionService.loadResolvedSubscription(tenantMasterId);
+        ResolvedSubscription resolved = tenantSubscriptionService.loadResolvedSubscription(tenantMasterId);
         assertSubscriptionAllowsCoreFlow(resolved, "user activation");
         long currentUsers = authUserRepository.countActiveByTenantId(tenantMasterId);
         Integer limit = resolved.plan().getMaxTenantUsers();
@@ -65,7 +66,7 @@ public class TenantEntitlementService {
     }
 
     public void assertCanEnrollDevice(String tenantId) {
-        TenantSubscriptionService.ResolvedSubscription resolved = tenantSubscriptionService.loadResolvedSubscriptionByTenantCode(tenantId);
+        ResolvedSubscription resolved = tenantSubscriptionService.loadResolvedSubscriptionByTenantCode(tenantId);
         assertSubscriptionAllowsCoreFlow(resolved, "device enrollment");
         long currentDevices = deviceEnrollmentRepository.countActiveByTenant(resolved.tenant().getTenantId());
         Integer limit = resolved.plan().getMaxActiveDevices();
@@ -75,7 +76,7 @@ public class TenantEntitlementService {
     }
 
     public void assertCanIngestPayload(String tenantId) {
-        TenantSubscriptionService.ResolvedSubscription resolved = tenantSubscriptionService.loadResolvedSubscriptionByTenantCode(tenantId);
+        ResolvedSubscription resolved = tenantSubscriptionService.loadResolvedSubscriptionByTenantCode(tenantId);
         assertSubscriptionAllowsCoreFlow(resolved, "payload ingest");
         long payloadCount = currentPayloadCount(resolved);
         Long limit = resolved.plan().getMaxMonthlyPayloads();
@@ -85,7 +86,7 @@ public class TenantEntitlementService {
     }
 
     public void recordPayloadAccepted(String tenantId, OffsetDateTime receivedAt) {
-        TenantSubscriptionService.ResolvedSubscription resolved = tenantSubscriptionService.loadResolvedSubscriptionByTenantCode(tenantId);
+        ResolvedSubscription resolved = tenantSubscriptionService.loadResolvedSubscriptionByTenantCode(tenantId);
         upsertUsageSnapshot(
                 resolved.tenant().getId(),
                 usageMonth(receivedAt),
@@ -103,7 +104,7 @@ public class TenantEntitlementService {
         buildTenantUsage(tenantSubscriptionService.loadResolvedSubscriptionByTenantCode(tenantId));
     }
 
-    private TenantUsageResponse buildTenantUsage(TenantSubscriptionService.ResolvedSubscription resolved) {
+    private TenantUsageResponse buildTenantUsage(ResolvedSubscription resolved) {
         LocalDate currentMonth = usageMonth(OffsetDateTime.now(ZoneOffset.UTC));
         long activeUsers = authUserRepository.countActiveByTenantId(resolved.tenant().getId());
         long activeDevices = deviceEnrollmentRepository.countActiveByTenant(resolved.tenant().getTenantId());
@@ -129,7 +130,7 @@ public class TenantEntitlementService {
         );
     }
 
-    private long currentPayloadCount(TenantSubscriptionService.ResolvedSubscription resolved) {
+    private long currentPayloadCount(ResolvedSubscription resolved) {
         LocalDate currentMonth = usageMonth(OffsetDateTime.now(ZoneOffset.UTC));
         long snapshotCount = usageSnapshotRepository.findByTenantAndUsageMonth(resolved.tenant().getId(), currentMonth)
                 .map(TenantUsageSnapshot::getPosturePayloadCount)
@@ -172,7 +173,7 @@ public class TenantEntitlementService {
         return effective.toLocalDate().withDayOfMonth(1);
     }
 
-    private void assertSubscriptionAllowsCoreFlow(TenantSubscriptionService.ResolvedSubscription resolved, String flowName) {
+    private void assertSubscriptionAllowsCoreFlow(ResolvedSubscription resolved, String flowName) {
         String state = resolved.subscription().getSubscriptionState();
         if ("SUSPENDED".equalsIgnoreCase(state)
                 || "CANCELLED".equalsIgnoreCase(state)

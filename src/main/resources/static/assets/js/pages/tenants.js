@@ -21,6 +21,15 @@ function toTenantRows(payload) {
   return [];
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await populateLookupSelect('status', {
     lookupType: LOOKUP_TYPES.recordStatus,
@@ -54,9 +63,219 @@ document.addEventListener('DOMContentLoaded', async () => {
     ]
   });
 
+  mountSubscriptionPlanCatalog().catch((e) => window.mdmToast?.(`Subscription plan panel error: ${e.message}`));
   mountTenantKeyPanel().catch((e) => window.mdmToast?.(`Tenant key panel error: ${e.message}`));
   mountTenantSubscriptionPanel().catch((e) => window.mdmToast?.(`Tenant subscription panel error: ${e.message}`));
 });
+
+async function mountSubscriptionPlanCatalog() {
+  const form = document.getElementById('subscriptionPlanForm');
+  if (!form) return;
+
+  const tableBody = document.getElementById('subscriptionPlansTableBody');
+  const editIdInput = document.getElementById('subscriptionPlanEditId');
+  const codeInput = document.getElementById('subscriptionPlanCodeInput');
+  const nameInput = document.getElementById('subscriptionPlanNameInput');
+  const descriptionInput = document.getElementById('subscriptionPlanDescriptionInput');
+  const statusInput = document.getElementById('subscriptionPlanStatusInput');
+  const maxDevicesInput = document.getElementById('subscriptionPlanMaxDevicesInput');
+  const maxUsersInput = document.getElementById('subscriptionPlanMaxUsersInput');
+  const maxPayloadsInput = document.getElementById('subscriptionPlanMaxPayloadsInput');
+  const retentionInput = document.getElementById('subscriptionPlanRetentionInput');
+  const premiumInput = document.getElementById('subscriptionPlanPremiumInput');
+  const advancedInput = document.getElementById('subscriptionPlanAdvancedInput');
+  const saveBtn = document.getElementById('saveSubscriptionPlanBtn');
+  const resetBtn = document.getElementById('resetSubscriptionPlanBtn');
+  const reloadBtn = document.getElementById('reloadSubscriptionPlanBtn');
+
+  let plans = [];
+
+  await populateLookupSelect('subscriptionPlanStatusInput', {
+    lookupType: LOOKUP_TYPES.recordStatus,
+    fallbackOptions: STATUS_OPTIONS
+  });
+
+  function resetForm() {
+    editIdInput.value = '';
+    codeInput.value = '';
+    nameInput.value = '';
+    descriptionInput.value = '';
+    statusInput.value = 'ACTIVE';
+    maxDevicesInput.value = '25';
+    maxUsersInput.value = '10';
+    maxPayloadsInput.value = '5000';
+    retentionInput.value = '30';
+    premiumInput.checked = false;
+    advancedInput.checked = false;
+    saveBtn.textContent = 'Save plan';
+  }
+
+  function fillForm(plan) {
+    editIdInput.value = String(getValue(plan, 'id') || '');
+    codeInput.value = getValue(plan, 'plan_code', 'planCode') || '';
+    nameInput.value = getValue(plan, 'plan_name', 'planName') || '';
+    descriptionInput.value = getValue(plan, 'description') || '';
+    statusInput.value = getValue(plan, 'status') || 'ACTIVE';
+    maxDevicesInput.value = String(getValue(plan, 'max_active_devices', 'maxActiveDevices') || '');
+    maxUsersInput.value = String(getValue(plan, 'max_tenant_users', 'maxTenantUsers') || '');
+    maxPayloadsInput.value = String(getValue(plan, 'max_monthly_payloads', 'maxMonthlyPayloads') || '');
+    retentionInput.value = String(getValue(plan, 'data_retention_days', 'dataRetentionDays') || '');
+    premiumInput.checked = Boolean(getValue(plan, 'premium_reporting_enabled', 'premiumReportingEnabled'));
+    advancedInput.checked = Boolean(getValue(plan, 'advanced_controls_enabled', 'advancedControlsEnabled'));
+    saveBtn.textContent = 'Update plan';
+  }
+
+  function renderTable() {
+    if (!plans.length) {
+      tableBody.innerHTML = '<tr><td colspan="9" class="muted">No subscription plans found.</td></tr>';
+      return;
+    }
+
+    tableBody.innerHTML = plans.map((plan) => {
+      const id = getValue(plan, 'id');
+      const code = escapeHtml(getValue(plan, 'plan_code', 'planCode') || '-');
+      const name = escapeHtml(getValue(plan, 'plan_name', 'planName') || '-');
+      const status = escapeHtml(getValue(plan, 'status') || '-');
+      const devices = escapeHtml(getValue(plan, 'max_active_devices', 'maxActiveDevices') ?? '-');
+      const users = escapeHtml(getValue(plan, 'max_tenant_users', 'maxTenantUsers') ?? '-');
+      const payloads = escapeHtml(getValue(plan, 'max_monthly_payloads', 'maxMonthlyPayloads') ?? '-');
+      const retention = escapeHtml(getValue(plan, 'data_retention_days', 'dataRetentionDays') ?? '-');
+      const premium = Boolean(getValue(plan, 'premium_reporting_enabled', 'premiumReportingEnabled'));
+      const advanced = Boolean(getValue(plan, 'advanced_controls_enabled', 'advancedControlsEnabled'));
+      const features = [
+        premium ? 'Premium reporting' : null,
+        advanced ? 'Advanced controls' : null
+      ].filter(Boolean).join(', ') || 'Standard';
+      const retireButton = String(status).toUpperCase() === 'ACTIVE'
+        ? `<button class="danger" data-plan-act="retire" data-plan-id="${escapeHtml(id)}">Retire</button>`
+        : '';
+      return `
+        <tr>
+          <td>${code}</td>
+          <td>${name}</td>
+          <td>${status}</td>
+          <td>${devices}</td>
+          <td>${users}</td>
+          <td>${payloads}</td>
+          <td>${retention}</td>
+          <td>${escapeHtml(features)}</td>
+          <td>
+            <button class="secondary" data-plan-act="edit" data-plan-id="${escapeHtml(id)}">Edit</button>
+            ${retireButton}
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  async function loadPlans(options = {}) {
+    const preserveId = options.preserveId == null ? editIdInput.value : String(options.preserveId || '');
+    plans = await apiFetch('/v1/admin/tenants/subscription-plans/catalog');
+    plans = Array.isArray(plans) ? plans : [];
+    renderTable();
+
+    if (preserveId) {
+      const current = plans.find((plan) => String(getValue(plan, 'id') || '') === preserveId);
+      if (current) {
+        fillForm(current);
+        return;
+      }
+    }
+    resetForm();
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const planId = editIdInput.value || '';
+    const payload = {
+      plan_code: codeInput.value || null,
+      plan_name: nameInput.value || null,
+      description: descriptionInput.value || null,
+      max_active_devices: Number(maxDevicesInput.value || 0),
+      max_tenant_users: Number(maxUsersInput.value || 0),
+      max_monthly_payloads: Number(maxPayloadsInput.value || 0),
+      data_retention_days: Number(retentionInput.value || 0),
+      premium_reporting_enabled: premiumInput.checked,
+      advanced_controls_enabled: advancedInput.checked,
+      status: statusInput.value || 'ACTIVE'
+    };
+
+    saveBtn.disabled = true;
+    try {
+      if (planId) {
+        await apiFetch(`/v1/admin/tenants/subscription-plans/${encodeURIComponent(planId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        window.mdmToast?.('Subscription plan updated');
+      } else {
+        await apiFetch('/v1/admin/tenants/subscription-plans', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        window.mdmToast?.('Subscription plan created');
+      }
+      await loadPlans();
+      document.dispatchEvent(new CustomEvent('subscription-plans-changed'));
+    } catch (error) {
+      window.mdmToast?.(`Failed to save plan: ${error.message}`);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  tableBody.addEventListener('click', async (event) => {
+    const button = event.target.closest('button[data-plan-act]');
+    if (!button) return;
+
+    const planId = String(button.getAttribute('data-plan-id') || '');
+    const plan = plans.find((entry) => String(getValue(entry, 'id') || '') === planId);
+    if (!plan) return;
+
+    const action = button.getAttribute('data-plan-act');
+    if (action === 'edit') {
+      fillForm(plan);
+      codeInput.focus();
+      return;
+    }
+
+    if (action === 'retire') {
+      const planCode = getValue(plan, 'plan_code', 'planCode') || 'this plan';
+      const confirmed = typeof window.mdmConfirm === 'function'
+        ? await window.mdmConfirm({
+          title: 'Retire subscription plan',
+          message: `Retire plan ${planCode}? Existing tenants keep their current plan, but it will no longer be assignable.`,
+          confirmLabel: 'Retire plan',
+          cancelLabel: 'Cancel'
+        })
+        : window.confirm(`Retire plan ${planCode}?`);
+      if (!confirmed) return;
+
+      button.disabled = true;
+      try {
+        await apiFetch(`/v1/admin/tenants/subscription-plans/${encodeURIComponent(planId)}/retire`, {
+          method: 'POST'
+        });
+        await loadPlans({ preserveId: editIdInput.value || '' });
+        document.dispatchEvent(new CustomEvent('subscription-plans-changed'));
+        window.mdmToast?.(`Plan ${planCode} retired`);
+      } catch (error) {
+        window.mdmToast?.(`Failed to retire plan: ${error.message}`);
+      } finally {
+        button.disabled = false;
+      }
+    }
+  });
+
+  resetBtn?.addEventListener('click', () => resetForm());
+  reloadBtn?.addEventListener('click', () => {
+    loadPlans({ preserveId: editIdInput.value || '' }).catch((e) => window.mdmToast?.(`Failed to reload plans: ${e.message}`));
+  });
+
+  resetForm();
+  await loadPlans();
+}
 
 async function mountTenantKeyPanel() {
   const form = document.getElementById('tenantKeyForm');
@@ -234,7 +453,7 @@ async function mountTenantSubscriptionPanel() {
   });
 
   async function loadPlans() {
-    const plans = await apiFetch('/v1/admin/tenants/subscription-plans');
+    const plans = await apiFetch('/v1/admin/tenants/subscription-plans/catalog');
     loadedPlans = Array.isArray(plans) ? plans : [];
     planSelect.innerHTML = '';
     if (!loadedPlans.length) {
@@ -248,7 +467,12 @@ async function mountTenantSubscriptionPanel() {
     loadedPlans.forEach((plan) => {
       const option = document.createElement('option');
       option.value = getValue(plan, 'plan_code', 'planCode') || '';
-      option.textContent = `${option.value} - ${getValue(plan, 'plan_name', 'planName') || option.value}`;
+      const status = String(getValue(plan, 'status') || 'ACTIVE').toUpperCase();
+      const name = getValue(plan, 'plan_name', 'planName') || option.value;
+      option.textContent = status === 'ACTIVE'
+        ? `${option.value} - ${name}`
+        : `${option.value} - ${name} (inactive)`;
+      option.disabled = status !== 'ACTIVE';
       planSelect.appendChild(option);
     });
   }
@@ -299,7 +523,16 @@ async function mountTenantSubscriptionPanel() {
       apiFetch(`/v1/admin/tenants/${encodeURIComponent(tenantId)}/usage`)
     ]);
 
-    planSelect.value = getValue(subscription, 'plan_code', 'planCode') || '';
+    const currentPlanCode = getValue(subscription, 'plan_code', 'planCode') || '';
+    const hasCurrentPlanOption = Array.from(planSelect.options).some((option) => option.value === currentPlanCode);
+    if (currentPlanCode && !hasCurrentPlanOption) {
+      const fallbackOption = document.createElement('option');
+      fallbackOption.value = currentPlanCode;
+      fallbackOption.textContent = `${currentPlanCode} - ${getValue(subscription, 'plan_name', 'planName') || currentPlanCode} (inactive)`;
+      fallbackOption.disabled = true;
+      planSelect.appendChild(fallbackOption);
+    }
+    planSelect.value = currentPlanCode;
     stateSelect.value = getValue(subscription, 'subscription_state', 'subscriptionState') || 'ACTIVE';
     periodEndInput.value = toLocalDateTimeInput(getValue(subscription, 'current_period_end', 'currentPeriodEnd'));
     graceEndInput.value = toLocalDateTimeInput(getValue(subscription, 'grace_ends_at', 'graceEndsAt'));
@@ -371,6 +604,12 @@ async function mountTenantSubscriptionPanel() {
 
   refreshBtn?.addEventListener('click', () => {
     refreshSubscriptionState().catch((e) => window.mdmToast?.(`Failed to refresh subscription: ${e.message}`));
+  });
+
+  document.addEventListener('subscription-plans-changed', () => {
+    loadPlans()
+      .then(() => refreshSubscriptionState())
+      .catch((e) => window.mdmToast?.(`Failed to refresh plan choices: ${e.message}`));
   });
 
   await loadPlans();

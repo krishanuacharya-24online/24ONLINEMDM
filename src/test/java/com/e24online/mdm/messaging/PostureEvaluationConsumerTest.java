@@ -49,6 +49,8 @@ class PostureEvaluationConsumerTest {
         payload.setId(100L);
         payload.setTenantId("tenant-a");
         payload.setIdempotencyKey("idempo-1");
+        payload.setPayloadHash("hash-1");
+        payload.setDeviceExternalId("dev-1");
         payload.setProcessStatus("QUEUED");
 
         PostureEvaluationMessage message = new PostureEvaluationMessage(
@@ -75,6 +77,8 @@ class PostureEvaluationConsumerTest {
         payload.setId(100L);
         payload.setTenantId("tenant-a");
         payload.setIdempotencyKey("idempo-db");
+        payload.setPayloadHash("hash-1");
+        payload.setDeviceExternalId("dev-1");
         payload.setProcessStatus("QUEUED");
 
         PostureEvaluationMessage message = new PostureEvaluationMessage(
@@ -85,6 +89,64 @@ class PostureEvaluationConsumerTest {
                 "dev-1",
                 "hash-1",
                 "idempo-msg",
+                OffsetDateTime.now()
+        );
+
+        when(payloadRepository.findByIdAndTenant(100L, "tenant-a")).thenReturn(Optional.of(payload));
+
+        assertThrows(AmqpRejectAndDontRequeueException.class, () ->
+                consumer.consume(objectMapper.writeValueAsString(message).getBytes(StandardCharsets.UTF_8)));
+
+        verify(workflowService, never()).evaluateExistingPayload("tenant-a", 100L);
+    }
+
+    @Test
+    void consume_payloadHashMismatch_rejectedToDlqWithoutEvaluation() throws Exception {
+        DevicePosturePayload payload = new DevicePosturePayload();
+        payload.setId(100L);
+        payload.setTenantId("tenant-a");
+        payload.setIdempotencyKey("idempo-1");
+        payload.setPayloadHash("hash-db");
+        payload.setDeviceExternalId("dev-1");
+        payload.setProcessStatus("QUEUED");
+
+        PostureEvaluationMessage message = new PostureEvaluationMessage(
+                PostureEvaluationMessage.CURRENT_SCHEMA_VERSION,
+                "evt-1",
+                "tenant-a",
+                100L,
+                "dev-1",
+                "hash-msg",
+                "idempo-1",
+                OffsetDateTime.now()
+        );
+
+        when(payloadRepository.findByIdAndTenant(100L, "tenant-a")).thenReturn(Optional.of(payload));
+
+        assertThrows(AmqpRejectAndDontRequeueException.class, () ->
+                consumer.consume(objectMapper.writeValueAsString(message).getBytes(StandardCharsets.UTF_8)));
+
+        verify(workflowService, never()).evaluateExistingPayload("tenant-a", 100L);
+    }
+
+    @Test
+    void consume_deviceExternalIdMismatch_rejectedToDlqWithoutEvaluation() throws Exception {
+        DevicePosturePayload payload = new DevicePosturePayload();
+        payload.setId(100L);
+        payload.setTenantId("tenant-a");
+        payload.setIdempotencyKey("idempo-1");
+        payload.setPayloadHash("hash-1");
+        payload.setDeviceExternalId("dev-db");
+        payload.setProcessStatus("QUEUED");
+
+        PostureEvaluationMessage message = new PostureEvaluationMessage(
+                PostureEvaluationMessage.CURRENT_SCHEMA_VERSION,
+                "evt-1",
+                "tenant-a",
+                100L,
+                "dev-msg",
+                "hash-1",
+                "idempo-1",
                 OffsetDateTime.now()
         );
 

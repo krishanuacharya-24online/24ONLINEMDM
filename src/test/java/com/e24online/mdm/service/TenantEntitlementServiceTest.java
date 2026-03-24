@@ -4,6 +4,7 @@ import com.e24online.mdm.domain.SubscriptionPlan;
 import com.e24online.mdm.domain.Tenant;
 import com.e24online.mdm.domain.TenantSubscription;
 import com.e24online.mdm.domain.TenantUsageSnapshot;
+import com.e24online.mdm.records.tenant.ResolvedSubscription;
 import com.e24online.mdm.records.tenant.TenantUsageResponse;
 import com.e24online.mdm.repository.AuthUserRepository;
 import com.e24online.mdm.repository.DeviceEnrollmentRepository;
@@ -94,7 +95,7 @@ class TenantEntitlementServiceTest {
 
     @Test
     void assertCanAccessPremiumReporting_rejectsWhenFeatureDisabled() {
-        TenantSubscriptionService.ResolvedSubscription resolved = resolvedSubscription(10, 10, 50L);
+        ResolvedSubscription resolved = resolvedSubscription(10, 10, 50L);
         when(tenantSubscriptionService.loadResolvedSubscriptionByTenantCode("tenant-a")).thenReturn(resolved);
         when(tenantSubscriptionService.isFeatureEnabled(TenantSubscriptionService.FEATURE_PREMIUM_REPORTING, resolved)).thenReturn(false);
 
@@ -106,16 +107,16 @@ class TenantEntitlementServiceTest {
 
     @Test
     void assertCanAccessPremiumReporting_acceptsWhenFeatureEnabled() {
-        TenantSubscriptionService.ResolvedSubscription resolved = resolvedSubscription(10, 10, 50L);
+        ResolvedSubscription resolved = resolvedSubscription(10, 10, 50L);
         when(tenantSubscriptionService.loadResolvedSubscriptionByTenantCode("tenant-a")).thenReturn(resolved);
         when(tenantSubscriptionService.isFeatureEnabled(TenantSubscriptionService.FEATURE_PREMIUM_REPORTING, resolved)).thenReturn(true);
 
         service.assertCanAccessPremiumReporting("tenant-a");
     }
 
-    private TenantSubscriptionService.ResolvedSubscription resolvedSubscription(int maxActiveDevices,
-                                                                               int maxTenantUsers,
-                                                                               long maxMonthlyPayloads) {
+    private ResolvedSubscription resolvedSubscription(int maxActiveDevices,
+                                                      int maxTenantUsers,
+                                                      long maxMonthlyPayloads) {
         Tenant tenant = new Tenant();
         tenant.setId(1L);
         tenant.setTenantId("tenant-a");
@@ -139,7 +140,7 @@ class TenantEntitlementServiceTest {
         plan.setStatus("ACTIVE");
         plan.setDeleted(false);
 
-        return new TenantSubscriptionService.ResolvedSubscription(
+        return new ResolvedSubscription(
                 tenant,
                 subscription,
                 plan,

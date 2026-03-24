@@ -3,6 +3,8 @@ package com.e24online.mdm.service;
 import com.e24online.mdm.domain.SubscriptionPlan;
 import com.e24online.mdm.domain.Tenant;
 import com.e24online.mdm.domain.TenantSubscription;
+import com.e24online.mdm.records.tenant.SubscriptionPlanAdminResponse;
+import com.e24online.mdm.records.tenant.SubscriptionPlanUpsertRequest;
 import com.e24online.mdm.records.tenant.TenantSubscriptionResponse;
 import com.e24online.mdm.records.tenant.TenantSubscriptionUpsertRequest;
 import com.e24online.mdm.repository.SubscriptionPlanRepository;
@@ -14,13 +16,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.scheduler.Schedulers;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
@@ -52,6 +57,14 @@ class TenantSubscriptionServiceTest {
                 auditEventService
         );
         lenient().when(featureOverrideRepository.findByTenantMasterId(any())).thenReturn(java.util.List.of());
+        lenient().when(subscriptionPlanRepository.findAllActive()).thenReturn(List.of(plan(5L, "TRIAL")));
+        lenient().when(subscriptionPlanRepository.save(any(SubscriptionPlan.class))).thenAnswer(invocation -> {
+            SubscriptionPlan plan = invocation.getArgument(0);
+            if (plan.getId() == null) {
+                plan.setId(10L);
+            }
+            return plan;
+        });
         lenient().when(tenantSubscriptionRepository.save(any(TenantSubscription.class))).thenAnswer(invocation -> {
             TenantSubscription subscription = invocation.getArgument(0);
             if (subscription.getId() == null) {
@@ -90,7 +103,7 @@ class TenantSubscriptionServiceTest {
 
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(tenant));
         when(tenantSubscriptionRepository.findByTenantMasterId(1L)).thenReturn(Optional.of(existing));
-        when(subscriptionPlanRepository.findActiveById(5L)).thenReturn(Optional.of(currentPlan));
+        when(subscriptionPlanRepository.findAvailableById(5L)).thenReturn(Optional.of(currentPlan));
         when(subscriptionPlanRepository.findActiveByPlanCode("STANDARD")).thenReturn(Optional.of(nextPlan));
 
         TenantSubscriptionResponse response = service.upsertSubscription(
@@ -110,6 +123,96 @@ class TenantSubscriptionServiceTest {
         assertEquals("STANDARD", response.planCode());
         assertEquals("ACTIVE", response.subscriptionState());
         assertEquals("migrated", response.notes());
+    }
+
+    @Test
+    void createPlan_createsActivePlan() {
+        when(subscriptionPlanRepository.findAvailableByPlanCode("STANDARD")).thenReturn(Optional.empty());
+
+        SubscriptionPlanAdminResponse response = service.createPlan(
+                "admin",
+                new SubscriptionPlanUpsertRequest(
+                        "STANDARD",
+                        "Standard",
+                        "Core production plan",
+                        50,
+                        15,
+                        10000L,
+                        45,
+                        true,
+                        false,
+                        "ACTIVE"
+                )
+        ).block();
+
+        assertNotNull(response);
+        assertEquals("STANDARD", response.planCode());
+        assertEquals("Standard", response.planName());
+        assertEquals("ACTIVE", response.status());
+    }
+
+    @Test
+    void updatePlan_canRetireWithoutBreakingCatalogAccess() {
+        SubscriptionPlan existing = plan(5L, "TRIAL");
+        existing.setCreatedAt(OffsetDateTime.now().minusDays(5));
+        when(subscriptionPlanRepository.findAvailableById(5L)).thenReturn(Optional.of(existing));
+        when(subscriptionPlanRepository.findAvailableByPlanCode("TRIAL")).thenReturn(Optional.of(existing));
+        when(subscriptionPlanRepository.findAllActive()).thenReturn(List.of(existing, plan(6L, "STANDARD")));
+
+        SubscriptionPlanAdminResponse response = service.updatePlan(
+                5L,
+                "admin",
+                new SubscriptionPlanUpsertRequest(
+                        "TRIAL",
+                        "Trial Plan",
+                        "Retired but still readable",
+                        25,
+                        10,
+                        5000L,
+                        30,
+                        false,
+                        false,
+                        "INACTIVE"
+                )
+        ).block();
+
+        assertNotNull(response);
+        assertEquals("INACTIVE", response.status());
+    }
+
+    @Test
+    void retirePlan_rejectsLastActivePlan() {
+        SubscriptionPlan existing = plan(5L, "TRIAL");
+        when(subscriptionPlanRepository.findAvailableById(5L)).thenReturn(Optional.of(existing));
+        when(subscriptionPlanRepository.findAllActive()).thenReturn(List.of(existing));
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class, () ->
+                service.retirePlan(5L, "admin").block()
+        );
+
+        assertEquals(409, error.getStatusCode().value());
+    }
+
+    @Test
+    void loadResolvedSubscription_acceptsInactiveAssignedPlan() {
+        Tenant tenant = tenant();
+        SubscriptionPlan inactivePlan = plan(5L, "TRIAL");
+        inactivePlan.setStatus("INACTIVE");
+        TenantSubscription existing = new TenantSubscription();
+        existing.setId(99L);
+        existing.setTenantMasterId(1L);
+        existing.setSubscriptionPlanId(5L);
+        existing.setSubscriptionState("ACTIVE");
+
+        when(tenantRepository.findById(1L)).thenReturn(Optional.of(tenant));
+        when(tenantSubscriptionRepository.findByTenantMasterId(1L)).thenReturn(Optional.of(existing));
+        when(subscriptionPlanRepository.findAvailableById(5L)).thenReturn(Optional.of(inactivePlan));
+
+        TenantSubscriptionResponse response = service.getSubscription(1L).block();
+
+        assertNotNull(response);
+        assertEquals("TRIAL", response.planCode());
+        assertEquals("TRIAL Plan", response.planName());
     }
 
     private Tenant tenant() {
@@ -132,6 +235,8 @@ class TenantSubscriptionServiceTest {
         plan.setDataRetentionDays(30);
         plan.setStatus("ACTIVE");
         plan.setDeleted(false);
+        plan.setCreatedAt(OffsetDateTime.now().minusDays(1));
+        plan.setModifiedAt(OffsetDateTime.now());
         return plan;
     }
 }

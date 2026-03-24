@@ -8,6 +8,7 @@ import com.e24online.mdm.records.posture.evaluation.*;
 import com.e24online.mdm.repository.*;
 import com.e24online.mdm.web.dto.PosturePayloadIngestRequest;
 import com.e24online.mdm.web.dto.PosturePayloadIngestResponse;
+import com.e24online.mdm.web.dto.RemediationSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -369,6 +370,7 @@ public class WorkflowOrchestrationService {
                 response.setTrustScore(run.getTrustScoreAfter());
                 response.setDecisionReason(run.getDecisionReason());
                 response.setRemediationRequired(run.isRemediationRequired());
+                response.setRemediation(readRemediationFromResponsePayload(run.getResponsePayload()));
 
                 DeviceDecisionResponse decision = decisionRepository.findByRunIdAndTenant(run.getId(), payload.getTenantId())
                         .orElse(null);
@@ -380,6 +382,39 @@ public class WorkflowOrchestrationService {
         }
 
         return response;
+    }
+
+    private List<RemediationSummary> readRemediationFromResponsePayload(String responsePayload) {
+        if (responsePayload == null || responsePayload.isBlank()) {
+            return List.of();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(responsePayload);
+            JsonNode remediationNode = root == null ? null : root.get("remediation");
+            if (remediationNode == null || !remediationNode.isArray()) {
+                return List.of();
+            }
+            List<RemediationSummary> remediation = new ArrayList<>();
+            remediationNode.forEach(node -> {
+                if (node == null || !node.isObject()) {
+                    return;
+                }
+                remediation.add(new RemediationSummary(
+                        longNodeValue(node.get("evaluation_remediation_id")),
+                        longNodeValue(node.get("remediation_rule_id")),
+                        textNodeValue(node.get("remediation_code")),
+                        textNodeValue(node.get("title")),
+                        textNodeValue(node.get("description")),
+                        textNodeValue(node.get("remediation_type")),
+                        textNodeValue(node.get("enforce_mode")),
+                        textNodeValue(node.get("instruction")),
+                        textNodeValue(node.get("status"))
+                ));
+            });
+            return remediation;
+        } catch (Exception _) {
+            return List.of();
+        }
     }
 
     private PosturePayloadIngestResponse queuePayload(DevicePosturePayload payload) {
@@ -469,6 +504,30 @@ public class WorkflowOrchestrationService {
         } catch (Exception _) {
             return List.of();
         }
+    }
+
+    private Long longNodeValue(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isNumber()) {
+            return node.asLong();
+        }
+        if (node.isTextual()) {
+            try {
+                return Long.parseLong(node.asText().trim());
+            } catch (NumberFormatException _) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private String textNodeValue(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        return node.isTextual() ? node.asText() : node.toString();
     }
 
     private JsonNode parsePayloadJson(String payloadJson) {

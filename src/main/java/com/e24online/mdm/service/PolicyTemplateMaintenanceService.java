@@ -9,6 +9,7 @@ import com.e24online.mdm.domain.SystemInformationRuleCondition;
 import com.e24online.mdm.domain.TrustScoreDecisionPolicy;
 import com.e24online.mdm.domain.TrustScorePolicy;
 import com.e24online.mdm.records.PolicyTemplateApplyReport;
+import com.e24online.mdm.records.policy.*;
 import com.e24online.mdm.repository.PolicyChangeAuditRepository;
 import com.e24online.mdm.repository.RejectApplicationRepository;
 import com.e24online.mdm.repository.RemediationRuleRepository;
@@ -1180,105 +1181,4 @@ public class PolicyTemplateMaintenanceService {
         }
     }
 
-    private static final class ApplyCounts {
-        private int clearedPolicyAuditRows;
-        private int retiredSystemRules;
-        private int retiredSystemRuleConditions;
-        private int retiredRejectApps;
-        private int retiredTrustScorePolicies;
-        private int retiredTrustDecisionPolicies;
-        private int retiredRemediationRules;
-        private int retiredRuleRemediationMappings;
-        private int appliedSystemRules;
-        private int appliedSystemRuleConditions;
-        private int appliedRejectApps;
-        private int appliedTrustScorePolicies;
-        private int appliedTrustDecisionPolicies;
-        private int appliedRemediationRules;
-        private int appliedRuleRemediationMappings;
-    }
-
-    private record TemplateRemediation(String code,
-                                       String title,
-                                       String description,
-                                       String remediationType,
-                                       String osType,
-                                       String deviceType,
-                                       short priority,
-                                       String instructionJson) {
-    }
-
-    private record TemplateSystemRule(String ruleCode,
-                                      String ruleTag,
-                                      String description,
-                                      String osType,
-                                      String deviceType,
-                                      short severity,
-                                      int priority,
-                                      String complianceAction,
-                                      short riskScoreDelta,
-                                      String fieldName,
-                                      String operator,
-                                      String valueText,
-                                      Double valueNumeric,
-                                      Boolean valueBoolean) {
-    }
-
-    private record TemplateRejectApp(String key,
-                                     String policyTag,
-                                     short severity,
-                                     String appName,
-                                     String publisher,
-                                     String packageId,
-                                     String appOsType,
-                                     String minAllowedVersion) {
-    }
-
-    private record TemplateTrustPolicy(String policyCode,
-                                       String sourceType,
-                                       String signalKey,
-                                       Short severity,
-                                       String complianceAction,
-                                       short scoreDelta,
-                                       double weight) {
-    }
-
-    private record TemplateDecisionPolicy(String policyName,
-                                          short scoreMin,
-                                          short scoreMax,
-                                          String decisionAction,
-                                          boolean remediationRequired,
-                                          String responseMessage) {
-    }
-
-    private record TemplateMapping(String sourceType,
-                                   String systemRuleCode,
-                                   String rejectAppKey,
-                                   String trustPolicyCode,
-                                   String decisionAction,
-                                   String remediationCode,
-                                   String enforceMode,
-                                   short rankOrder) {
-
-        private static TemplateMapping forSystemRule(String systemRuleCode,
-                                                     String remediationCode,
-                                                     String enforceMode,
-                                                     short rankOrder) {
-            return new TemplateMapping("SYSTEM_RULE", systemRuleCode, null, null, null, remediationCode, enforceMode, rankOrder);
-        }
-
-        private static TemplateMapping forRejectApp(String rejectAppKey,
-                                                    String remediationCode,
-                                                    String enforceMode,
-                                                    short rankOrder) {
-            return new TemplateMapping("REJECT_APPLICATION", null, rejectAppKey, null, null, remediationCode, enforceMode, rankOrder);
-        }
-
-        private static TemplateMapping forTrustPolicy(String trustPolicyCode,
-                                                      String remediationCode,
-                                                      String enforceMode,
-                                                      short rankOrder) {
-            return new TemplateMapping("TRUST_POLICY", null, null, trustPolicyCode, null, remediationCode, enforceMode, rankOrder);
-        }
-    }
 }

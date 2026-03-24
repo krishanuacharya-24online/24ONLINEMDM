@@ -53,7 +53,7 @@ Without these, fallback scoring/decision logic still works, but outcomes are les
 
 Purpose:
 
-- Submit posture and receive evaluated decision/remediation in the same API call.
+- Submit posture for async evaluation and receive a queue/result handle immediately.
 
 Headers:
 
@@ -67,7 +67,13 @@ Request body:
 {
   "device_external_id": "device-001",
   "agent_id": "android-agent-2.3.0",
-  "payload_version": "v1",
+  "payload_version": "v2",
+  "agent_version": "ios-agent-2.4.0",
+  "agent_capabilities": {
+    "posture_collection": true,
+    "decision_ack": true,
+    "platform": "ios"
+  },
   "payload_hash": "sha256:8f4b...",
   "payload_json": {
     "capture_time": "2026-02-28T10:00:00Z",
@@ -107,10 +113,12 @@ Field rules:
   - `device_external_id`: required, non-blank
   - `agent_id`: required, non-blank
   - `payload_version`: required, non-blank
+  - `agent_version`: optional but recommended
+  - `agent_capabilities`: optional but recommended
   - `payload_hash`: optional (used for idempotent dedupe)
   - `payload_json`: required JSON object
 - `payload_json`:
-  - `os_type` is required and must be supported (`ANDROID`, `IOS`, `WINDOWS`, `MACOS`, `LINUX`, `CHROMEOS`, `FREEBSD`, `OPENBSD`)
+  - `os_type` is required; evaluation is policy-driven and not limited to a hardcoded OS allowlist
   - `payload_json` must be a JSON object and max serialized size is `1,000,000` bytes
   - `installed_apps` is optional but strongly recommended for app-risk scoring
   - max `installed_apps` per payload is `5000`
@@ -119,7 +127,12 @@ Field rules:
   - `app_name` required to persist app row
   - `app_os_type` optional; fallback is app `os_type`, then device `os_type`
   - duplicate app rows in same payload are deduplicated by `app_os_type + package_id + app_name`
-  - unsupported app OS type is ignored
+  - app rows are kept for any non-blank `app_os_type`; matching is driven by configured policy
+
+Schema compatibility:
+
+- verified payload versions: `v1`, `1.0`, `v2`, `2.0`
+- missing `agent_version` or `agent_capabilities` does not fail ingest, but produces validation warnings
 
 Response:
 
@@ -128,40 +141,25 @@ Response:
 ```json
 {
   "payload_id": 12345,
-  "status": "EVALUATED",
-  "evaluation_run_id": 444,
-  "decision_response_id": 987,
-  "decision_action": "QUARANTINE",
-  "trust_score": 52,
-  "decision_reason": "Auto decision from evaluated trust score",
-  "remediation_required": true,
-  "remediation": [
-    {
-      "evaluation_remediation_id": 1201,
-      "remediation_rule_id": 77,
-      "remediation_code": "UNINSTALL_BLOCKED_APP",
-      "title": "Remove blocked application",
-      "description": "Uninstall app and rerun posture check",
-      "remediation_type": "APP_REMOVAL",
-      "enforce_mode": "AUTO",
-      "instruction_json": "{\"steps\":[\"Uninstall app\",\"Reboot\"]}",
-      "remediation_status": "PROPOSED"
-    }
-  ]
+  "result_status_url": "/v1/agent/posture-payloads/12345/result",
+  "schema_compatibility_status": "SUPPORTED",
+  "status": "QUEUED",
+  "validation_warnings": []
 }
 ```
 
-Server-side processing sequence in this single API call:
+Server-side processing sequence:
 
 1. Raw ingest into `device_posture_payload` (`RECEIVED`).
-2. Parse and normalize system snapshot + installed apps.
-3. Upsert `device_trust_profile`.
-4. Resolve OS lifecycle via `os_release_lifecycle_master`.
-5. Match system rules and reject-app rules.
-6. Compute trust score and decision.
-7. Generate remediation.
-8. Persist run/matches/events/decision response.
-9. Mark payload `EVALUATED`.
+2. Queue the payload for posture evaluation (`QUEUED`).
+3. Background worker parses and normalizes system snapshot + installed apps.
+4. Upsert `device_trust_profile`.
+5. Resolve OS lifecycle via `os_release_lifecycle_master`.
+6. Match system rules and reject-app rules.
+7. Compute trust score and decision.
+8. Generate remediation.
+9. Persist run/matches/events/decision response.
+10. Mark payload `EVALUATED`.
 
 Current trust score calculation (implemented behavior):
 
@@ -205,7 +203,9 @@ curl -X POST "http://localhost:8080/v1/agent/posture-payloads" \
   -d '{
     "device_external_id":"device-001",
     "agent_id":"android-agent-2.3.0",
-    "payload_version":"v1",
+    "payload_version":"v2",
+    "agent_version":"ios-agent-2.4.0",
+    "agent_capabilities":{"posture_collection":true,"decision_ack":true,"platform":"ios"},
     "payload_hash":"sha256:8f4b...",
     "payload_json":{
       "os_type":"ANDROID",
@@ -289,6 +289,7 @@ Errors:
 Note:
 
 - `response_payload` is returned as JSON string.
+- first successful fetch of a `PENDING` decision promotes it to `DELIVERED` and stamps `sent_at` when missing
 
 ## 4.5 POST `/v1/agent/decision-responses/{response_id}/ack`
 
@@ -317,7 +318,7 @@ Field rules:
 - `delivery_status` required; one of `PENDING`, `DELIVERED`, `ACKNOWLEDGED`, `FAILED`, `TIMEOUT`
 - `acknowledged_at` optional ISO-8601 timestamp
   - for `ACKNOWLEDGED`, if omitted server auto-fills current UTC time
-  - if provided, it must not be earlier than decision `sent_at`
+  - if provided earlier than `sent_at`, server normalizes it up to `sent_at`
 - `error_message` optional (`max 2000` chars; longer values are truncated)
 - legacy aliases are accepted for compatibility: `SENT -> DELIVERED`, `ACKED -> ACKNOWLEDGED`
 
@@ -337,10 +338,11 @@ Response:
 
 1. Build posture payload including device info and `installed_apps`, then compute stable `payload_hash`.
 2. Call `POST /v1/agent/posture-payloads`.
-3. Read `decision_action`, `trust_score`, `decision_reason`, and `remediation` from the same response.
-4. Apply enforcement/remediation on device.
-5. Send result using `POST /v1/agent/decision-responses/{response_id}/ack`.
-6. Optionally call latest-decision endpoint for reconciliation/retry.
+3. If response `status` is `RECEIVED`, `QUEUED`, or `VALIDATED`, poll `result_status_url` until terminal status.
+4. Read `decision_action`, `trust_score`, `decision_reason`, and `remediation` from the evaluated result.
+5. Apply enforcement/remediation on device.
+6. Send result using `POST /v1/agent/decision-responses/{response_id}/ack`.
+7. Optionally call latest-decision endpoint for reconciliation/retry.
 
 ## 6) Client-Side Reliability Guidance
 

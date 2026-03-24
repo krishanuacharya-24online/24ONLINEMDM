@@ -4,11 +4,7 @@ import com.e24online.mdm.domain.SubscriptionPlan;
 import com.e24online.mdm.domain.Tenant;
 import com.e24online.mdm.domain.TenantFeatureOverride;
 import com.e24online.mdm.domain.TenantSubscription;
-import com.e24online.mdm.records.tenant.SubscriptionPlanResponse;
-import com.e24online.mdm.records.tenant.TenantFeatureOverrideRequest;
-import com.e24online.mdm.records.tenant.TenantFeatureOverrideResponse;
-import com.e24online.mdm.records.tenant.TenantSubscriptionResponse;
-import com.e24online.mdm.records.tenant.TenantSubscriptionUpsertRequest;
+import com.e24online.mdm.records.tenant.*;
 import com.e24online.mdm.repository.SubscriptionPlanRepository;
 import com.e24online.mdm.repository.TenantFeatureOverrideRepository;
 import com.e24online.mdm.repository.TenantRepository;
@@ -24,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
 public class TenantSubscriptionService {
@@ -34,6 +31,7 @@ public class TenantSubscriptionService {
 
     private static final int DEFAULT_TRIAL_DAYS = 30;
     private static final int DEFAULT_GRACE_DAYS = 7;
+    private static final Pattern PLAN_CODE_PATTERN = Pattern.compile("^[A-Z0-9][A-Z0-9_-]{1,63}$");
 
     private final TenantRepository tenantRepository;
     private final SubscriptionPlanRepository subscriptionPlanRepository;
@@ -59,6 +57,25 @@ public class TenantSubscriptionService {
     public Flux<SubscriptionPlanResponse> listPlans() {
         return blockingDb.flux(subscriptionPlanRepository::findAllActive)
                 .map(this::toPlanResponse);
+    }
+
+    public Flux<SubscriptionPlanAdminResponse> listPlanCatalog() {
+        return blockingDb.flux(subscriptionPlanRepository::findAllAvailable)
+                .map(this::toAdminPlanResponse);
+    }
+
+    public Mono<SubscriptionPlanAdminResponse> createPlan(String actor, SubscriptionPlanUpsertRequest request) {
+        return blockingDb.mono(() -> createPlanBlocking(actor, request));
+    }
+
+    public Mono<SubscriptionPlanAdminResponse> updatePlan(Long planId,
+                                                          String actor,
+                                                          SubscriptionPlanUpsertRequest request) {
+        return blockingDb.mono(() -> updatePlanBlocking(planId, actor, request));
+    }
+
+    public Mono<SubscriptionPlanAdminResponse> retirePlan(Long planId, String actor) {
+        return blockingDb.mono(() -> retirePlanBlocking(planId, actor));
     }
 
     public Mono<TenantSubscriptionResponse> getSubscription(Long tenantMasterId) {
@@ -108,9 +125,89 @@ public class TenantSubscriptionService {
     private ResolvedSubscription loadResolvedSubscription(Tenant tenant) {
         TenantSubscription subscription = tenantSubscriptionRepository.findByTenantMasterId(tenant.getId())
                 .orElseGet(() -> ensureSubscriptionForTenant(tenant, "system"));
-        SubscriptionPlan plan = subscriptionPlanRepository.findActiveById(subscription.getSubscriptionPlanId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Subscription plan is missing or inactive"));
+        SubscriptionPlan plan = subscriptionPlanRepository.findAvailableById(subscription.getSubscriptionPlanId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Subscription plan is missing"));
         return new ResolvedSubscription(tenant, subscription, plan, loadActiveFeatureOverrides(tenant.getId()));
+    }
+
+    private SubscriptionPlanAdminResponse createPlanBlocking(String actor, SubscriptionPlanUpsertRequest request) {
+        String effectiveActor = normalizeActor(actor);
+        String planCode = normalizeManagedPlanCode(request.planCode());
+        if (subscriptionPlanRepository.findAvailableByPlanCode(planCode).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "plan_code already exists");
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        SubscriptionPlan plan = new SubscriptionPlan();
+        plan.setPlanCode(planCode);
+        applyPlanFields(plan, request, true);
+        plan.setCreatedAt(now);
+        plan.setCreatedBy(effectiveActor);
+        plan.setModifiedAt(now);
+        plan.setModifiedBy(effectiveActor);
+        SubscriptionPlan saved = subscriptionPlanRepository.save(plan);
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("planCode", saved.getPlanCode());
+        metadata.put("planName", saved.getPlanName());
+        metadata.put("status", saved.getStatus());
+        recordPlanAudit("SUBSCRIPTION_PLAN_CREATED", "CREATE", effectiveActor, saved, metadata);
+        return toAdminPlanResponse(saved);
+    }
+
+    private SubscriptionPlanAdminResponse updatePlanBlocking(Long planId,
+                                                             String actor,
+                                                             SubscriptionPlanUpsertRequest request) {
+        SubscriptionPlan existing = requireManagedPlan(planId);
+        String effectiveActor = normalizeActor(actor);
+        String nextPlanCode = normalizeManagedPlanCode(request.planCode());
+        subscriptionPlanRepository.findAvailableByPlanCode(nextPlanCode)
+                .filter(plan -> !plan.getId().equals(existing.getId()))
+                .ifPresent(plan -> {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "plan_code already exists");
+                });
+
+        String beforePlanCode = existing.getPlanCode();
+        String beforePlanName = existing.getPlanName();
+        String beforeStatus = existing.getStatus();
+        existing.setPlanCode(nextPlanCode);
+        applyPlanFields(existing, request, false);
+        existing.setModifiedAt(OffsetDateTime.now());
+        existing.setModifiedBy(effectiveActor);
+        guardAtLeastOneActivePlan(existing, beforeStatus);
+        SubscriptionPlan saved = subscriptionPlanRepository.save(existing);
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("beforePlanCode", beforePlanCode);
+        metadata.put("afterPlanCode", saved.getPlanCode());
+        metadata.put("beforePlanName", beforePlanName);
+        metadata.put("afterPlanName", saved.getPlanName());
+        metadata.put("beforeStatus", beforeStatus);
+        metadata.put("afterStatus", saved.getStatus());
+        recordPlanAudit("SUBSCRIPTION_PLAN_UPDATED", "UPDATE", effectiveActor, saved, metadata);
+        return toAdminPlanResponse(saved);
+    }
+
+    private SubscriptionPlanAdminResponse retirePlanBlocking(Long planId, String actor) {
+        SubscriptionPlan existing = requireManagedPlan(planId);
+        if ("INACTIVE".equalsIgnoreCase(existing.getStatus())) {
+            return toAdminPlanResponse(existing);
+        }
+
+        String effectiveActor = normalizeActor(actor);
+        String beforeStatus = existing.getStatus();
+        existing.setStatus("INACTIVE");
+        guardAtLeastOneActivePlan(existing, beforeStatus);
+        existing.setModifiedAt(OffsetDateTime.now());
+        existing.setModifiedBy(effectiveActor);
+        SubscriptionPlan saved = subscriptionPlanRepository.save(existing);
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("planCode", saved.getPlanCode());
+        metadata.put("planName", saved.getPlanName());
+        metadata.put("status", saved.getStatus());
+        recordPlanAudit("SUBSCRIPTION_PLAN_RETIRED", "RETIRE", effectiveActor, saved, metadata);
+        return toAdminPlanResponse(saved);
     }
 
     private TenantSubscriptionResponse upsertSubscriptionBlocking(Long tenantMasterId,
@@ -323,6 +420,24 @@ public class TenantSubscriptionService {
         );
     }
 
+    private SubscriptionPlanAdminResponse toAdminPlanResponse(SubscriptionPlan plan) {
+        return new SubscriptionPlanAdminResponse(
+                plan.getId(),
+                plan.getPlanCode(),
+                plan.getPlanName(),
+                plan.getDescription(),
+                plan.getMaxActiveDevices(),
+                plan.getMaxTenantUsers(),
+                plan.getMaxMonthlyPayloads(),
+                plan.getDataRetentionDays(),
+                plan.isPremiumReportingEnabled(),
+                plan.isAdvancedControlsEnabled(),
+                plan.getStatus(),
+                plan.getCreatedAt(),
+                plan.getModifiedAt()
+        );
+    }
+
     private TenantFeatureOverrideResponse toFeatureResponse(TenantFeatureOverride override) {
         return new TenantFeatureOverrideResponse(
                 normalizeFeatureKey(override.getFeatureKey()),
@@ -358,7 +473,15 @@ public class TenantSubscriptionService {
         if (normalized == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "plan_code is required");
         }
-        return normalized.toUpperCase(Locale.ROOT);
+        String upper = normalized.toUpperCase(Locale.ROOT);
+        if (!PLAN_CODE_PATTERN.matcher(upper).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "plan_code is invalid");
+        }
+        return upper;
+    }
+
+    private String normalizeManagedPlanCode(String planCode) {
+        return normalizePlanCode(planCode);
     }
 
     private String normalizeSubscriptionState(String value) {
@@ -383,6 +506,78 @@ public class TenantSubscriptionService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "feature_key is invalid");
         }
         return upper;
+    }
+
+    private String normalizePlanName(String value) {
+        String normalized = normalizeOptionalText(value, 160);
+        if (normalized == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "plan_name is required");
+        }
+        return normalized;
+    }
+
+    private String normalizePlanStatus(String value) {
+        String normalized = normalizeOptionalText(value, 32);
+        String effective = normalized == null ? "ACTIVE" : normalized.toUpperCase(Locale.ROOT);
+        if (!List.of("ACTIVE", "INACTIVE").contains(effective)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "status is invalid");
+        }
+        return effective;
+    }
+
+    private int requirePositiveInteger(Integer value, String fieldName) {
+        if (value == null || value < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " must be >= 1");
+        }
+        return value;
+    }
+
+    private long requirePositiveLong(Long value, String fieldName) {
+        if (value == null || value < 1L) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " must be >= 1");
+        }
+        return value;
+    }
+
+    private void applyPlanFields(SubscriptionPlan target, SubscriptionPlanUpsertRequest request, boolean creating) {
+        if (target == null || request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "subscription plan request is required");
+        }
+        target.setPlanName(normalizePlanName(request.planName()));
+        target.setDescription(normalizeOptionalText(request.description(), 2000));
+        target.setMaxActiveDevices(requirePositiveInteger(request.maxActiveDevices(), "max_active_devices"));
+        target.setMaxTenantUsers(requirePositiveInteger(request.maxTenantUsers(), "max_tenant_users"));
+        target.setMaxMonthlyPayloads(requirePositiveLong(request.maxMonthlyPayloads(), "max_monthly_payloads"));
+        target.setDataRetentionDays(requirePositiveInteger(request.dataRetentionDays(), "data_retention_days"));
+        target.setPremiumReportingEnabled(Boolean.TRUE.equals(request.premiumReportingEnabled()));
+        target.setAdvancedControlsEnabled(Boolean.TRUE.equals(request.advancedControlsEnabled()));
+        target.setStatus(normalizePlanStatus(request.status()));
+        if (creating) {
+            target.setDeleted(false);
+        }
+    }
+
+    private SubscriptionPlan requireManagedPlan(Long planId) {
+        if (planId == null || planId <= 0L) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "planId is required");
+        }
+        return subscriptionPlanRepository.findAvailableById(planId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Subscription plan not found"));
+    }
+
+    private void guardAtLeastOneActivePlan(SubscriptionPlan plan, String previousStatus) {
+        if (plan == null) {
+            return;
+        }
+        boolean wasActive = "ACTIVE".equalsIgnoreCase(previousStatus);
+        boolean becomesInactive = !"ACTIVE".equalsIgnoreCase(plan.getStatus());
+        if (!wasActive || !becomesInactive) {
+            return;
+        }
+        long activePlans = subscriptionPlanRepository.findAllActive().size();
+        if (activePlans <= 1L) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "At least one active subscription plan is required");
+        }
     }
 
     private String normalizeOptionalText(String value, int maxLength) {
@@ -420,11 +615,22 @@ public class TenantSubscriptionService {
         );
     }
 
-    public record ResolvedSubscription(
-            Tenant tenant,
-            TenantSubscription subscription,
-            SubscriptionPlan plan,
-            Map<String, Boolean> featureOverrides
-    ) {
+    private void recordPlanAudit(String eventType,
+                                 String action,
+                                 String actor,
+                                 SubscriptionPlan plan,
+                                 Map<String, Object> metadata) {
+        auditEventService.recordBestEffort(
+                "SUBSCRIPTION",
+                eventType,
+                action,
+                null,
+                actor,
+                "SUBSCRIPTION_PLAN",
+                plan == null || plan.getId() == null ? null : String.valueOf(plan.getId()),
+                "SUCCESS",
+                metadata
+        );
     }
+
 }

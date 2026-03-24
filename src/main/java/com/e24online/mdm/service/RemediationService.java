@@ -2,6 +2,8 @@ package com.e24online.mdm.service;
 
 import com.e24online.mdm.domain.*;
 import com.e24online.mdm.records.posture.evaluation.*;
+import com.e24online.mdm.records.remediation.PriorOpenRemediation;
+import com.e24online.mdm.records.remediation.RemediationRescanKey;
 import com.e24online.mdm.repository.PostureEvaluationMatchRepository;
 import com.e24online.mdm.repository.PostureEvaluationRemediationRepository;
 import com.e24online.mdm.repository.RemediationRuleRepository;
@@ -479,6 +481,9 @@ public class RemediationService {
     }
 
     private Long longValue(Object value) {
+        if (value == null) {
+            return null;
+        }
         return switch (value) {
             case Number number -> number.longValue();
 
@@ -489,7 +494,7 @@ public class RemediationService {
                     yield null;
                 }
             }
-            default -> null; // covers null + all other types
+            default -> null;
         };
     }
 
@@ -498,6 +503,9 @@ public class RemediationService {
     }
 
     private OffsetDateTime offsetDateTimeValue(Object value) {
+        if (value == null) {
+            return null;
+        }
         return switch (value) {
             case OffsetDateTime offsetDateTime -> offsetDateTime;
             case Timestamp timestamp -> timestamp.toInstant().atOffset(ZoneOffset.UTC);
@@ -514,29 +522,4 @@ public class RemediationService {
         };
     }
 
-    private record PriorOpenRemediation(
-            Long id,
-            Long postureEvaluationRunId,
-            Long remediationRuleId,
-            String sourceType,
-            String remediationStatus,
-            OffsetDateTime completedAt,
-            String matchSource,
-            Long systemInformationRuleId,
-            Long rejectApplicationListId,
-            Long trustScorePolicyId,
-            Long osReleaseLifecycleMasterId
-    ) {
-    }
-
-    private record RemediationRescanKey(
-            Long remediationRuleId,
-            String sourceType,
-            String matchSource,
-            Long systemInformationRuleId,
-            Long rejectApplicationListId,
-            Long trustScorePolicyId,
-            Long osReleaseLifecycleMasterId
-    ) {
-    }
 }

@@ -370,6 +370,28 @@ class WorkflowOrchestrationServiceTest {
         run.setTrustScoreAfter((short) 90);
         run.setDecisionReason("ok");
         run.setRemediationRequired(true);
+        run.setResponsePayload("""
+                {
+                  "evaluation_run_id": 501,
+                  "decision_action": "ALLOW",
+                  "trust_score": 90,
+                  "decision_reason": "ok",
+                  "remediation_required": true,
+                  "remediation": [
+                    {
+                      "evaluation_remediation_id": 9001,
+                      "remediation_rule_id": 9002,
+                      "remediation_code": "REM-1",
+                      "title": "Update OS",
+                      "description": "Apply supported release",
+                      "remediation_type": "OS_UPDATE",
+                      "enforce_mode": "ADVISORY",
+                      "instruction": "step-1",
+                      "status": "DELIVERED"
+                    }
+                  ]
+                }
+                """);
 
         DeviceDecisionResponse decision = new DeviceDecisionResponse();
         decision.setId(601L);
@@ -388,6 +410,9 @@ class WorkflowOrchestrationServiceTest {
         assertEquals(501L, response.getEvaluationRunId());
         assertEquals(601L, response.getDecisionResponseId());
         assertEquals("ALLOW", response.getDecisionAction());
+        assertNotNull(response.getRemediation());
+        assertEquals(1, response.getRemediation().size());
+        assertEquals("REM-1", response.getRemediation().getFirst().getRemediationCode());
         assertEquals("DELIVERED", decision.getDeliveryStatus());
         verify(remediationService).markDelivered(501L);
     }

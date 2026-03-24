@@ -37,7 +37,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -232,6 +234,35 @@ class AgentControllerTest {
         assertNotNull(response.getBody());
         assertEquals(333L, response.getBody().getPayloadId());
         assertEquals("/v1/agent/posture-payloads/333/result", response.getBody().getResultStatusUrl());
+    }
+
+    @Test
+    void ingestPosturePayload_withDeviceTokenReturnsWorkflowResponseWithoutTenantHeaders() {
+        PosturePayloadIngestRequest request = ingestRequest("dev-1");
+        PosturePayloadIngestResponse workflowResponse = new PosturePayloadIngestResponse();
+        workflowResponse.setPayloadId(334L);
+        workflowResponse.setStatus("QUEUED");
+
+        when(enrollmentService.authenticateDeviceTokenAsync("device-token"))
+                .thenReturn(Mono.just(new DeviceTokenPrincipal("tenant-a", "dev-1", 77L)));
+        when(workflowService.ingestAndQueueAsync("tenant-a", request)).thenReturn(Mono.just(workflowResponse));
+
+        var response = controller
+                .ingestPosturePayload(
+                        null,
+                        null,
+                        "device-token",
+                        MockServerHttpRequest.post("/v1/agent/posture-payloads").build(),
+                        Mono.just(request)
+                )
+                .block();
+
+        assertNotNull(response);
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(334L, response.getBody().getPayloadId());
+        assertEquals("/v1/agent/posture-payloads/334/result", response.getBody().getResultStatusUrl());
+        verify(enrollmentService, never()).ensureActiveEnrollmentAsync(anyString(), anyString());
     }
 
     @Test

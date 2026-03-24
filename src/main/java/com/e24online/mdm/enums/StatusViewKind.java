@@ -1,4 +1,8 @@
 package com.e24online.mdm.enums;
 
-public class StatusViewKind {
+public enum StatusViewKind {
+    ALL,
+    OPEN,
+    RESOLVED,
+    EXACT
 }

@@ -26,8 +26,10 @@ import com.e24online.mdm.records.reports.RemediationFleetSummaryResponse;
 import com.e24online.mdm.records.reports.ScoreTrendPointResponse;
 import com.e24online.mdm.records.reports.TopFailingRuleResponse;
 import com.e24online.mdm.records.reports.TopRiskyApplicationResponse;
+import com.e24online.mdm.records.tenant.SubscriptionPlanAdminResponse;
 import com.e24online.mdm.records.tenant.TenantContext;
 import com.e24online.mdm.records.tenant.SubscriptionPlanResponse;
+import com.e24online.mdm.records.tenant.SubscriptionPlanUpsertRequest;
 import com.e24online.mdm.records.tenant.TenantFeatureOverrideRequest;
 import com.e24online.mdm.records.tenant.TenantFeatureOverrideResponse;
 import com.e24online.mdm.records.tenant.TenantKeyMetadataResponse;
@@ -167,6 +169,22 @@ class RecordsCoverageTest {
         assertEquals("TRIAL", planResponse.planCode());
         assertEquals("Trial", planResponse.planName());
         assertEquals("desc", planResponse.description());
+
+        SubscriptionPlanAdminResponse adminPlanResponse = new SubscriptionPlanAdminResponse(
+                7L, "STANDARD", "Standard", "desc", 50, 20, 10000L, 45,
+                true, false, "ACTIVE", now.minusDays(1), now
+        );
+        assertEquals(7L, adminPlanResponse.id());
+        assertEquals("STANDARD", adminPlanResponse.planCode());
+        assertEquals("ACTIVE", adminPlanResponse.status());
+
+        SubscriptionPlanUpsertRequest upsertPlanRequest = new SubscriptionPlanUpsertRequest(
+                "STANDARD", "Standard", "desc", 50, 20, 10000L, 45, true, false, "ACTIVE"
+        );
+        assertEquals("STANDARD", upsertPlanRequest.planCode());
+        assertEquals("Standard", upsertPlanRequest.planName());
+        assertEquals(50, upsertPlanRequest.maxActiveDevices());
+        assertTrue(upsertPlanRequest.premiumReportingEnabled());
 
         TenantFeatureOverrideRequest overrideRequest = new TenantFeatureOverrideRequest(true, now.plusDays(1), "manual");
         assertTrue(overrideRequest.enabled());

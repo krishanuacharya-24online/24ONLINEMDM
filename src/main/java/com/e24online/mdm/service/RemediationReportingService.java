@@ -1,5 +1,7 @@
 package com.e24online.mdm.service;
 
+import com.e24online.mdm.enums.StatusViewKind;
+import com.e24online.mdm.records.remediation.StatusView;
 import com.e24online.mdm.records.reports.RemediationFleetSummaryResponse;
 import com.e24online.mdm.records.ui.DataTableResponse;
 import com.e24online.mdm.records.user.UserPrincipal;
@@ -374,13 +376,4 @@ public class RemediationReportingService {
                 .orElse("''");
     }
 
-    private record StatusView(StatusViewKind kind, String value) {
-    }
-
-    private enum StatusViewKind {
-        ALL,
-        OPEN,
-        RESOLVED,
-        EXACT
-    }
 }

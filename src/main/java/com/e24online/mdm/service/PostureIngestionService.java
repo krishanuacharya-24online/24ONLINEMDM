@@ -2,6 +2,7 @@ package com.e24online.mdm.service;
 
 import com.e24online.mdm.domain.DevicePosturePayload;
 import com.e24online.mdm.records.IngestionResult;
+import com.e24online.mdm.records.posture.ContractMetadata;
 import com.e24online.mdm.repository.DevicePosturePayloadRepository;
 import com.e24online.mdm.utils.TextSanitizer;
 import com.e24online.mdm.web.dto.PosturePayloadIngestRequest;
@@ -52,7 +53,7 @@ public class PostureIngestionService {
     private static final int MAX_PAYLOAD_HASH_LENGTH = 512;
     private static final int IDEMPOTENCY_KEY_MAX_LENGTH = 64;
     private static final int MAX_PAYLOAD_JSON_BYTES = 1_000_000;
-    private static final Set<String> VERIFIED_PAYLOAD_VERSIONS = Set.of("v1", "1.0");
+    private static final Set<String> VERIFIED_PAYLOAD_VERSIONS = Set.of("v1", "1.0", "v2", "2.0");
 
     private final DevicePosturePayloadRepository repository;
     private final AuditEventService auditEventService;
@@ -385,14 +386,6 @@ public class PostureIngestionService {
         } catch (JacksonException ex) {
             throw new IllegalArgumentException("Invalid JSON value", ex);
         }
-    }
-
-    private record ContractMetadata(
-            OffsetDateTime captureTime,
-            String agentCapabilitiesJson,
-            String schemaCompatibilityStatus,
-            List<String> validationWarnings
-    ) {
     }
 
 }

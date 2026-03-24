@@ -53,6 +53,12 @@ public class PostureEvaluationConsumer {
         if (!Objects.equals(payload.getIdempotencyKey(), message.getIdempotencyKey())) {
             throw reject("Idempotency key mismatch for payloadId=" + message.getPayloadId());
         }
+        if (!Objects.equals(payload.getPayloadHash(), message.getPayloadHash())) {
+            throw reject("Payload hash mismatch for payloadId=" + message.getPayloadId());
+        }
+        if (!Objects.equals(payload.getDeviceExternalId(), message.getDeviceExternalId())) {
+            throw reject("Device external id mismatch for payloadId=" + message.getPayloadId());
+        }
 
         String status = normalize(payload.getProcessStatus());
         if ("EVALUATED".equals(status)) {

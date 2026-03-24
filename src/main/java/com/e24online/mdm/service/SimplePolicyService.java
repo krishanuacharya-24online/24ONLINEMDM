@@ -8,6 +8,10 @@ import com.e24online.mdm.domain.SystemInformationRule;
 import com.e24online.mdm.domain.SystemInformationRuleCondition;
 import com.e24online.mdm.domain.TrustScoreDecisionPolicy;
 import com.e24online.mdm.enums.OSType;
+import com.e24online.mdm.records.policy.StarterAppRuleSpec;
+import com.e24online.mdm.records.policy.StarterDeviceRuleSpec;
+import com.e24online.mdm.records.policy.StarterFixSpec;
+import com.e24online.mdm.records.policy.StarterTrustLevelSpec;
 import com.e24online.mdm.repository.PolicyChangeAuditRepository;
 import com.e24online.mdm.repository.RejectApplicationRepository;
 import com.e24online.mdm.repository.RemediationRuleRepository;
@@ -206,44 +210,6 @@ public class SimplePolicyService {
     private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
-
-    private record StarterFixSpec(String codeStem,
-                                  String title,
-                                  String description,
-                                  String remediationType,
-                                  String osType,
-                                  String deviceType,
-                                  String instructionJson,
-                                  short priority) {}
-
-    private record StarterDeviceRuleSpec(String name,
-                                         String description,
-                                         String osType,
-                                         String deviceType,
-                                         short severity,
-                                         String fieldName,
-                                         String operator,
-                                         String valueType,
-                                         String valueText,
-                                         Double valueNumeric,
-                                         Boolean valueBoolean,
-                                         String remediationTitle) {}
-
-    private record StarterAppRuleSpec(String policyTag,
-                                      String appOsType,
-                                      String appName,
-                                      String packageId,
-                                      String publisher,
-                                      String minAllowedVersion,
-                                      short severity,
-                                      String remediationTitle) {}
-
-    private record StarterTrustLevelSpec(String label,
-                                         short scoreMin,
-                                         short scoreMax,
-                                         String decisionAction,
-                                         boolean remediationRequired,
-                                         String responseMessage) {}
 
     public SimplePolicyService(SystemInformationRuleRepository systemRuleRepository,
                                SystemInformationRuleConditionRepository conditionRepository,

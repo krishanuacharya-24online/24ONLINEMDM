@@ -16,6 +16,7 @@ import reactor.core.scheduler.Schedulers;
 import tools.jackson.databind.ObjectMapper;
 
 import java.sql.SQLException;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -23,6 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -133,6 +135,66 @@ class PostureIngestionServiceTest {
         assertNotNull(persisted.getIdempotencyKey());
         assertEquals(64, persisted.getIdempotencyKey().length());
         assertEquals("SUPPORTED_WITH_WARNINGS", persisted.getSchemaCompatibilityStatus());
+    }
+
+    @Test
+    void ingest_v2PayloadWithAgentMetadata_marksPayloadSupported() {
+        when(repository.findByIdempotencyKey(eq("tenant-a"), eq("dev-01"), anyString()))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(DevicePosturePayload.class))).thenAnswer(invocation -> {
+            DevicePosturePayload payload = invocation.getArgument(0);
+            payload.setId(210L);
+            return payload;
+        });
+
+        ObjectMapper mapper = new ObjectMapper();
+        PosturePayloadIngestRequest request = new PosturePayloadIngestRequest();
+        request.setDeviceExternalId("dev-01");
+        request.setAgentId("agent-01");
+        request.setPayloadVersion("v2");
+        request.setCaptureTime(OffsetDateTime.parse("2026-03-24T18:43:00Z"));
+        request.setAgentVersion("2.4.0");
+        request.setAgentCapabilities(mapper.createObjectNode().put("decision_ack", true));
+        request.setPayloadJson(mapper.createObjectNode().put("os_type", "IOS"));
+
+        Long id = service.ingest("tenant-a", request);
+
+        assertEquals(210L, id);
+        ArgumentCaptor<DevicePosturePayload> captor = ArgumentCaptor.forClass(DevicePosturePayload.class);
+        verify(repository).save(captor.capture());
+        DevicePosturePayload persisted = captor.getValue();
+        assertEquals("SUPPORTED", persisted.getSchemaCompatibilityStatus());
+        assertEquals("[]", persisted.getValidationWarnings());
+    }
+
+    @Test
+    void ingest_v2PayloadWithoutOptionalMetadata_keepsWarningsButNotUnverified() {
+        when(repository.findByIdempotencyKey(eq("tenant-a"), eq("dev-01"), anyString()))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(DevicePosturePayload.class))).thenAnswer(invocation -> {
+            DevicePosturePayload payload = invocation.getArgument(0);
+            payload.setId(211L);
+            return payload;
+        });
+
+        ObjectMapper mapper = new ObjectMapper();
+        PosturePayloadIngestRequest request = new PosturePayloadIngestRequest();
+        request.setDeviceExternalId("dev-01");
+        request.setAgentId("agent-01");
+        request.setPayloadVersion("v2");
+        request.setPayloadJson(mapper.createObjectNode()
+                .put("os_type", "WINDOWS")
+                .put("capture_time", "2026-03-24T18:43:00Z"));
+
+        Long id = service.ingest("tenant-a", request);
+
+        assertEquals(211L, id);
+        ArgumentCaptor<DevicePosturePayload> captor = ArgumentCaptor.forClass(DevicePosturePayload.class);
+        verify(repository).save(captor.capture());
+        DevicePosturePayload persisted = captor.getValue();
+        assertEquals("SUPPORTED_WITH_WARNINGS", persisted.getSchemaCompatibilityStatus());
+        assertTrue(persisted.getValidationWarnings().contains("agent_version was not supplied"));
+        assertTrue(persisted.getValidationWarnings().contains("agent_capabilities was not supplied"));
     }
 
     @Test

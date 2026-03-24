@@ -1,4 +1,12 @@
 package com.e24online.mdm.records.posture;
 
-public class ContractMetadata {
+import java.time.OffsetDateTime;
+import java.util.List;
+
+public record ContractMetadata(
+        OffsetDateTime captureTime,
+        String agentCapabilitiesJson,
+        String schemaCompatibilityStatus,
+        List<String> validationWarnings
+) {
 }
