@@ -4,7 +4,6 @@ public record NavVisibility(
         boolean overview,
         boolean devices,
         boolean enrollments,
-        boolean payloads,
         boolean audit,
         boolean policies,
         boolean catalog,

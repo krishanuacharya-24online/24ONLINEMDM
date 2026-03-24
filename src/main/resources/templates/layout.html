@@ -49,7 +49,6 @@
                 <a th:if="${nav.overview}" th:href="@{/ui}" th:attr="data-active=${activePage == 'overview'}">Overview</a>
                 <a th:if="${nav.devices}" th:href="@{/ui/devices}" th:attr="data-active=${activePage == 'devices'}">Devices</a>
                 <a th:if="${nav.enrollments}" th:href="@{/ui/enrollments}" th:attr="data-active=${activePage == 'enrollments'}">Enrollments</a>
-                <a th:if="${nav.payloads}" th:href="@{/ui/payloads}" th:attr="data-active=${activePage == 'payloads'}">Payloads</a>
                 <a th:if="${nav.audit}" th:href="@{/ui/audit-trail}" th:attr="data-active=${activePage == 'audit'}">Audit</a>
                 <a th:if="${nav.policies and policyNav.shellHref == '/ui/policies'}" th:href="@{/ui/policies}" th:attr="data-active=${activePage == 'policies'}">Policies</a>
                 <a th:if="${nav.policies and policyNav.shellHref == '/ui/policies/audit-trail'}" th:href="@{/ui/policies/audit-trail}" th:attr="data-active=${activePage == 'policies'}">Policies</a>

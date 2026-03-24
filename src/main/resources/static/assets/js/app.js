@@ -807,14 +807,6 @@
       }
     },
     {
-      pattern: '/ui/payloads',
-      fields: {
-        tenantid: 'Tenant ID where the test posture payload will be ingested.',
-        tenantkey: 'Optional tenant API key header used for tenant-key protected ingestion endpoints.',
-        deviceexternalid: 'Device external identifier to associate with the synthetic posture payload.'
-      }
-    },
-    {
       pattern: '/ui/change-password',
       fields: {
         currentpassword: 'Current password for verification before allowing a credential change.',

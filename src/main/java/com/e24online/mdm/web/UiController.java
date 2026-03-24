@@ -62,14 +62,6 @@ public class UiController {
         return Mono.just("enrollments");
     }
 
-    @GetMapping("/payloads")
-    @PreAuthorize("hasRole('PRODUCT_ADMIN')")
-    public Mono<String> payloads(Model model) {
-        model.addAttribute("activePage", "payloads");
-        model.addAttribute("title", "Payloads");
-        return Mono.just("payloads");
-    }
-
     @GetMapping("/audit-trail")
     @PreAuthorize("hasAnyRole('PRODUCT_ADMIN','TENANT_ADMIN','AUDITOR')")
     public Mono<String> auditTrail(Model model) {

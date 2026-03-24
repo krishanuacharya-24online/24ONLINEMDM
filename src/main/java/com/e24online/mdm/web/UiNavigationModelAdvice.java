@@ -27,7 +27,6 @@ public class UiNavigationModelAdvice {
                 productAdmin || tenantAdmin,                 // overview
                 productAdmin || tenantAdmin || tenantUser,   // devices
                 tenantAdmin || tenantUser,                   // enrollments
-                productAdmin,                                // payloads
                 productAdmin || tenantAdmin || auditor,      // audit
                 productAdmin || tenantAdmin || auditor,      // policies
                 productAdmin,                                // catalog

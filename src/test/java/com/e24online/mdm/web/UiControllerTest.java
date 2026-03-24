@@ -67,11 +67,6 @@ class UiControllerTest {
         assertEquals("enrollments", enrollmentsModel.getAttribute("activePage"));
         assertEquals("Enrollments", enrollmentsModel.getAttribute("title"));
 
-        Model payloadsModel = new ExtendedModelMap();
-        assertEquals("payloads", controller.payloads(payloadsModel).block());
-        assertEquals("payloads", payloadsModel.getAttribute("activePage"));
-        assertEquals("Payloads", payloadsModel.getAttribute("title"));
-
         Model usersModel = new ExtendedModelMap();
         assertEquals("users", controller.users(usersModel).block());
         assertEquals("users", usersModel.getAttribute("activePage"));
