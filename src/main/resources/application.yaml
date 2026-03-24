@@ -156,6 +156,13 @@ security:
     refresh-ttl-seconds: 604800   # 7 days
 
 mdm:
+  token:
+    # Automatic revocation of expired refresh tokens
+    # Cron expression: sec min hour day month weekday
+    # Default: daily at 2:00 AM
+    revocation:
+      cron: ${MDM_TOKEN_REVOCATION_CRON:0 0 2 * * *}
+
   audit:
     queue:
       exchange: ${AUDIT_QUEUE_EXCHANGE:mdm.audit.exchange}

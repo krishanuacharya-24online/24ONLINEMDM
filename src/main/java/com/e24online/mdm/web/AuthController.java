@@ -11,6 +11,7 @@ import com.e24online.mdm.repository.AuthUserRepository;
 import com.e24online.mdm.repository.TenantRepository;
 import com.e24online.mdm.service.AuditEventService;
 import com.e24online.mdm.service.BlockingDb;
+import com.e24online.mdm.service.ExpiredTokenRevocationService;
 import com.e24online.mdm.service.LocalBreachedPasswordService;
 import com.e24online.mdm.web.security.JwtService;
 import com.e24online.mdm.records.user.UserPrincipal;
@@ -49,6 +50,7 @@ public class AuthController {
     private final TenantRepository tenantRepository;
     private final ServerCsrfTokenRepository csrfTokenRepository;
     private final LocalBreachedPasswordService localBreachedPasswordService;
+    private final ExpiredTokenRevocationService expiredTokenRevocationService;
 
     public AuthController(AuthUserRepository userRepository,
                           AuthRefreshTokenRepository refreshRepository,
@@ -58,7 +60,8 @@ public class AuthController {
                           AuditEventService auditEventService,
                           TenantRepository tenantRepository,
                           ServerCsrfTokenRepository csrfTokenRepository,
-                          LocalBreachedPasswordService localBreachedPasswordService) {
+                          LocalBreachedPasswordService localBreachedPasswordService,
+                          ExpiredTokenRevocationService expiredTokenRevocationService) {
         this.userRepository = userRepository;
         this.refreshRepository = refreshRepository;
         this.passwordEncoder = passwordEncoder;
@@ -68,6 +71,7 @@ public class AuthController {
         this.tenantRepository = tenantRepository;
         this.csrfTokenRepository = csrfTokenRepository;
         this.localBreachedPasswordService = localBreachedPasswordService;
+        this.expiredTokenRevocationService = expiredTokenRevocationService;
     }
 
     @PostMapping("/login")
@@ -117,6 +121,9 @@ public class AuthController {
 
             String access = jwtService.generateAccessToken(user);
             OffsetDateTime now = OffsetDateTime.now();
+
+            // Revoke any expired tokens for this user before creating/reusing a token
+            expiredTokenRevocationService.revokeExpiredTokensForUser(user.getId());
 
             String refresh;
             Optional<AuthRefreshToken> existingActiveToken = findActiveRefreshToken(user.getId(), now);

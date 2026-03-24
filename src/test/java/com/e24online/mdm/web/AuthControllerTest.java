@@ -12,6 +12,7 @@ import com.e24online.mdm.repository.AuthUserRepository;
 import com.e24online.mdm.repository.TenantRepository;
 import com.e24online.mdm.service.AuditEventService;
 import com.e24online.mdm.service.BlockingDb;
+import com.e24online.mdm.service.ExpiredTokenRevocationService;
 import com.e24online.mdm.service.LocalBreachedPasswordService;
 import com.e24online.mdm.web.security.JwtService;
 import io.jsonwebtoken.Claims;
@@ -79,6 +80,9 @@ class AuthControllerTest {
     @Mock
     private LocalBreachedPasswordService localBreachedPasswordService;
 
+    @Mock
+    private ExpiredTokenRevocationService expiredTokenRevocationService;
+
     private AuthController controller;
 
     @BeforeEach
@@ -92,7 +96,8 @@ class AuthControllerTest {
                 auditEventService,
                 tenantRepository,
                 csrfTokenRepository,
-                localBreachedPasswordService
+                localBreachedPasswordService,
+                expiredTokenRevocationService
         );
         lenient().when(jwtService.accessTtl()).thenReturn(Duration.ofMinutes(15));
         lenient().when(jwtService.refreshTtl()).thenReturn(Duration.ofDays(7));
