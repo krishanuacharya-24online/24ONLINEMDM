@@ -47,7 +47,7 @@ public class LocalBreachedPasswordService {
     private static final Pattern DATE_PATTERN = Pattern.compile(
             "(19|20)\\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\\d|3[01])");
     private static final Pattern SIMPLE_PATTERN = Pattern.compile(
-            "^(password|admin|user|login|welcome|hello|test|guest|master|root|pass|root|toor)$", Pattern.CASE_INSENSITIVE);
+            "^(password|admin|user|login|welcome|hello|test|guest|master|root|pass|toor)$", Pattern.CASE_INSENSITIVE);
     
     // In-memory set of breached passwords
     private final Set<String> breachedPasswords = new HashSet<>();

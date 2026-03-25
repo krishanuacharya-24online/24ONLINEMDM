@@ -1,4 +1,4 @@
-package com.e24online.mdm.service;
+package com.e24online.mdm.service.enrollment;
 
 import com.e24online.mdm.constants.DeviceEnrollmentServiceConstants;
 import com.e24online.mdm.domain.AuthUser;
@@ -19,14 +19,14 @@ import java.util.Locale;
 import java.util.Optional;
 
 @Service
-class DeviceEnrollmentSupport {
+public class DeviceEnrollmentSupport {
 
     private final TenantRepository tenantRepository;
     private final AuthUserRepository authUserRepository;
     private final DeviceEnrollmentRepository enrollmentRepository;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    DeviceEnrollmentSupport(TenantRepository tenantRepository,
+    public DeviceEnrollmentSupport(TenantRepository tenantRepository,
                             AuthUserRepository authUserRepository,
                             DeviceEnrollmentRepository enrollmentRepository) {
         this.tenantRepository = tenantRepository;
@@ -34,14 +34,14 @@ class DeviceEnrollmentSupport {
         this.enrollmentRepository = enrollmentRepository;
     }
 
-    int normalizePageSize(int size) {
+    public int normalizePageSize(int size) {
         if (size <= 0) {
             return DeviceEnrollmentServiceConstants.DEFAULT_PAGE_SIZE;
         }
         return Math.min(size, DeviceEnrollmentServiceConstants.MAX_PAGE_SIZE);
     }
 
-    String normalizeStatusFilter(String status) {
+    public String normalizeStatusFilter(String status) {
         String normalized = normalizeOptional(status, 64);
         if (normalized == null) {
             return null;
@@ -55,7 +55,7 @@ class DeviceEnrollmentSupport {
         return upper;
     }
 
-    int normalizeBounded(Integer value, int defaultValue, int min, int max, String field) {
+    public int normalizeBounded(Integer value, int defaultValue, int min, int max, String field) {
         int resolved = value == null ? defaultValue : value;
         if (resolved < min || resolved > max) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, field + " is out of range");
@@ -63,7 +63,7 @@ class DeviceEnrollmentSupport {
         return resolved;
     }
 
-    Long normalizeOptionalPositive(Long value, String fieldName) {
+    public Long normalizeOptionalPositive(Long value, String fieldName) {
         if (value == null) {
             return null;
         }
@@ -73,7 +73,7 @@ class DeviceEnrollmentSupport {
         return value;
     }
 
-    Long normalizeRequiredPositive(Long value, String fieldName) {
+    public Long normalizeRequiredPositive(Long value, String fieldName) {
         Long normalized = normalizeOptionalPositive(value, fieldName);
         if (normalized == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required");
@@ -81,7 +81,7 @@ class DeviceEnrollmentSupport {
         return normalized;
     }
 
-    String normalizeTenantId(String tenantId) {
+    public String normalizeTenantId(String tenantId) {
         String normalized = normalizeRequired(tenantId, "tenant_id", 64).toLowerCase(Locale.ROOT);
         if (normalized.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "tenant_id is required");
@@ -89,12 +89,12 @@ class DeviceEnrollmentSupport {
         return normalized;
     }
 
-    String normalizeActor(String actor) {
+    public String normalizeActor(String actor) {
         String normalized = normalizeOptional(actor, 128);
         return normalized == null ? "system" : normalized;
     }
 
-    String normalizeSetupLikeToken(String value, String fieldName) {
+    public String normalizeSetupLikeToken(String value, String fieldName) {
         String normalized = normalizeRequired(value, fieldName, 512);
         String compact = normalized.replace("-", "").replace(" ", "");
         if (DeviceEnrollmentServiceConstants.COMPACT_SETUP_CODE.matcher(compact).matches()
@@ -108,7 +108,7 @@ class DeviceEnrollmentSupport {
         return normalized;
     }
 
-    String normalizeRequired(String value, String fieldName, int maxLen) {
+    public String normalizeRequired(String value, String fieldName, int maxLen) {
         String normalized = normalizeOptional(value, maxLen);
         if (normalized == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required");
@@ -116,7 +116,7 @@ class DeviceEnrollmentSupport {
         return normalized;
     }
 
-    String normalizeOptional(String value, int maxLen) {
+    public String normalizeOptional(String value, int maxLen) {
         if (value == null) {
             return null;
         }
@@ -130,13 +130,13 @@ class DeviceEnrollmentSupport {
         return normalized;
     }
 
-    Tenant requireActiveTenant(String tenantId, HttpStatus status) {
+    public Tenant requireActiveTenant(String tenantId, HttpStatus status) {
         return tenantRepository.findActiveByTenantId(tenantId)
                 .filter(t -> !t.isDeleted() && DeviceEnrollmentServiceConstants.ACTIVE.equalsIgnoreCase(t.getStatus()))
                 .orElseThrow(() -> new ResponseStatusException(status, "Invalid tenant"));
     }
 
-    AuthUser requireActiveTenantUser(Long tenantMasterId, Long userId, HttpStatus status, String fieldName) {
+    public AuthUser requireActiveTenantUser(Long tenantMasterId, Long userId, HttpStatus status, String fieldName) {
         Long normalizedUserId = normalizeRequiredPositive(userId, fieldName);
         Long normalizedTenantMasterId = normalizeRequiredPositive(tenantMasterId, "tenant_master_id");
         AuthUser user = authUserRepository.findActiveByIdAndTenantId(normalizedUserId, normalizedTenantMasterId)
@@ -148,21 +148,21 @@ class DeviceEnrollmentSupport {
         return user;
     }
 
-    void enforceOwnerScope(DeviceEnrollment enrollment, Long requiredOwnerUserId) {
+    public void enforceOwnerScope(DeviceEnrollment enrollment, Long requiredOwnerUserId) {
         if (requiredOwnerUserId == null || requiredOwnerUserId.equals(enrollment.getOwnerUserId())) {
             return;
         }
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, DeviceEnrollmentServiceConstants.ENROLLMENT_NOT_FOUND);
     }
 
-    String generateSecret(String prefix) {
+    public String generateSecret(String prefix) {
         byte[] randomBytes = new byte[36];
         secureRandom.nextBytes(randomBytes);
         String token = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
         return prefix + "_" + token;
     }
 
-    String generateSetupCode() {
+    public String generateSetupCode() {
         String raw = randomAllNum(DeviceEnrollmentServiceConstants.SETUP_CODE_RAW_LENGTH);
         return raw.substring(0, 3) + "-"
                 + raw.substring(3, 6) + "-"
@@ -170,7 +170,7 @@ class DeviceEnrollmentSupport {
                 + raw.substring(9, 12);
     }
 
-    String generateEnrollmentNo(String tenantId) {
+    public String generateEnrollmentNo(String tenantId) {
         String cleanedTenant = tenantId.replaceAll("[^a-z0-9]", "").toUpperCase(Locale.ROOT);
         if (cleanedTenant.isBlank()) {
             cleanedTenant = "TENANT";
@@ -190,7 +190,7 @@ class DeviceEnrollmentSupport {
         throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to generate enrollment number");
     }
 
-    private String randomAllNum(int len) {
+    public String randomAllNum(int len) {
         StringBuilder sb = new StringBuilder(len);
         for (int i = 0; i < len; i++) {
             int idx = secureRandom.nextInt(DeviceEnrollmentServiceConstants.ALL_CHAR_NUM.length());
@@ -199,7 +199,7 @@ class DeviceEnrollmentSupport {
         return sb.toString();
     }
 
-    String sha256Hex(String value) {
+    public String sha256Hex(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
@@ -209,7 +209,7 @@ class DeviceEnrollmentSupport {
         }
     }
 
-    String mask(String raw) {
+    public String mask(String raw) {
         if (raw == null || raw.isBlank()) {
             return "hidden";
         }

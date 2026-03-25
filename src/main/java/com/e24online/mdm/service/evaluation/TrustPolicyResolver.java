@@ -1,4 +1,4 @@
-package com.e24online.mdm.service;
+package com.e24online.mdm.service.evaluation;
 
 import com.e24online.mdm.domain.TrustScorePolicy;
 import com.e24online.mdm.records.posture.evaluation.AppliedPolicy;
@@ -10,15 +10,15 @@ import java.util.List;
 import java.util.Objects;
 
 @Service
-class TrustPolicyResolver {
+public class TrustPolicyResolver {
 
     private final EvaluationSupport support;
 
-    TrustPolicyResolver(EvaluationSupport support) {
+    public TrustPolicyResolver(EvaluationSupport support) {
         this.support = support;
     }
 
-    AppliedPolicy findAppliedPolicy(List<TrustScorePolicy> policies,
+    public AppliedPolicy findAppliedPolicy(List<TrustScorePolicy> policies,
                                     String sourceType,
                                     List<String> signalCandidates,
                                     Short severity,
@@ -37,7 +37,7 @@ class TrustPolicyResolver {
         return matches.isEmpty() ? null : new AppliedPolicy(matches.getFirst());
     }
 
-    List<String> signalCandidates(String... values) {
+    public List<String> signalCandidates(String... values) {
         if (values == null || values.length == 0) {
             return List.of();
         }

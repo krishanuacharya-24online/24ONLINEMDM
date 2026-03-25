@@ -10,7 +10,7 @@ import com.e24online.mdm.repository.DevicePosturePayloadRepository;
 import com.e24online.mdm.repository.TenantApiKeyRepository;
 import com.e24online.mdm.repository.TenantRepository;
 import com.e24online.mdm.service.BlockingDb;
-import com.e24online.mdm.service.DeviceEnrollmentService;
+import com.e24online.mdm.service.enrollment.DeviceEnrollmentService;
 import com.e24online.mdm.service.RemediationService;
 import com.e24online.mdm.service.WorkflowOrchestrationService;
 import com.e24online.mdm.web.dto.DecisionAckRequest;
@@ -20,6 +20,7 @@ import com.e24online.mdm.web.dto.PosturePayloadIngestResponse;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -44,10 +45,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import static com.e24online.mdm.utils.WorkflowStatusModel.PAYLOAD_PROCESS_STATUSES;
 import static com.e24online.mdm.utils.WorkflowStatusModel.canonicalDeliveryStatus;
@@ -75,7 +77,10 @@ public class AgentController {
     private final BlockingDb blockingDb;
     private final Duration tenantKeyRotationGrace;
     private final Duration tenantKeyValidationCacheTtl;
-    private final Map<String, CachedTenantAccess> tenantAccessCache = new ConcurrentHashMap<>();
+    private final Cache<String, CachedTenantAccess> tenantAccessCache = Caffeine.newBuilder()
+            .maximumSize(10_000)
+            .expireAfterWrite(Duration.ofSeconds(15))
+            .build();
 
     public AgentController(WorkflowOrchestrationService workflowService,
                            DevicePosturePayloadRepository payloadRepository,
@@ -86,8 +91,8 @@ public class AgentController {
                            PasswordEncoder passwordEncoder,
                            DeviceEnrollmentService enrollmentService,
                            BlockingDb blockingDb,
-                           @org.springframework.beans.factory.annotation.Value("${security.tenant-key.rotation-grace-seconds:300}") long tenantKeyRotationGraceSeconds,
-                           @org.springframework.beans.factory.annotation.Value("${security.tenant-key.validation-cache-seconds:15}") long tenantKeyValidationCacheSeconds) {
+                           @Value("${security.tenant-key.rotation-grace-seconds:300}") long tenantKeyRotationGraceSeconds,
+                           @Value("${security.tenant-key.validation-cache-seconds:15}") long tenantKeyValidationCacheSeconds) {
         this.workflowService = workflowService;
         this.payloadRepository = payloadRepository;
         this.decisionRepository = decisionRepository;
@@ -330,14 +335,14 @@ public class AgentController {
         if (tenantKeyValidationCacheTtl.isZero() || tenantKeyValidationCacheTtl.isNegative()) {
             return false;
         }
-        CachedTenantAccess cached = tenantAccessCache.get(cacheKey);
+        CachedTenantAccess cached = tenantAccessCache.getIfPresent(cacheKey);
         if (cached == null) {
             return false;
         }
         if (cached.expiresAtEpochMillis() > System.currentTimeMillis()) {
             return true;
         }
-        tenantAccessCache.remove(cacheKey, cached);
+        tenantAccessCache.invalidate(cacheKey);
         return false;
     }
 

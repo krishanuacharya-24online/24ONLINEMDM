@@ -1,4 +1,4 @@
-package com.e24online.mdm.service;
+package com.e24online.mdm.service.enrollment;
 
 import com.e24online.mdm.constants.DeviceEnrollmentServiceConstants;
 import com.e24online.mdm.domain.AuthUser;
@@ -22,7 +22,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 @Service
-class EnrollmentManagementService {
+public class EnrollmentManagementService {
 
     private final DeviceEnrollmentRepository enrollmentRepository;
     private final DeviceAgentCredentialRepository credentialRepository;
@@ -31,7 +31,7 @@ class EnrollmentManagementService {
     private final DeviceEnrollmentSupport support;
     private final DeviceCredentialService credentialService;
 
-    EnrollmentManagementService(DeviceEnrollmentRepository enrollmentRepository,
+    public EnrollmentManagementService(DeviceEnrollmentRepository enrollmentRepository,
                                 DeviceAgentCredentialRepository credentialRepository,
                                 NamedParameterJdbcTemplate jdbc,
                                 TransactionTemplate transactionTemplate,
@@ -45,7 +45,7 @@ class EnrollmentManagementService {
         this.credentialService = credentialService;
     }
 
-    List<DeviceEnrollment> listEnrollments(String tenantId, String status, Long ownerUserId, int page, int size) {
+    public List<DeviceEnrollment> listEnrollments(String tenantId, String status, Long ownerUserId, int page, int size) {
         int safeSize = support.normalizePageSize(size);
         long offset = (long) Math.max(0, page) * safeSize;
         String normalizedStatus = support.normalizeStatusFilter(status);
@@ -54,7 +54,7 @@ class EnrollmentManagementService {
         return enrollmentRepository.findPagedByTenant(normalizedTenant, normalizedStatus, normalizedOwnerUserId, safeSize, offset);
     }
 
-    DeviceEnrollment getEnrollment(String tenantId, Long id, Long ownerUserId) {
+    public DeviceEnrollment getEnrollment(String tenantId, Long id, Long ownerUserId) {
         String normalizedTenant = support.normalizeTenantId(tenantId);
         Long normalizedOwnerUserId = support.normalizeOptionalPositive(ownerUserId, DeviceEnrollmentServiceConstants.OWNER_USER_ID);
         DeviceEnrollment enrollment = enrollmentRepository.findByIdAndTenant(id, normalizedTenant)
@@ -63,14 +63,14 @@ class EnrollmentManagementService {
         return enrollment;
     }
 
-    void ensureActiveEnrollment(String tenantId, String enrollmentNo) {
+    public void ensureActiveEnrollment(String tenantId, String enrollmentNo) {
         String normalizedTenant = support.normalizeTenantId(tenantId);
         String normalizedEnrollmentNo = support.normalizeRequired(enrollmentNo, "device_external_id", 255);
         enrollmentRepository.findActiveByTenantAndEnrollmentNo(normalizedTenant, normalizedEnrollmentNo)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "device_external_id is not enrolled or is de-enrolled"));
     }
 
-    DeviceEnrollment deEnroll(String tenantId, String actor, Long ownerUserId, Long id, String reason) {
+    public DeviceEnrollment deEnroll(String tenantId, String actor, Long ownerUserId, Long id, String reason) {
         String normalizedTenant = support.normalizeTenantId(tenantId);
         Long normalizedOwnerUserId = support.normalizeOptionalPositive(ownerUserId, DeviceEnrollmentServiceConstants.OWNER_USER_ID);
         String effectiveActor = support.normalizeActor(actor);
@@ -118,7 +118,7 @@ class EnrollmentManagementService {
         });
     }
 
-    AgentEnrollmentClaim createEnrollmentAndCredential(String tenantId,
+    public AgentEnrollmentClaim createEnrollmentAndCredential(String tenantId,
                                                        String agentId,
                                                        String deviceLabel,
                                                        String deviceFingerprint,
@@ -156,7 +156,7 @@ class EnrollmentManagementService {
         );
     }
 
-    private <T> T requiredTransaction(Supplier<T> action) {
+    public <T> T requiredTransaction(Supplier<T> action) {
         T value = transactionTemplate.execute(_ -> action.get());
         return Objects.requireNonNull(value, "transaction returned null");
     }

@@ -1,4 +1,4 @@
-package com.e24online.mdm.service;
+package com.e24online.mdm.service.evaluation;
 
 import com.e24online.mdm.domain.DeviceInstalledApplication;
 import com.e24online.mdm.domain.RejectApplication;
@@ -15,18 +15,18 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-class ApplicationRuleEvaluator {
+public class ApplicationRuleEvaluator {
 
     private final EvaluationSupport support;
     private final TrustPolicyResolver trustPolicyResolver;
 
-    ApplicationRuleEvaluator(EvaluationSupport support,
+    public ApplicationRuleEvaluator(EvaluationSupport support,
                              TrustPolicyResolver trustPolicyResolver) {
         this.support = support;
         this.trustPolicyResolver = trustPolicyResolver;
     }
 
-    ApplicationRuleEvaluation evaluate(List<DeviceInstalledApplication> installedApps,
+    public ApplicationRuleEvaluation evaluate(List<DeviceInstalledApplication> installedApps,
                                        List<RejectApplication> activeRejectApps,
                                        List<TrustScorePolicy> activePolicies,
                                        ParsedPosture parsed,
@@ -78,7 +78,7 @@ class ApplicationRuleEvaluator {
         return new ApplicationRuleEvaluation(matches, signals, matchedAppCount);
     }
 
-    private boolean matchesRejectApp(DeviceInstalledApplication app, RejectApplication reject) {
+    public boolean matchesRejectApp(DeviceInstalledApplication app, RejectApplication reject) {
         if (reject.getAppOsType() != null && !reject.getAppOsType().isBlank()
                 && !support.equalsIgnoreCase(app.getAppOsType(), reject.getAppOsType())) {
             return false;
@@ -101,6 +101,6 @@ class ApplicationRuleEvaluator {
         return true;
     }
 
-    record ApplicationRuleEvaluation(List<MatchDraft> matches, List<ScoreSignal> signals, int matchedAppCount) {
+    public record ApplicationRuleEvaluation(List<MatchDraft> matches, List<ScoreSignal> signals, int matchedAppCount) {
     }
 }

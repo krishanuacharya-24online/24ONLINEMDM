@@ -1,37 +1,33 @@
-package com.e24online.mdm.service;
+package com.e24online.mdm.service.evaluation;
 
+import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 import static java.util.Collections.emptyList;
 
-@org.springframework.stereotype.Service
-class EvaluationSupport {
+@Service
+public class EvaluationSupport {
 
     private static final Set<String> DECISION_ACTIONS = Set.of("ALLOW", "QUARANTINE", "BLOCK", "NOTIFY");
     private final ObjectMapper objectMapper;
 
-    EvaluationSupport(ObjectMapper objectMapper) {
+    public EvaluationSupport(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 
-    Short safeShort(Number value, Short defaultValue) {
+    public Short safeShort(Number value, Short defaultValue) {
         return value == null ? defaultValue : value.shortValue();
     }
 
-    String safeText(String value) {
+    public String safeText(String value) {
         return value == null ? "" : value;
     }
 
-    String trimToNull(String value) {
+    public String trimToNull(String value) {
         if (value == null) {
             return null;
         }
@@ -39,16 +35,16 @@ class EvaluationSupport {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    boolean equalsIgnoreCase(String left, String right) {
+    public boolean equalsIgnoreCase(String left, String right) {
         return Objects.equals(normalizeUpper(left), normalizeUpper(right));
     }
 
-    String normalizeUpper(String value) {
+    public String normalizeUpper(String value) {
         String trimmed = trimToNull(value);
         return trimmed == null ? null : trimmed.toUpperCase(Locale.ROOT);
     }
 
-    Collection<String> expectedCollection(Object expected) {
+    public Collection<String> expectedCollection(Object expected) {
         if (expected == null) {
             return emptyList();
         }
@@ -64,7 +60,7 @@ class EvaluationSupport {
         return List.of(String.valueOf(expected));
     }
 
-    Double toDouble(Object value) {
+    public Double toDouble(Object value) {
         if (value == null) {
             return null;
         }
@@ -73,12 +69,12 @@ class EvaluationSupport {
         }
         try {
             return Double.parseDouble(String.valueOf(value));
-        } catch (Exception ex) {
+        } catch (Exception _) {
             return null;
         }
     }
 
-    String stringifyNode(JsonNode node) {
+    public String stringifyNode(JsonNode node) {
         if (node == null || node.isNull()) {
             return null;
         }
@@ -91,7 +87,7 @@ class EvaluationSupport {
         return node.toString();
     }
 
-    short weightedDelta(com.e24online.mdm.domain.TrustScorePolicy policy) {
+    public short weightedDelta(com.e24online.mdm.domain.TrustScorePolicy policy) {
         double weight = policy.getWeight() == null ? 1.0 : policy.getWeight();
         int computed = (int) Math.round(policy.getScoreDelta() * weight);
         if (computed > 1000) {
@@ -103,11 +99,11 @@ class EvaluationSupport {
         return (short) computed;
     }
 
-    short defaultRejectDelta(short severity) {
+    public short defaultRejectDelta(short severity) {
         return (short) Math.max(-80, -10 * severity);
     }
 
-    short defaultLifecycleDelta(String state) {
+    public short defaultLifecycleDelta(String state) {
         return switch (normalizeUpper(state)) {
             case "EEOL" -> -40;
             case "EOL" -> -25;
@@ -117,7 +113,7 @@ class EvaluationSupport {
         };
     }
 
-    String defaultDecisionForScore(short score) {
+    public String defaultDecisionForScore(short score) {
         if (score < 40) {
             return "BLOCK";
         }
@@ -130,7 +126,7 @@ class EvaluationSupport {
         return "ALLOW";
     }
 
-    String normalizeDecision(String value) {
+    public String normalizeDecision(String value) {
         String normalized = normalizeUpper(value);
         if (normalized == null || !DECISION_ACTIONS.contains(normalized)) {
             return null;
@@ -138,7 +134,7 @@ class EvaluationSupport {
         return normalized;
     }
 
-    int scopePriority(String policyTenantId, String tenantId) {
+    public int scopePriority(String policyTenantId, String tenantId) {
         String recordTenant = normalizeOptionalTenantId(policyTenantId);
         String normalizedTenant = normalizeOptionalTenantId(tenantId);
         if (normalizedTenant != null && Objects.equals(recordTenant, normalizedTenant)) {
@@ -150,7 +146,7 @@ class EvaluationSupport {
         return 2;
     }
 
-    String normalizeOptionalTenantId(String tenantId) {
+    public String normalizeOptionalTenantId(String tenantId) {
         if (tenantId == null) {
             return null;
         }
@@ -158,7 +154,7 @@ class EvaluationSupport {
         return normalized.isBlank() ? null : normalized;
     }
 
-    short clampScore(int value) {
+    public short clampScore(int value) {
         if (value < 0) {
             return 0;
         }
@@ -168,7 +164,7 @@ class EvaluationSupport {
         return (short) value;
     }
 
-    int compareVersion(String left, String right) {
+    public int compareVersion(String left, String right) {
         String[] a = left.split("[._-]");
         String[] b = right.split("[._-]");
         int len = Math.max(a.length, b.length);
@@ -185,26 +181,26 @@ class EvaluationSupport {
         return 0;
     }
 
-    Integer parseIntOrNull(String value) {
+    public Integer parseIntOrNull(String value) {
         try {
             return Integer.parseInt(value);
-        } catch (Exception ex) {
+        } catch (Exception _) {
             return null;
         }
     }
 
-    java.util.Optional<OffsetDateTime> parseOffsetDateTime(String value) {
+    public Optional<OffsetDateTime> parseOffsetDateTime(String value) {
         if (value == null || value.isBlank()) {
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
         try {
-            return java.util.Optional.of(OffsetDateTime.parse(value.trim()));
-        } catch (Exception ex) {
-            return java.util.Optional.empty();
+            return Optional.of(OffsetDateTime.parse(value.trim()));
+        } catch (Exception _) {
+            return Optional.empty();
         }
     }
 
-    String toJson(Object value) {
+    public String toJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (Exception ex) {
@@ -212,7 +208,7 @@ class EvaluationSupport {
         }
     }
 
-    ObjectMapper objectMapper() {
+    public ObjectMapper objectMapper() {
         return objectMapper;
     }
 }

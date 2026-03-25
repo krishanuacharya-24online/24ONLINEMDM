@@ -1,4 +1,4 @@
-package com.e24online.mdm.service;
+package com.e24online.mdm.service.enrollment;
 
 import com.e24online.mdm.constants.DeviceEnrollmentServiceConstants;
 import com.e24online.mdm.domain.AuthUser;
@@ -13,23 +13,23 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
 @Service
-class DeviceSetupKeyService {
+public class DeviceSetupKeyService {
 
     private final DeviceSetupKeyRepository setupKeyRepository;
     private final DeviceEnrollmentSupport support;
 
-    DeviceSetupKeyService(DeviceSetupKeyRepository setupKeyRepository,
+    public DeviceSetupKeyService(DeviceSetupKeyRepository setupKeyRepository,
                           DeviceEnrollmentSupport support) {
         this.setupKeyRepository = setupKeyRepository;
         this.support = support;
     }
 
-    SetupKeyIssue createSetupKey(String tenantId,
-                                 Long issuedByUserId,
-                                 Long targetUserId,
-                                 String actor,
-                                 Integer maxUses,
-                                 Integer ttlMinutes) {
+    public SetupKeyIssue createSetupKey(String tenantId,
+                                        Long issuedByUserId,
+                                        Long targetUserId,
+                                        String actor,
+                                        Integer maxUses,
+                                        Integer ttlMinutes) {
         Tenant activeTenant = support.requireActiveTenant(support.normalizeTenantId(tenantId), HttpStatus.FORBIDDEN);
         String normalizedTenant = activeTenant.getTenantId();
         AuthUser issuer = support.requireActiveTenantUser(activeTenant.getId(), issuedByUserId, HttpStatus.FORBIDDEN, "issuer_user_id");

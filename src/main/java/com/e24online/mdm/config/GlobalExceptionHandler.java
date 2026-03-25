@@ -126,8 +126,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex,
                                                                       ServerWebExchange exchange) {
-        log.error("Unexpected error: {} - Type: {}",
-                ex.getMessage(), ex.getClass().getSimpleName());
+        log.error("Unexpected error: ", ex);
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, GENERIC_INTERNAL_MESSAGE, exchange);
     }
 

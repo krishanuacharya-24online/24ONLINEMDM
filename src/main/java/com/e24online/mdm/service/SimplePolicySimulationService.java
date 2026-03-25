@@ -7,6 +7,7 @@ import com.e24online.mdm.records.posture.evaluation.LifecycleResolution;
 import com.e24online.mdm.records.posture.evaluation.MatchDraft;
 import com.e24online.mdm.records.posture.evaluation.ParsedPosture;
 import com.e24online.mdm.records.posture.evaluation.ScoreSignal;
+import com.e24online.mdm.service.evaluation.EvaluationEngineService;
 import com.e24online.mdm.web.dto.SimplePolicySimulationAppInput;
 import com.e24online.mdm.web.dto.SimplePolicySimulationFinding;
 import com.e24online.mdm.web.dto.SimplePolicySimulationRequest;

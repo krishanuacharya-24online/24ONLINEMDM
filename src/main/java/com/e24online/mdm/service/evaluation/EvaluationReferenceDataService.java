@@ -1,4 +1,4 @@
-package com.e24online.mdm.service;
+package com.e24online.mdm.service.evaluation;
 
 import com.e24online.mdm.domain.RejectApplication;
 import com.e24online.mdm.domain.SystemInformationRule;
@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
 
 @Service
-class EvaluationReferenceDataService {
+public class EvaluationReferenceDataService {
 
     private static final long DEFAULT_REFERENCE_CACHE_SECONDS = 30L;
 
@@ -42,7 +42,7 @@ class EvaluationReferenceDataService {
     @Value("${mdm.evaluation.reference-cache-seconds:30}")
     private long referenceCacheSeconds = DEFAULT_REFERENCE_CACHE_SECONDS;
 
-    EvaluationReferenceDataService(SystemInformationRuleRepository systemRuleRepository,
+    public EvaluationReferenceDataService(SystemInformationRuleRepository systemRuleRepository,
                                    SystemInformationRuleConditionRepository conditionRepository,
                                    RejectApplicationRepository rejectApplicationRepository,
                                    TrustScorePolicyRepository trustScorePolicyRepository,
@@ -54,7 +54,7 @@ class EvaluationReferenceDataService {
         this.support = support;
     }
 
-    List<SystemInformationRule> activeSystemRules(ParsedPosture parsed, OffsetDateTime now) {
+    public List<SystemInformationRule> activeSystemRules(ParsedPosture parsed, OffsetDateTime now) {
         String cacheKey = String.valueOf(parsed.tenantId());
         List<SystemInformationRule> rules = getCached(
                 systemRuleCache,
@@ -69,7 +69,7 @@ class EvaluationReferenceDataService {
                 .toList();
     }
 
-    Map<Long, List<SystemInformationRuleCondition>> activeRuleConditions(List<SystemInformationRule> activeRules) {
+    public Map<Long, List<SystemInformationRuleCondition>> activeRuleConditions(List<SystemInformationRule> activeRules) {
         if (activeRules.isEmpty()) {
             return Map.of();
         }
@@ -89,15 +89,15 @@ class EvaluationReferenceDataService {
         });
     }
 
-    List<RejectApplication> activeRejectApps(String tenantId, OffsetDateTime now) {
+    public List<RejectApplication> activeRejectApps(String tenantId, OffsetDateTime now) {
         return getCached(rejectApplicationCache, String.valueOf(tenantId), () -> List.copyOf(rejectApplicationRepository.findActiveForEvaluation(tenantId, now)));
     }
 
-    List<TrustScorePolicy> activeTrustPolicies(String tenantId, OffsetDateTime now) {
+    public List<TrustScorePolicy> activeTrustPolicies(String tenantId, OffsetDateTime now) {
         return getCached(trustPolicyCache, String.valueOf(tenantId), () -> List.copyOf(trustScorePolicyRepository.findActiveForEvaluation(tenantId, now)));
     }
 
-    private <T> T getCached(ConcurrentMap<String, CacheEntry<T>> cache, String key, Supplier<T> loader) {
+    public <T> T getCached(ConcurrentMap<String, CacheEntry<T>> cache, String key, Supplier<T> loader) {
         long nowMs = System.currentTimeMillis();
         CacheEntry<T> cached = cache.get(key);
         if (cached != null && cached.expiresAtEpochMillis() > nowMs) {

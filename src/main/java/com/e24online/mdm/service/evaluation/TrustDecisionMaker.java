@@ -1,4 +1,4 @@
-package com.e24online.mdm.service;
+package com.e24online.mdm.service.evaluation;
 
 import com.e24online.mdm.domain.TrustScoreDecisionPolicy;
 import com.e24online.mdm.repository.TrustScoreDecisionPolicyRepository;
@@ -9,18 +9,18 @@ import java.util.Locale;
 import java.util.Optional;
 
 @Service
-class TrustDecisionMaker {
+public class TrustDecisionMaker {
 
     private final TrustScoreDecisionPolicyRepository trustScoreDecisionPolicyRepository;
     private final EvaluationSupport support;
 
-    TrustDecisionMaker(TrustScoreDecisionPolicyRepository trustScoreDecisionPolicyRepository,
+    public TrustDecisionMaker(TrustScoreDecisionPolicyRepository trustScoreDecisionPolicyRepository,
                        EvaluationSupport support) {
         this.trustScoreDecisionPolicyRepository = trustScoreDecisionPolicyRepository;
         this.support = support;
     }
 
-    DecisionResult decide(String tenantId, short after, OffsetDateTime now) {
+    public DecisionResult decide(String tenantId, short after, OffsetDateTime now) {
         Optional<TrustScoreDecisionPolicy> decisionPolicy = trustScoreDecisionPolicyRepository.findActivePolicyForScore(tenantId, after, now);
         String decisionAction = decisionPolicy
                 .map(TrustScoreDecisionPolicy::getDecisionAction)
@@ -41,6 +41,6 @@ class TrustDecisionMaker {
         );
     }
 
-    record DecisionResult(String decisionAction, String decisionReason, boolean remediationRequired, Long decisionPolicyId) {
+    public record DecisionResult(String decisionAction, String decisionReason, boolean remediationRequired, Long decisionPolicyId) {
     }
 }

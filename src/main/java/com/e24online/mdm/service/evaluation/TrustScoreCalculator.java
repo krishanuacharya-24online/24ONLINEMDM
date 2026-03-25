@@ -1,4 +1,4 @@
-package com.e24online.mdm.service;
+package com.e24online.mdm.service.evaluation;
 
 import com.e24online.mdm.records.posture.evaluation.LifecycleResolution;
 import com.e24online.mdm.records.posture.evaluation.MatchDraft;
@@ -10,18 +10,18 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-class TrustScoreCalculator {
+public class TrustScoreCalculator {
 
     private final EvaluationSupport support;
     private final TrustPolicyResolver trustPolicyResolver;
 
-    TrustScoreCalculator(EvaluationSupport support,
+    public TrustScoreCalculator(EvaluationSupport support,
                          TrustPolicyResolver trustPolicyResolver) {
         this.support = support;
         this.trustPolicyResolver = trustPolicyResolver;
     }
 
-    LifecycleScoreEvaluation evaluateLifecycleSignal(List<com.e24online.mdm.domain.TrustScorePolicy> activePolicies,
+    public LifecycleScoreEvaluation evaluateLifecycleSignal(List<com.e24online.mdm.domain.TrustScorePolicy> activePolicies,
                                                      String tenantId,
                                                      LifecycleResolution lifecycle) {
         List<MatchDraft> matches = new ArrayList<>();
@@ -66,7 +66,7 @@ class TrustScoreCalculator {
         return new LifecycleScoreEvaluation(matches, signals);
     }
 
-    ScoreSummary compute(short before, List<ScoreSignal> signals) {
+    public ScoreSummary compute(short before, List<ScoreSignal> signals) {
         short running = before;
         for (ScoreSignal signal : signals) {
             running = support.clampScore(running + signal.scoreDelta());
@@ -76,9 +76,9 @@ class TrustScoreCalculator {
         return new ScoreSummary(before, after, deltaTotal);
     }
 
-    record LifecycleScoreEvaluation(List<MatchDraft> matches, List<ScoreSignal> signals) {
+    public record LifecycleScoreEvaluation(List<MatchDraft> matches, List<ScoreSignal> signals) {
     }
 
-    record ScoreSummary(short before, short after, short deltaTotal) {
+    public record ScoreSummary(short before, short after, short deltaTotal) {
     }
 }

@@ -32,10 +32,7 @@ public class BreachedPasswordService {
     
     // HIBP API endpoint
     private static final String HIBP_API_URL = "https://api.haveibeenpwned.com/range/";
-    
-    // Minimum breach count to consider a password as compromised
-    private static final int MIN_BREACH_COUNT = 1;
-    
+
     // Timeout for HIBP API calls
     private static final Duration API_TIMEOUT = Duration.ofSeconds(10);
 
@@ -46,10 +43,7 @@ public class BreachedPasswordService {
     // Whether to enable breached password checking
     @Getter
     private final boolean enabled;
-    
-    // Optional API key for higher rate limits (not required for basic usage)
-    private final String apiKey;
-    
+
     private final WebClient webClient;
 
     public BreachedPasswordService(
@@ -57,8 +51,8 @@ public class BreachedPasswordService {
             @Value("${security.password.hibp.api-key:}") String apiKey
     ) {
         this.enabled = enabled;
-        this.apiKey = apiKey;
-        
+        // Optional API key for higher rate limits (not required for basic usage)
+
         WebClient.Builder builder = WebClient.builder()
                 .baseUrl(HIBP_API_URL)
                 .defaultHeader(HttpHeaders.USER_AGENT, "24Online-MDM-Password-Checker/1.0")

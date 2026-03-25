@@ -28,7 +28,6 @@ import reactor.core.publisher.Mono;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @Component
 public class JwtAuthenticationFilter implements WebFilter {
@@ -90,7 +89,14 @@ public class JwtAuthenticationFilter implements WebFilter {
 
             // Run blocking JDBC lookup on dedicated scheduler so Netty event-loop threads never block.
             return blockingDb.mono(() -> userRepository.findActiveById(tokenClaims.userId()))
-                    .flatMap(userOpt -> authenticateIfValid(exchange, chain, tokenClaims, userOpt))
+                    .flatMap(userOpt -> {
+                        if (userOpt.isEmpty()) {
+                            log.warn("Invalid token: user {} (id={}) not found or not active", tokenClaims.username(), tokenClaims.userId());
+                            return auditTokenFailure(exchange.getRequest().getPath().value(), tokenClaims, null, "USER_NOT_FOUND_OR_INACTIVE")
+                                    .then(chain.filter(exchange));
+                        }
+                        return authenticateIfValid(exchange, chain, tokenClaims, userOpt.get());
+                    })
                     .onErrorResume(e -> {
                         log.error("Unexpected error processing JWT for path: {}", path, e);
                         return auditTokenFailure(path, tokenClaims, null, "UNEXPECTED_ERROR")
@@ -110,15 +116,7 @@ public class JwtAuthenticationFilter implements WebFilter {
     private Mono<Void> authenticateIfValid(ServerWebExchange exchange,
                                            WebFilterChain chain,
                                            TokenClaims tokenClaims,
-                                           Optional<AuthUser> userOpt) {
-        if (userOpt.isEmpty()) {
-            log.warn("Invalid token: user {} (id={}) not found or not active", tokenClaims.username(), tokenClaims.userId());
-            return auditTokenFailure(exchange.getRequest().getPath().value(), tokenClaims, null, "USER_NOT_FOUND_OR_INACTIVE")
-                    .then(chain.filter(exchange));
-        }
-
-        AuthUser user = userOpt.get();
-
+                                           AuthUser user) {
         // Validate token version matches (detects revoked/invalidated tokens)
         Long currentUserVersion = user.getTokenVersion() != null ? user.getTokenVersion() : 0L;
         if (!currentUserVersion.equals(tokenClaims.tokenVersion())) {

@@ -1,4 +1,4 @@
-package com.e24online.mdm.service;
+package com.e24online.mdm.service.enrollment;
 
 import com.e24online.mdm.constants.DeviceEnrollmentServiceConstants;
 import com.e24online.mdm.domain.DeviceAgentCredential;
@@ -19,7 +19,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 @Service
-class DeviceCredentialService {
+public class DeviceCredentialService {
 
     private final DeviceAgentCredentialRepository credentialRepository;
     private final DeviceEnrollmentRepository enrollmentRepository;
@@ -27,7 +27,7 @@ class DeviceCredentialService {
     private final TransactionTemplate transactionTemplate;
     private final long deviceTokenTtlMinutes;
 
-    DeviceCredentialService(DeviceAgentCredentialRepository credentialRepository,
+    public DeviceCredentialService(DeviceAgentCredentialRepository credentialRepository,
                             DeviceEnrollmentRepository enrollmentRepository,
                             DeviceEnrollmentSupport support,
                             TransactionTemplate transactionTemplate,
@@ -39,7 +39,7 @@ class DeviceCredentialService {
         this.deviceTokenTtlMinutes = Math.max(1L, deviceTokenTtlMinutes);
     }
 
-    DeviceTokenPrincipal authenticateDeviceToken(String rawToken) {
+    public DeviceTokenPrincipal authenticateDeviceToken(String rawToken) {
         String normalizedToken = support.normalizeRequired(rawToken, "X-Device-Token", 1024);
         String tokenHash = support.sha256Hex(normalizedToken);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -68,10 +68,10 @@ class DeviceCredentialService {
         return new DeviceTokenPrincipal(enrollmentTenant, enrollment.getEnrollmentNo(), enrollment.getId());
     }
 
-    DeviceTokenRotation rotateDeviceToken(String tenantId,
-                                          String actor,
-                                          Long ownerUserId,
-                                          Long enrollmentId) {
+    public DeviceTokenRotation rotateDeviceToken(String tenantId,
+                                                 String actor,
+                                                 Long ownerUserId,
+                                                 Long enrollmentId) {
         String normalizedTenant = support.normalizeTenantId(tenantId);
         Long normalizedOwnerUserId = support.normalizeOptionalPositive(ownerUserId, DeviceEnrollmentServiceConstants.OWNER_USER_ID);
         String effectiveActor = support.normalizeActor(actor);
@@ -114,7 +114,7 @@ class DeviceCredentialService {
         });
     }
 
-    AgentCredentialIssue createCredential(String tenantId, Long enrollmentId, String createdBy) {
+    public AgentCredentialIssue createCredential(String tenantId, Long enrollmentId, String createdBy) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         String rawToken = support.generateSecret("dvt");
         DeviceAgentCredential credential = new DeviceAgentCredential();
@@ -130,11 +130,11 @@ class DeviceCredentialService {
         return new AgentCredentialIssue(rawToken, saved);
     }
 
-    private <T> T requiredTransaction(Supplier<T> action) {
+    public <T> T requiredTransaction(Supplier<T> action) {
         T value = transactionTemplate.execute(_ -> action.get());
         return Objects.requireNonNull(value, "transaction returned null");
     }
 
-    record AgentCredentialIssue(String rawToken, DeviceAgentCredential savedCredential) {
+    public record AgentCredentialIssue(String rawToken, DeviceAgentCredential savedCredential) {
     }
 }

@@ -1,4 +1,4 @@
-package com.e24online.mdm.service;
+package com.e24online.mdm.service.evaluation;
 
 import com.e24online.mdm.domain.SystemInformationRule;
 import com.e24online.mdm.domain.SystemInformationRuleCondition;
@@ -17,20 +17,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
-class SystemRuleEvaluator {
+public class SystemRuleEvaluator {
 
     private final EvaluationSupport support;
     private final TrustPolicyResolver trustPolicyResolver;
 
-    SystemRuleEvaluator(EvaluationSupport support,
+    public SystemRuleEvaluator(EvaluationSupport support,
                         TrustPolicyResolver trustPolicyResolver) {
         this.support = support;
         this.trustPolicyResolver = trustPolicyResolver;
     }
 
-    SystemRuleEvaluation evaluate(List<SystemInformationRule> activeRules,
+    public SystemRuleEvaluation evaluate(List<SystemInformationRule> activeRules,
                                   Map<Long, List<SystemInformationRuleCondition>> conditionsByRule,
                                   List<TrustScorePolicy> activePolicies,
                                   ParsedPosture parsed,
@@ -81,7 +82,7 @@ class SystemRuleEvaluator {
         return new SystemRuleEvaluation(matches, signals, matchedRuleCount);
     }
 
-    private boolean matchesSystemRule(SystemInformationRule rule,
+    public boolean matchesSystemRule(SystemInformationRule rule,
                                       List<SystemInformationRuleCondition> conditions,
                                       ParsedPosture parsed) {
         if (conditions.isEmpty()) {
@@ -109,7 +110,7 @@ class SystemRuleEvaluator {
                 : groupResults.stream().allMatch(Boolean::booleanValue);
     }
 
-    private boolean evaluateCondition(SystemInformationRuleCondition condition, ParsedPosture parsed) {
+    public boolean evaluateCondition(SystemInformationRuleCondition condition, ParsedPosture parsed) {
         String field = support.trimToNull(condition.getFieldName());
         String operator = support.normalizeUpper(condition.getOperator());
         if (field == null || operator == null) {
@@ -133,7 +134,7 @@ class SystemRuleEvaluator {
         };
     }
 
-    private Object expectedValue(SystemInformationRuleCondition c) {
+    public Object expectedValue(SystemInformationRuleCondition c) {
         if (c.getValueNumeric() != null) {
             return c.getValueNumeric();
         }
@@ -149,14 +150,14 @@ class SystemRuleEvaluator {
                     return values;
                 }
                 return support.stringifyNode(json);
-            } catch (Exception ex) {
+            } catch (Exception _) {
                 return c.getValueText();
             }
         }
         return c.getValueText();
     }
 
-    private Object extractFieldValue(String field, ParsedPosture parsed) {
+    public Object extractFieldValue(String field, ParsedPosture parsed) {
         String key = field.toLowerCase(Locale.ROOT);
         Map<String, Object> fixed = new HashMap<>();
         fixed.put("tenant_id", parsed.tenantId());
@@ -206,7 +207,7 @@ class SystemRuleEvaluator {
         };
     }
 
-    private boolean inOperator(Object actual, Object expected, boolean positive) {
+    public boolean inOperator(Object actual, Object expected, boolean positive) {
         if (actual == null) {
             return !positive;
         }
@@ -215,18 +216,18 @@ class SystemRuleEvaluator {
         return positive == contains;
     }
 
-    private boolean regexMatch(Object actual, Object expected) {
+    public boolean regexMatch(Object actual, Object expected) {
         if (actual == null || expected == null) {
             return false;
         }
         try {
-            return java.util.regex.Pattern.compile(String.valueOf(expected)).matcher(String.valueOf(actual)).find();
-        } catch (Exception ex) {
+            return Pattern.compile(String.valueOf(expected)).matcher(String.valueOf(actual)).find();
+        } catch (Exception _) {
             return false;
         }
     }
 
-    private int compareValues(Object actual, Object expected) {
+    public int compareValues(Object actual, Object expected) {
         if (actual == null && expected == null) {
             return 0;
         }
@@ -247,6 +248,6 @@ class SystemRuleEvaluator {
         return String.valueOf(actual).compareToIgnoreCase(String.valueOf(expected));
     }
 
-    record SystemRuleEvaluation(List<MatchDraft> matches, List<ScoreSignal> signals, int matchedRuleCount) {
+    public record SystemRuleEvaluation(List<MatchDraft> matches, List<ScoreSignal> signals, int matchedRuleCount) {
     }
 }

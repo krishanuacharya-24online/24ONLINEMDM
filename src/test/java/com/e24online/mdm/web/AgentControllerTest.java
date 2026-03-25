@@ -10,7 +10,7 @@ import com.e24online.mdm.repository.DevicePosturePayloadRepository;
 import com.e24online.mdm.repository.TenantApiKeyRepository;
 import com.e24online.mdm.repository.TenantRepository;
 import com.e24online.mdm.service.BlockingDb;
-import com.e24online.mdm.service.DeviceEnrollmentService;
+import com.e24online.mdm.service.enrollment.DeviceEnrollmentService;
 import com.e24online.mdm.service.RemediationService;
 import com.e24online.mdm.service.WorkflowOrchestrationService;
 import com.e24online.mdm.web.dto.DecisionAckRequest;

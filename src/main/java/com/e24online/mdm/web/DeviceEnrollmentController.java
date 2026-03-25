@@ -5,7 +5,7 @@ import com.e24online.mdm.records.CreateSetupKeyRequest;
 import com.e24online.mdm.records.DeEnrollRequest;
 import com.e24online.mdm.records.devices.DeviceTokenRotation;
 import com.e24online.mdm.records.SetupKeyIssue;
-import com.e24online.mdm.service.DeviceEnrollmentService;
+import com.e24online.mdm.service.enrollment.DeviceEnrollmentService;
 import com.e24online.mdm.web.security.AuthenticatedRequestContext;
 import com.e24online.mdm.records.user.UserPrincipal;
 import jakarta.validation.Valid;

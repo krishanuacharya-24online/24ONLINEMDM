@@ -3,7 +3,7 @@ package com.e24online.mdm.web;
 import com.e24online.mdm.records.AgentEnrollmentClaim;
 import com.e24online.mdm.records.QrClaimRequest;
 import com.e24online.mdm.records.SetupKeyClaimRequest;
-import com.e24online.mdm.service.DeviceEnrollmentService;
+import com.e24online.mdm.service.enrollment.DeviceEnrollmentService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

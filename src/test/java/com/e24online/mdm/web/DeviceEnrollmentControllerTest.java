@@ -6,7 +6,7 @@ import com.e24online.mdm.records.DeEnrollRequest;
 import com.e24online.mdm.records.devices.DeviceTokenRotation;
 import com.e24online.mdm.records.SetupKeyIssue;
 import com.e24online.mdm.records.user.UserPrincipal;
-import com.e24online.mdm.service.DeviceEnrollmentService;
+import com.e24online.mdm.service.enrollment.DeviceEnrollmentService;
 import com.e24online.mdm.web.security.AuthenticatedRequestContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

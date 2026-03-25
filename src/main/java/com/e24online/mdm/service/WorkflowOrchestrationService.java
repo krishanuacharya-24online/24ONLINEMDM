@@ -2,6 +2,7 @@ package com.e24online.mdm.service;
 
 import com.e24online.mdm.domain.*;
 import com.e24online.mdm.records.IngestionResult;
+import com.e24online.mdm.service.evaluation.EvaluationEngineService;
 import com.e24online.mdm.web.dto.PostureEvaluationMessage;
 import com.e24online.mdm.service.messaging.PostureEvaluationPublisher;
 import com.e24online.mdm.records.posture.evaluation.*;
