@@ -9,7 +9,6 @@ import com.e24online.mdm.records.user.UserResponse;
 import com.e24online.mdm.repository.AuthRefreshTokenRepository;
 import com.e24online.mdm.repository.AuthUserRepository;
 import com.e24online.mdm.repository.TenantRepository;
-import com.e24online.mdm.service.LocalBreachedPasswordService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

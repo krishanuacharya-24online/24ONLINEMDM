@@ -89,12 +89,10 @@ class TenantAdminServiceTest {
             return key;
         });
         lenient().doAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
             TransactionCallback<Object> callback = invocation.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));
         }).when(transactionTemplate).execute(any(TransactionCallback.class));
         lenient().doAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
             java.util.function.Consumer<TransactionStatus> consumer = invocation.getArgument(0);
             consumer.accept(mock(TransactionStatus.class));
             return null;
