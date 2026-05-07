@@ -1,7 +1,7 @@
 # 24Online Device Posture Platform
 
 [![Java](https://img.shields.io/badge/Java-25-orange.svg)](https://openjdk.java.net/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.3-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-blue.svg)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
 
@@ -200,10 +200,10 @@ flowchart LR
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | Java | 25 | Runtime with virtual threads |
-| Spring Boot | 4.0.3 | Application Framework |
-| Spring WebFlux | 4.0.3 | Reactive Web |
-| Spring Data JDBC | 4.0.3 | Database Access |
-| Spring Security | 4.0.3 | Authentication & Authorization |
+| Spring Boot | 4.0.6 | Application Framework |
+| Spring WebFlux | 4.0.6 | Reactive Web |
+| Spring Data JDBC | 4.0.6 | Database Access |
+| Spring Security | 4.0.6 | Authentication & Authorization |
 | Flyway | 12.0.3 | Database Migrations |
 | Log4j2 | 2.x | Logging |
 | Resilience4j | 2.3.0 | Rate limiting & retries |
@@ -692,7 +692,7 @@ Native reports accessible at `/reports` include:
 - Fleet visibility
 - Remediation progress
 - Score trends
-- Agent-version and capability coverage
+- Agent version and capability coverage
 
 ---
 
@@ -825,7 +825,7 @@ Error: Connection refused to localhost:5433
 ```
 Error: Validate failed - Detected applied migration not resolved
 ```
-**Solution**: Check `schema_version` table and ensure migrations are in order.
+**Solution**: Check the `schema_version` table and ensure migrations are in order.
 
 #### JWT Token Expired
 ```
@@ -931,4 +931,4 @@ This software is confidential and proprietary. Unauthorized copying, distributio
 
 ---
 
-*Last updated: March 2026*
+*Last updated: May 2026*
