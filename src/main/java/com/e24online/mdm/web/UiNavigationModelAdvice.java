@@ -2,6 +2,7 @@ package com.e24online.mdm.web;
 
 import com.e24online.mdm.records.ui.NavVisibility;
 import com.e24online.mdm.records.ui.PolicyNavVisibility;
+import org.springframework.core.env.Environment;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -13,6 +14,27 @@ import java.util.Set;
 
 @ControllerAdvice(annotations = Controller.class)
 public class UiNavigationModelAdvice {
+
+    private final Environment environment;
+
+    public UiNavigationModelAdvice(Environment environment) {
+        this.environment = environment;
+    }
+
+    @ModelAttribute("apiVersionPrefix")
+    public String apiVersionPrefix() {
+        return environment.getProperty("api.version.prefix", "v1");
+    }
+
+    @ModelAttribute("zipkinUiUrl")
+    public String zipkinUiUrl() {
+        return normalizeOptional(environment.getProperty("management.zipkin.ui-url"));
+    }
+
+    @ModelAttribute("rabbitMqUiUrl")
+    public String rabbitMqUiUrl() {
+        return normalizeOptional(environment.getProperty("management.rabbitmq.ui-url"));
+    }
 
     @ModelAttribute("nav")
     public NavVisibility navVisibility(Authentication authentication) {
@@ -83,6 +105,14 @@ public class UiNavigationModelAdvice {
             return normalized.substring(5);
         }
         return normalized;
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
 }

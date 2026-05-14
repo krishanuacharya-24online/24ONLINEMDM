@@ -4,7 +4,7 @@
     <meta charset="UTF-8"/>
     <title th:text="${title} ?: 'MDM Console'">MDM Console</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <meta name="api-version" th:content="${@environment.getProperty('api.version.prefix', 'v1')}"/>
+    <meta name="api-version" th:content="${apiVersionPrefix}"/>
     <link rel="stylesheet" th:href="@{/assets/css/app.css(v=202603176)}"/>
     <link rel="stylesheet" th:href="@{/assets/css/device-timeline.css(v=202603171)}"/>
     <link rel="icon" th:href="@{/assets/favicon.svg}" type="image/x-icon"/>
@@ -76,13 +76,13 @@
                             <span class="sync-last-label muted" data-sync-last="true" aria-live="polite">Last sync: Never</span>
                         </div>
                         <a th:href="@{/swagger-ui.html}" target="_blank" rel="noopener noreferrer" data-drawer-close="true">Swagger</a>
-                        <a th:if="${!#strings.isEmpty(@environment.getProperty('management.zipkin.ui-url'))}"
-                           th:href="${@environment.getProperty('management.zipkin.ui-url')}"
+                        <a th:if="${zipkinUiUrl != null}"
+                           th:href="${zipkinUiUrl}"
                            target="_blank"
                            rel="noopener noreferrer"
                            data-drawer-close="true">Zipkin</a>
-                        <a th:if="${!#strings.isEmpty(@environment.getProperty('management.rabbitmq.ui-url'))}"
-                           th:href="${@environment.getProperty('management.rabbitmq.ui-url')}"
+                        <a th:if="${rabbitMqUiUrl != null}"
+                           th:href="${rabbitMqUiUrl}"
                            target="_blank"
                            rel="noopener noreferrer"
                            data-drawer-close="true">RabbitMQ</a>

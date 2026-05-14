@@ -3,6 +3,7 @@ package com.e24online.mdm.web;
 import com.e24online.mdm.records.ui.NavVisibility;
 import com.e24online.mdm.records.ui.PolicyNavVisibility;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -15,7 +16,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiNavigationModelAdviceTest {
 
-    private final UiNavigationModelAdvice advice = new UiNavigationModelAdvice();
+    private final MockEnvironment environment = new MockEnvironment()
+            .withProperty("api.version.prefix", "v2")
+            .withProperty("management.zipkin.ui-url", " http://localhost:9411 ")
+            .withProperty("management.rabbitmq.ui-url", " http://localhost:15672 ");
+    private final UiNavigationModelAdvice advice = new UiNavigationModelAdvice(environment);
 
     @Test
     void productAdminGetsFullPolicyNavigation() {
@@ -57,6 +62,13 @@ class UiNavigationModelAdviceTest {
         assertFalse(policyNav.simpleCenter());
         assertFalse(policyNav.advancedPages());
         assertTrue(policyNav.auditTrail());
+    }
+
+    @Test
+    void exposesLayoutPropertiesWithoutTemplateBeanAccess() {
+        assertEquals("v2", advice.apiVersionPrefix());
+        assertEquals("http://localhost:9411", advice.zipkinUiUrl());
+        assertEquals("http://localhost:15672", advice.rabbitMqUiUrl());
     }
 
     private Authentication authentication(String... roles) {
