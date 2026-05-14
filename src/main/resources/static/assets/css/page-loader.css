@@ -1,0 +1,67 @@
+/* ==========================================================================
+   Initial Page Loader
+   ========================================================================== */
+
+body.page-loading {
+  overflow: hidden;
+}
+
+.page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background:
+    linear-gradient(180deg, rgba(247, 251, 255, 0.98), rgba(237, 245, 255, 0.98));
+  color: var(--text);
+  transition:
+    opacity 180ms ease,
+    visibility 180ms ease;
+}
+
+.page-loader[hidden] {
+  display: none;
+}
+
+body:not(.page-loading) .page-loader {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.page-loader__content {
+  display: grid;
+  justify-items: center;
+  gap: 0.85rem;
+}
+
+.page-loader__mark {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: page-loader-spin 780ms linear infinite;
+}
+
+.page-loader__label {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+@keyframes page-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-loader,
+  .page-loader__mark {
+    transition: none;
+    animation: none;
+  }
+}

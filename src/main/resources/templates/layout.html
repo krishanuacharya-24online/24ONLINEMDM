@@ -8,11 +8,18 @@
     <link rel="stylesheet" th:href="@{/assets/css/app.css(v=202603176)}"/>
     <link rel="stylesheet" th:href="@{/assets/css/device-timeline.css(v=202603171)}"/>
     <link rel="icon" th:href="@{/assets/favicon.svg}" type="image/x-icon"/>
+    <script th:src="@{/assets/js/page-loader.js(v=202605142)}" defer></script>
     <script th:src="@{/assets/js/dt-helpers.js(v=202603062)}" defer></script>
     <script th:src="@{/assets/js/app.js(v=2026032304)}" defer></script>
     <script type="module" th:src="@{/assets/js/reference-sync.js(v=202603176)}"></script>
 </head>
-<body>
+<body class="page-loading">
+<div id="pageLoader" class="page-loader" role="status" aria-live="polite" aria-label="Loading page">
+    <div class="page-loader__content">
+        <div class="page-loader__mark" aria-hidden="true"></div>
+        <div class="page-loader__label">Loading</div>
+    </div>
+</div>
 <a class="skip-link" href="#mainContent">Skip to main content</a>
 <div class="shell">
     <header>

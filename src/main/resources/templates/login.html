@@ -7,8 +7,15 @@
     <link rel="icon" th:href="@{/assets/favicon.svg}" type="image/x-icon"/>
     <link rel="stylesheet" th:href="@{/assets/css/app.css}"/>
     <link rel="stylesheet" th:href="@{/assets/css/password-strength.css}"/>
+    <script th:src="@{/assets/js/page-loader.js(v=202605142)}" defer></script>
 </head>
-<body class="login-body">
+<body class="login-body page-loading">
+<div id="pageLoader" class="page-loader" role="status" aria-live="polite" aria-label="Loading page">
+    <div class="page-loader__content">
+        <div class="page-loader__mark" aria-hidden="true"></div>
+        <div class="page-loader__label">Loading</div>
+    </div>
+</div>
 <div class="login-shell">
     <section class="login-panel login-panel--brand">
         <div class="login-brand-pill"></div>
